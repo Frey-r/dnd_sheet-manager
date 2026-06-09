@@ -1,0 +1,50 @@
+# Compiled binaries/executables
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Local build / main executables
+main
+server
+import_srd
+
+# Logs
+*.log
+backend.log
+frontend.log
+
+# Node / Frontend dependencies & build output
+node_modules/
+dist/
+dist-ssr/
+*.local
+.npm
+.eslintcache
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+
+# Go files
+# Go workspace file
+go.work
+go.work.sum
+
+# IDEs / Editors / OS files
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Environments / Credentials / Config overrides
+.env
+.env.*
+!.env.example

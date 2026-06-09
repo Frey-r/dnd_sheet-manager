@@ -1,0 +1,33 @@
+server:
+  host: "0.0.0.0"
+  port: 8080
+
+database:
+  dsn: "postgres://dnduser:dndsharp@localhost:5432/dndmanager?sslmode=disable"
+  max_open_conns: 25
+  max_idle_conns: 5
+  conn_max_lifetime: 300
+
+redis:
+  addr: "localhost:6379"
+  db: 0
+
+jwt:
+  secret: "change-this-in-production-use-env-var"
+  ttl: 3600
+  refresh_ttl: 86400
+
+ollama:
+  base_url: "http://localhost:11434"
+  embedding_model: "nomic-embed-text"
+  llm_model: "llama3.2"
+  timeout: 10
+
+worker:
+  pool_size: 4
+  queue_depth: 100
+
+rate_limit:
+  requests_per_minute: 100
+  ws_messages_per_second: 5
+  ws_burst_seconds: 1

@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Buscador de Lore con RAG</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary-container": "#646464",
+                        "error": "#ba1a1a",
+                        "tertiary-fixed": "#ffdbcc",
+                        "inverse-surface": "#2f3131",
+                        "surface-dim": "#dadada",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary-container": "#fffeff",
+                        "surface-container-high": "#e8e8e8",
+                        "on-surface-variant": "#424654",
+                        "tertiary-fixed-dim": "#ffb694",
+                        "on-tertiary-container": "#fffdff",
+                        "on-tertiary-fixed": "#351000",
+                        "on-error-container": "#93000a",
+                        "on-secondary": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "on-error": "#ffffff",
+                        "surface-subtle": "#F6F6F6",
+                        "surface-variant": "#e2e2e2",
+                        "tertiary": "#9e3f00",
+                        "background": "#f9f9f9",
+                        "error-container": "#ffdad6",
+                        "surface-container": "#eeeeee",
+                        "on-tertiary-fixed-variant": "#7b2f00",
+                        "on-tertiary": "#ffffff",
+                        "primary": "#0055cd",
+                        "on-primary-fixed-variant": "#00419f",
+                        "secondary-fixed-dim": "#c6c6c6",
+                        "on-secondary-fixed-variant": "#474747",
+                        "surface-tint": "#0056d0",
+                        "surface": "#f9f9f9",
+                        "on-surface": "#1a1c1c",
+                        "surface-bright": "#f9f9f9",
+                        "gm-amber": "#FFC043",
+                        "inverse-on-surface": "#f0f1f1",
+                        "hp-danger": "#E11900",
+                        "tertiary-container": "#c65100",
+                        "on-primary-fixed": "#001947",
+                        "inverse-primary": "#b1c5ff",
+                        "secondary-container": "#e2e2e2",
+                        "primary-fixed-dim": "#b1c5ff",
+                        "surface-container-highest": "#e2e2e2",
+                        "secondary-fixed": "#e2e2e2",
+                        "secondary": "#5e5e5e",
+                        "primary-fixed": "#dae2ff",
+                        "border-low-contrast": "#E2E2E2",
+                        "on-secondary-fixed": "#1b1b1b",
+                        "primary-container": "#276ef1",
+                        "success-active": "#05A357",
+                        "outline-variant": "#c2c6d7",
+                        "outline": "#737786",
+                        "surface-container-low": "#f3f3f4",
+                        "on-background": "#1a1c1c"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xs": "4px",
+                        "xl": "32px",
+                        "lg": "24px",
+                        "md": "16px",
+                        "margin-mobile": "16px",
+                        "unit": "4px",
+                        "gutter": "16px",
+                        "sm": "8px",
+                        "margin-desktop": "40px"
+                    },
+                    "fontFamily": {
+                        "label-sm": ["Hanken Grotesk"],
+                        "headline-lg": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "display-lg": ["Hanken Grotesk"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "body-md": ["Hanken Grotesk"],
+                        "label-bold": ["Hanken Grotesk"],
+                        "headline-lg-mobile": ["Hanken Grotesk"],
+                        "stat-number": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "fontWeight": "700" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "display-lg": ["44px", { "lineHeight": "52px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "label-bold": ["14px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "700" }],
+                        "stat-number": ["36px", { "lineHeight": "40px", "fontWeight": "800" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .message-enter {
+            animation: slideUp 0.3s ease-out forwards;
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        @keyframes slideUp {
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .typing-dot {
+            animation: typing 1.4s infinite ease-in-out both;
+        }
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface font-body-md h-screen flex flex-col overflow-hidden">
+<!-- TopAppBar -->
+<header class="flex justify-between items-center w-full px-margin-mobile h-16 bg-surface border-b border-border-low-contrast shrink-0">
+<div class="flex items-center gap-sm">
+<button class="text-primary hover:bg-surface-container rounded-full p-2 transition-colors duration-200">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">arrow_back</span>
+</button>
+<div class="flex flex-col">
+<h1 class="font-headline-md text-headline-md font-bold text-primary">Shadow of the Void</h1>
+<div class="flex items-center gap-1">
+<div class="w-2 h-2 rounded-full bg-success-active"></div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Conectado (RAG Activo)</span>
+</div>
+</div>
+</div>
+<div class="w-8 h-8 rounded-full bg-surface-variant flex items-center justify-center overflow-hidden border border-border-low-contrast">
+<span class="material-symbols-outlined text-on-surface-variant" style="font-variation-settings: 'FILL' 1;">person</span>
+</div>
+</header>
+<!-- Scope Selector -->
+<div class="px-margin-mobile py-md bg-surface shrink-0 z-10 border-b border-border-low-contrast shadow-sm">
+<div class="flex gap-sm overflow-x-auto hide-scrollbar pb-1">
+<button class="px-md py-2 rounded-full border border-primary text-primary bg-primary/5 font-label-bold text-label-bold whitespace-nowrap transition-colors">
+                Mi Personaje
+            </button>
+<button class="px-md py-2 rounded-full border border-border-low-contrast text-on-surface-variant bg-surface hover:bg-surface-container font-label-bold text-label-bold whitespace-nowrap transition-colors">
+                Trama de la Partida
+            </button>
+<button class="px-md py-2 rounded-full border border-gm-amber text-gm-amber bg-gm-amber/10 font-label-bold text-label-bold whitespace-nowrap transition-colors flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">visibility_off</span>
+                Lore Oculto (GM)
+            </button>
+</div>
+</div>
+<!-- Chat Area -->
+<main class="flex-1 overflow-y-auto p-margin-mobile flex flex-col gap-lg pb-24 relative" id="chat-container">
+<!-- Welcome / Empty State (simulated past conversation) -->
+<div class="flex flex-col gap-md message-enter">
+<div class="self-end max-w-[85%] bg-primary-container text-on-primary-container p-md rounded-2xl rounded-tr-none shadow-sm">
+<p class="font-body-md text-body-md">¿Qué pasó en el Capítulo 1 con el artefacto robado?</p>
+</div>
+<div class="self-start max-w-[90%] bg-surface-container text-on-surface p-md rounded-2xl rounded-tl-none shadow-sm border border-border-low-contrast">
+<p class="font-body-md text-body-md mb-3">En el Capítulo 1, el artefacto robado (el Cáliz de las Sombras) fue sustraído de la bóveda del templo principal durante la noche del festival. Las pistas sugirieron que el ladrón huyó hacia las catacumbas del este, dejando tras de sí un leve rastro de magia necrótica.</p>
+<details class="group border border-border-low-contrast rounded-lg bg-surface mt-sm overflow-hidden">
+<summary class="font-label-bold text-label-bold text-primary flex justify-between items-center p-3 cursor-pointer select-none bg-surface-container-low hover:bg-surface-container transition-colors">
+<span>Ver Fuentes (2)</span>
+<span class="material-symbols-outlined transition-transform group-open:rotate-180 text-primary">expand_more</span>
+</summary>
+<div class="p-3 bg-surface-container-lowest border-t border-border-low-contrast flex flex-col gap-2">
+<div class="flex items-start gap-2">
+<span class="material-symbols-outlined text-outline text-[16px] mt-1" style="font-variation-settings: 'FILL' 0;">book</span>
+<div>
+<p class="font-label-bold text-label-bold text-on-surface">Capítulo 1: La Noche del Festival</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Notas de sesión - Pág 4</p>
+</div>
+</div>
+<div class="flex items-start gap-2">
+<span class="material-symbols-outlined text-outline text-[16px] mt-1" style="font-variation-settings: 'FILL' 0;">description</span>
+<div>
+<p class="font-label-bold text-label-bold text-on-surface">Inventario del Templo</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Documento de Lore</p>
+</div>
+</div>
+</div>
+</details>
+</div>
+</div>
+<!-- Typing Indicator (Hidden by default, shown for demo) -->
+<div class="self-start max-w-[85%] bg-surface-container text-on-surface-variant p-md rounded-2xl rounded-tl-none shadow-sm border border-border-low-contrast flex items-center gap-3">
+<span class="font-label-sm text-label-sm">Buscando en el lore</span>
+<div class="flex gap-1">
+<div class="w-1.5 h-1.5 bg-outline rounded-full typing-dot"></div>
+<div class="w-1.5 h-1.5 bg-outline rounded-full typing-dot"></div>
+<div class="w-1.5 h-1.5 bg-outline rounded-full typing-dot"></div>
+</div>
+</div>
+<div id="bottom-anchor"></div>
+</main>
+<!-- Suggested Prompts -->
+<div class="px-margin-mobile pb-sm bg-background/90 backdrop-blur-sm absolute bottom-[140px] w-full z-10 flex gap-sm overflow-x-auto hide-scrollbar">
+<button class="px-3 py-2 rounded-lg border border-border-low-contrast bg-surface hover:bg-surface-container shadow-sm font-label-sm text-label-sm text-on-surface whitespace-nowrap transition-colors flex-shrink-0">
+            ¿Qué pasó en mi backstory?
+        </button>
+<button class="px-3 py-2 rounded-lg border border-border-low-contrast bg-surface hover:bg-surface-container shadow-sm font-label-sm text-label-sm text-on-surface whitespace-nowrap transition-colors flex-shrink-0">
+            ¿Quién es Strahd?
+        </button>
+<button class="px-3 py-2 rounded-lg border border-border-low-contrast bg-surface hover:bg-surface-container shadow-sm font-label-sm text-label-sm text-on-surface whitespace-nowrap transition-colors flex-shrink-0">
+            Resumen del Capítulo 1
+        </button>
+</div>
+<!-- Input Area -->
+<div class="p-margin-mobile bg-surface border-t border-border-low-contrast shrink-0 absolute bottom-16 w-full z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+<div class="flex items-center gap-2">
+<div class="flex-1 bg-surface-subtle border border-border-low-contrast rounded-xl px-4 py-3 flex items-center focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
+<input class="bg-transparent border-none outline-none w-full font-body-md text-body-md text-on-surface placeholder-on-surface-variant p-0 focus:ring-0" placeholder="Pregunta al lore..." type="text"/>
+</div>
+<button class="bg-primary hover:bg-primary/90 text-on-primary p-3 rounded-xl shadow-sm transition-transform active:scale-95 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">send</span>
+</button>
+</div>
+</div>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-xs pb-safe bg-surface h-16 border-t border-border-low-contrast shadow-[0_-2px_10px_rgba(0,0,0,0.02)]">
+<div class="flex flex-col items-center justify-center text-on-secondary-container p-2 hover:bg-secondary-container/50 rounded-xl transition-all">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">description</span>
+<span class="font-label-sm text-label-sm mt-1">Hoja</span>
+</div>
+<div class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-xl px-4 py-1 shadow-sm">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">library_books</span>
+<span class="font-label-bold text-label-bold mt-1">Trama</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-secondary-container p-2 hover:bg-secondary-container/50 rounded-xl transition-all">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">forum</span>
+<span class="font-label-sm text-label-sm mt-1">Chat</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-secondary-container p-2 hover:bg-secondary-container/50 rounded-xl transition-all">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">shopping_cart</span>
+<span class="font-label-sm text-label-sm mt-1">Mercado</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-secondary-container p-2 hover:bg-secondary-container/50 rounded-xl transition-all">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">mail</span>
+<span class="font-label-sm text-label-sm mt-1">Inbox</span>
+</div>
+</nav>
+<script>
+        // Simple auto-scroll to bottom
+        const chatContainer = document.getElementById('chat-container');
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    </script>
+</body></html>

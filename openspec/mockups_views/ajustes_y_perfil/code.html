@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Settings &amp; Profile</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary-fixed": "#e2e2e2",
+                        "success-active": "#05A357",
+                        "secondary": "#5e5e5e",
+                        "on-secondary": "#ffffff",
+                        "tertiary-fixed": "#ffdbcc",
+                        "on-tertiary": "#ffffff",
+                        "on-error": "#ffffff",
+                        "background": "#f9f9f9",
+                        "surface-subtle": "#F6F6F6",
+                        "tertiary-fixed-dim": "#ffb694",
+                        "surface-container-high": "#e8e8e8",
+                        "hp-danger": "#E11900",
+                        "on-surface-variant": "#424654",
+                        "inverse-primary": "#b1c5ff",
+                        "border-low-contrast": "#E2E2E2",
+                        "surface-container-highest": "#e2e2e2",
+                        "surface-container": "#eeeeee",
+                        "outline": "#737786",
+                        "gm-amber": "#FFC043",
+                        "surface-container-lowest": "#ffffff",
+                        "on-secondary-fixed-variant": "#474747",
+                        "surface-container-low": "#f3f3f4",
+                        "outline-variant": "#c2c6d7",
+                        "inverse-surface": "#2f3131",
+                        "tertiary-container": "#c65100",
+                        "on-primary": "#ffffff",
+                        "secondary-fixed-dim": "#c6c6c6",
+                        "on-primary-fixed-variant": "#00419f",
+                        "error-container": "#ffdad6",
+                        "on-error-container": "#93000a",
+                        "on-background": "#1a1c1c",
+                        "error": "#ba1a1a",
+                        "on-secondary-container": "#646464",
+                        "on-primary-fixed": "#001947",
+                        "inverse-on-surface": "#f0f1f1",
+                        "tertiary": "#9e3f00",
+                        "secondary-container": "#e2e2e2",
+                        "primary": "#0055cd",
+                        "surface-bright": "#f9f9f9",
+                        "surface": "#f9f9f9",
+                        "on-tertiary-fixed-variant": "#7b2f00",
+                        "surface-dim": "#dadada",
+                        "on-primary-container": "#fffeff",
+                        "primary-container": "#276ef1",
+                        "primary-fixed-dim": "#b1c5ff",
+                        "on-secondary-fixed": "#1b1b1b",
+                        "on-surface": "#1a1c1c",
+                        "surface-tint": "#0056d0",
+                        "on-tertiary-fixed": "#351000",
+                        "surface-variant": "#e2e2e2",
+                        "on-tertiary-container": "#fffdff",
+                        "primary-fixed": "#dae2ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "16px",
+                        "unit": "4px",
+                        "margin-mobile": "16px",
+                        "xs": "4px",
+                        "xl": "32px",
+                        "sm": "8px",
+                        "margin-desktop": "40px",
+                        "md": "16px",
+                        "lg": "24px"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["Hanken Grotesk"],
+                        "display-lg": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "stat-number": ["Hanken Grotesk"],
+                        "label-bold": ["Hanken Grotesk"],
+                        "label-sm": ["Hanken Grotesk"],
+                        "headline-lg-mobile": ["Hanken Grotesk"],
+                        "body-md": ["Hanken Grotesk"],
+                        "body-lg": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["32px", { "lineHeight": "40px", "fontWeight": "700" }],
+                        "display-lg": ["44px", { "lineHeight": "52px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "stat-number": ["36px", { "lineHeight": "40px", "fontWeight": "800" }],
+                        "label-bold": ["14px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Hanken Grotesk', sans-serif; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface antialiased flex flex-col min-h-screen">
+<!-- TopAppBar -->
+<header class="bg-surface-container-lowest border-b border-border-low-contrast fixed top-0 w-full z-50 flex justify-between items-center px-gutter h-16 w-full">
+<div class="flex items-center gap-md">
+<button class="text-on-surface-variant hover:bg-surface-container transition-colors p-sm rounded-full active:opacity-80 transition-all flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+</button>
+<h1 class="font-headline-md text-headline-md font-extrabold text-primary">Settings</h1>
+</div>
+<div class="w-8 h-8 rounded-full overflow-hidden bg-surface-container flex-shrink-0">
+<img alt="User Avatar" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDsq3nu0ARDmVy2DdY6TQTqXTNNQdobaH3L2IUGe3GwbSBHqIdcYx5LP3qq2ibiJb40Ue0yxz-sTP9iTQqHrRywHxVKtCpH5U6ghRcprakcE_KILyg-5RtmvgNdPJBFStgoP2ZSC238nIENpVp1xEfJGMlPR-1h1tRwLea6_Gggs3B3MFoMT0-H8yAdV7J0AnY0n9NS0zQy4hrVzW50GSnLQZvsUnKM4Bs7PlCIIaQzVpsFqjtEoog9eivbE76rH3yLBiruzPSrcg"/>
+</div>
+</header>
+<!-- Main Canvas -->
+<main class="flex-grow pt-[80px] pb-[80px] px-margin-mobile md:px-margin-desktop md:max-w-4xl md:mx-auto w-full flex flex-col gap-xl">
+<!-- Profile Overview Bento -->
+<section class="grid grid-cols-1 md:grid-cols-3 gap-md">
+<!-- Avatar & Identity -->
+<div class="md:col-span-1 bg-surface-container-lowest rounded-xl border border-border-low-contrast p-lg flex flex-col items-center justify-center text-center gap-md">
+<div class="relative group">
+<div class="w-24 h-24 rounded-full overflow-hidden bg-surface-container border-2 border-primary-container">
+<img alt="Profile Picture" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCub1hvJCGXzroD12zR41zRl5I4xvSlS5T8DNlB-o61pe69F6d3ATR3sMe_sblnPksq4UhNVKNG5M-uvzCe19gCZCjmbFlC9hr947suS3X5oLneZtq2HSjPnmF3jrAE2nYNbnNSFeQ2btmSWDOiwC41I78__cqy0cSNHyiNFGAcT9p8aZOqFoO8FHvM6Xq5f9NOVH9C8YZ9uyJVUucPSMTgmRfOWjxRa0OXdMHodBM1PXkoSEbVWoCf9-Kd4fUKua7krGaQE1tZzw"/>
+</div>
+<button class="absolute bottom-0 right-0 bg-primary-container text-on-primary rounded-full w-8 h-8 flex items-center justify-center shadow-md hover:bg-surface-tint transition-colors">
+<span class="material-symbols-outlined text-[16px]" data-icon="edit">edit</span>
+</button>
+</div>
+<div>
+<h2 class="font-headline-md text-headline-md text-on-surface">Alex Mercer</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Level 12 Dungeon Master</p>
+</div>
+</div>
+<!-- Core Details -->
+<div class="md:col-span-2 bg-surface-container-lowest rounded-xl border border-border-low-contrast p-lg flex flex-col gap-lg justify-center">
+<div class="flex flex-col gap-xs">
+<label class="font-label-bold text-label-bold text-on-surface-variant">Display Name</label>
+<input class="w-full bg-surface-subtle border-0 border-b border-border-low-contrast focus:border-primary focus:ring-0 px-md py-sm font-body-md text-body-md text-on-surface rounded-t-DEFAULT transition-colors" type="text" value="Alex Mercer"/>
+</div>
+<div class="flex flex-col gap-xs">
+<label class="font-label-bold text-label-bold text-on-surface-variant">Email Address (Read Only)</label>
+<div class="w-full bg-surface-subtle border-0 border-b border-border-low-contrast px-md py-sm font-body-md text-body-md text-on-surface-variant rounded-t-DEFAULT cursor-not-allowed flex justify-between items-center">
+<span>alex.mercer@campaignmaster.app</span>
+<span class="material-symbols-outlined text-[18px]" data-icon="lock">lock</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Security -->
+<section class="bg-surface-container-lowest rounded-xl border border-border-low-contrast overflow-hidden">
+<div class="p-md border-b border-border-low-contrast bg-surface-subtle">
+<h3 class="font-headline-md text-headline-md text-on-surface flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary" data-icon="shield">shield</span>
+                    Security
+                </h3>
+</div>
+<div class="p-md flex flex-col gap-md">
+<button class="w-full text-left py-sm flex justify-between items-center group">
+<div>
+<div class="font-body-lg text-body-lg text-on-surface">Change Password</div>
+<div class="font-body-md text-body-md text-on-surface-variant">Last changed 3 months ago</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors" data-icon="chevron_right">chevron_right</span>
+</button>
+<hr class="border-border-low-contrast"/>
+<button class="w-full text-left py-sm flex justify-between items-center group">
+<div>
+<div class="font-body-lg text-body-lg text-on-surface">Two-Factor Authentication</div>
+<div class="font-body-md text-body-md text-success-active">Enabled</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors" data-icon="chevron_right">chevron_right</span>
+</button>
+</div>
+</section>
+<!-- Preferences -->
+<section class="bg-surface-container-lowest rounded-xl border border-border-low-contrast overflow-hidden">
+<div class="p-md border-b border-border-low-contrast bg-surface-subtle">
+<h3 class="font-headline-md text-headline-md text-on-surface flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary" data-icon="tune">tune</span>
+                    Preferences
+                </h3>
+</div>
+<div class="flex flex-col">
+<!-- Theme Selector -->
+<div class="p-md flex justify-between items-center border-b border-border-low-contrast">
+<div>
+<div class="font-body-lg text-body-lg text-on-surface">App Theme</div>
+<div class="font-body-md text-body-md text-on-surface-variant">Choose your visual aesthetic</div>
+</div>
+<div class="flex bg-surface-container rounded-lg p-unit">
+<button class="px-md py-sm rounded-md bg-surface-container-lowest shadow-sm font-label-bold text-label-bold text-primary flex items-center gap-xs">
+<span class="material-symbols-outlined text-[18px]" data-icon="light_mode">light_mode</span>
+                            Light
+                        </button>
+<button class="px-md py-sm rounded-md text-on-surface-variant hover:text-on-surface font-label-bold text-label-bold flex items-center gap-xs transition-colors">
+<span class="material-symbols-outlined text-[18px]" data-icon="dark_mode">dark_mode</span>
+                            Dark
+                        </button>
+</div>
+</div>
+<!-- Notifications -->
+<div class="p-md flex justify-between items-center border-b border-border-low-contrast">
+<div>
+<div class="font-body-lg text-body-lg text-on-surface">Push Notifications</div>
+<div class="font-body-md text-body-md text-on-surface-variant">Session reminders and chat alerts</div>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox" value=""/>
+<div class="w-11 h-6 bg-surface-variant rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border-low-contrast after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-success-active"></div>
+</label>
+</div>
+<div class="p-md flex justify-between items-center border-b border-border-low-contrast">
+<div>
+<div class="font-body-lg text-body-lg text-on-surface">Email Newsletter</div>
+<div class="font-body-md text-body-md text-on-surface-variant">Weekly campaign stats and updates</div>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only peer" type="checkbox" value=""/>
+<div class="w-11 h-6 bg-surface-variant rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border-low-contrast after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-success-active"></div>
+</label>
+</div>
+<div class="p-md flex justify-between items-center">
+<div>
+<div class="font-body-lg text-body-lg text-hp-danger">Danger Zone</div>
+<div class="font-body-md text-body-md text-on-surface-variant">Delete account and all campaign data</div>
+</div>
+<button class="px-md py-sm border border-hp-danger text-hp-danger font-label-bold text-label-bold rounded-lg hover:bg-error-container hover:text-on-error-container transition-colors">
+                        Delete Account
+                    </button>
+</div>
+</div>
+</section>
+<!-- Save Action -->
+<div class="flex justify-end pt-md">
+<button class="w-full md:w-auto bg-primary-container text-on-primary font-label-bold text-label-bold px-xl py-md rounded-lg hover:bg-surface-tint transition-colors shadow-sm">
+                Save Changes
+            </button>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="bg-surface-container-lowest border-t border-border-low-contrast fixed bottom-0 w-full z-50 flex justify-around items-center h-16 w-full px-xs md:hidden">
+<button class="flex flex-col items-center justify-center text-secondary font-label-sm text-label-sm hover:text-primary transition-colors w-16">
+<span class="material-symbols-outlined mb-1" data-icon="dashboard">dashboard</span>
+<span>Hub</span>
+</button>
+<button class="flex flex-col items-center justify-center text-secondary font-label-sm text-label-sm hover:text-primary transition-colors w-16">
+<span class="material-symbols-outlined mb-1" data-icon="bar_chart">bar_chart</span>
+<span>Stats</span>
+</button>
+<button class="flex flex-col items-center justify-center text-primary font-bold font-label-sm text-label-sm active:scale-95 transition-transform w-16">
+<span class="material-symbols-outlined mb-1" data-icon="person" data-weight="fill">person</span>
+<span>Profile</span>
+</button>
+<button class="flex flex-col items-center justify-center text-secondary font-label-sm text-label-sm hover:text-primary transition-colors w-16">
+<span class="material-symbols-outlined mb-1" data-icon="library_books">library_books</span>
+<span>Lore</span>
+</button>
+</nav>
+</body></html>

@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+<title>Gestor de NPCs</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary": "#ffffff",
+                        "primary-fixed": "#dae2ff",
+                        "on-error-container": "#93000a",
+                        "primary-fixed-dim": "#b1c5ff",
+                        "primary-container": "#276ef1",
+                        "surface": "#f9f9f9",
+                        "on-tertiary-container": "#fffdff",
+                        "on-primary-container": "#fffeff",
+                        "surface-container-highest": "#e2e2e2",
+                        "on-error": "#ffffff",
+                        "surface-tint": "#0056d0",
+                        "surface-variant": "#e2e2e2",
+                        "secondary-fixed": "#e2e2e2",
+                        "primary": "#0055cd",
+                        "outline-variant": "#c2c6d7",
+                        "on-surface": "#1a1c1c",
+                        "inverse-surface": "#2f3131",
+                        "secondary-container": "#e2e2e2",
+                        "surface-container-low": "#f3f3f4",
+                        "on-tertiary-fixed-variant": "#7b2f00",
+                        "on-background": "#1a1c1c",
+                        "secondary": "#5e5e5e",
+                        "tertiary-container": "#c65100",
+                        "on-primary-fixed-variant": "#00419f",
+                        "tertiary-fixed": "#ffdbcc",
+                        "success-active": "#05A357",
+                        "surface-subtle": "#F6F6F6",
+                        "background": "#f9f9f9",
+                        "surface-container": "#eeeeee",
+                        "gm-amber": "#FFC043",
+                        "on-primary-fixed": "#001947",
+                        "surface-container-high": "#e8e8e8",
+                        "inverse-on-surface": "#f0f1f1",
+                        "error": "#ba1a1a",
+                        "on-surface-variant": "#424654",
+                        "tertiary-fixed-dim": "#ffb694",
+                        "on-tertiary-fixed": "#351000",
+                        "on-tertiary": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "on-secondary-fixed": "#1b1b1b",
+                        "surface-dim": "#dadada",
+                        "on-secondary-fixed-variant": "#474747",
+                        "tertiary": "#9e3f00",
+                        "surface-bright": "#f9f9f9",
+                        "on-primary": "#ffffff",
+                        "border-low-contrast": "#E2E2E2",
+                        "on-secondary-container": "#646464",
+                        "outline": "#737786",
+                        "inverse-primary": "#b1c5ff",
+                        "secondary-fixed-dim": "#c6c6c6",
+                        "hp-danger": "#E11900",
+                        "surface-container-lowest": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin-mobile": "16px",
+                        "xl": "32px",
+                        "lg": "24px",
+                        "unit": "4px",
+                        "gutter": "16px",
+                        "margin-desktop": "40px",
+                        "md": "16px",
+                        "sm": "8px",
+                        "xs": "4px"
+                    },
+                    "fontFamily": {
+                        "label-sm": ["Hanken Grotesk"],
+                        "body-md": ["Hanken Grotesk"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "headline-lg": ["Hanken Grotesk"],
+                        "label-bold": ["Hanken Grotesk"],
+                        "display-lg": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "stat-number": ["Hanken Grotesk"],
+                        "headline-lg-mobile": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "fontWeight": "700" }],
+                        "label-bold": ["14px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }],
+                        "display-lg": ["44px", { "lineHeight": "52px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "stat-number": ["36px", { "lineHeight": "40px", "fontWeight": "800" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Hanken Grotesk', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom, 20px); }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface antialiased min-h-screen flex flex-col pt-16 pb-[calc(64px+env(safe-area-inset-bottom,20px))]">
+<!-- TopAppBar -->
+<header class="bg-surface-container-lowest text-primary font-headline-md text-headline-md fixed top-0 w-full border-b border-border-low-contrast transition-colors duration-200 ease-in-out flex justify-between items-center px-4 h-16 z-50">
+<div class="flex items-center gap-4">
+<button class="hover:bg-surface-container-low p-2 rounded-full transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="menu">menu</span>
+</button>
+<h1 class="font-headline-md text-headline-md font-bold text-on-surface">Gestor de NPCs</h1>
+</div>
+<div class="w-8 h-8 rounded-full bg-surface-variant overflow-hidden flex-shrink-0">
+<img alt="GM Avatar" class="w-full h-full object-cover" data-alt="A small, circular avatar portrait of a modern, professional Game Master. The portrait is taken in a brightly lit, sterile studio setting, aligning with a corporate-modern aesthetic. The lighting is soft and even, highlighting a serious but approachable expression. The color palette is composed of neutral tones with sharp contrasts, ensuring high legibility and a clean, authoritative presence suitable for a high-efficiency dashboard." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB6z3uY9RZBZvMiRVAV11cemrS1mFcRP2Gt6D9BqwcuTMh6r7NdQepHud40cRFONKabowZ_YVc8N8Zfzf--KucE4ayJsuE-pGI30g6-0PLigEEm1n2TA2NllT_IXIhwdpXkXLtGvYB7sl0GqTZ2gVVlzTa8W_UOCZ1ZX_tLPzUdWZosmQadO-h6pDCjH7Ub_PconMG-Y30cTB4jsPO4dci-dNZ1GyQBRdtZP1wBxpFEP7oMLJF7SLzGPVnWhEb9gzT6fAvx9FK9DQ"/>
+</div>
+</header>
+<main class="flex-1 px-margin-mobile md:px-margin-desktop py-lg max-w-7xl mx-auto w-full">
+<!-- Search & Filters -->
+<div class="mb-lg space-y-md sticky top-16 bg-surface z-40 py-sm">
+<div class="relative flex items-center w-full">
+<span class="material-symbols-outlined absolute left-4 text-on-surface-variant" data-icon="search">search</span>
+<input class="w-full h-12 pl-12 pr-4 bg-surface-subtle border-b border-border-low-contrast focus:border-primary focus:outline-none focus:ring-0 font-body-md text-body-md text-on-surface placeholder-on-surface-variant transition-colors rounded-t-lg" placeholder="Buscar por nombre, clase, o ubicación..." type="text"/>
+</div>
+<div class="flex gap-sm overflow-x-auto hide-scrollbar pb-2">
+<button class="px-4 py-2 rounded-full bg-primary-container text-on-primary-container font-label-bold text-label-bold flex-shrink-0 whitespace-nowrap">
+                    Todos
+                </button>
+<button class="px-4 py-2 rounded-full bg-surface-container border border-border-low-contrast text-on-surface font-label-bold text-label-bold hover:bg-surface-container-high transition-colors flex-shrink-0 whitespace-nowrap">
+                    Aliados
+                </button>
+<button class="px-4 py-2 rounded-full bg-surface-container border border-border-low-contrast text-on-surface font-label-bold text-label-bold hover:bg-surface-container-high transition-colors flex-shrink-0 whitespace-nowrap">
+                    Enemigos
+                </button>
+<button class="px-4 py-2 rounded-full bg-surface-container border border-border-low-contrast text-on-surface font-label-bold text-label-bold hover:bg-surface-container-high transition-colors flex-shrink-0 whitespace-nowrap">
+                    Neutrales
+                </button>
+</div>
+</div>
+<!-- NPC Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-lg">
+<!-- Card 1 -->
+<div class="bg-surface-container-lowest border border-border-low-contrast rounded-lg p-md flex flex-col gap-sm hover:shadow-[0px_2px_4px_rgba(0,0,0,0.05)] transition-shadow">
+<div class="flex justify-between items-start">
+<div class="flex items-center gap-md">
+<div class="w-12 h-12 rounded-full bg-surface-variant overflow-hidden flex-shrink-0">
+<img alt="Elminster Avatar" class="w-full h-full object-cover" data-alt="A portrait of an elderly, wise figure with a long beard, styled in a sleek, modern corporate portraiture manner rather than traditional fantasy. High-key lighting, stark white background, and crisp focus on the face. The aesthetic is clean, authoritative, and stripped of unnecessary ornament, fitting a high-efficiency data management system." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC0ADLDQRBrsXR3kxSMakWQGf1pXupRZ2p0SeFM13rmJCsId03EAZOvcqdwi4f1vTekgWOMxQ4wGCR5JeWqXPFiMdsUH6bEJE92YKZGAr2yaLD47Udw7VjVZ_7lkhRaLVqmuvwq7MHe2UHhgrrs-TtIacE8h8zGewrvRhgFjbF0Y5M5RTWogZJr_Kt6bo781hvLvxZqG9kYi4Ek7LUsvErwwI3AOet-Vl5AkE7kY7G9aTAIcgndpO22hotJSpqkEiDR2sMsLGb3cQ"/>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface leading-tight">Elminster</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Archimago</p>
+</div>
+</div>
+<button class="text-on-surface-variant p-1 rounded-full hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+<div class="mt-xs pt-xs border-t border-border-low-contrast flex justify-between items-center">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-success-active"></span>
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Aliado</span>
+</div>
+<div class="flex items-center gap-1 text-secondary">
+<span class="material-symbols-outlined text-[16px]" data-icon="location_on">location_on</span>
+<span class="font-label-sm text-label-sm">Valle de las Sombras</span>
+</div>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-surface-container-lowest border border-border-low-contrast rounded-lg p-md flex flex-col gap-sm hover:shadow-[0px_2px_4px_rgba(0,0,0,0.05)] transition-shadow">
+<div class="flex justify-between items-start">
+<div class="flex items-center gap-md">
+<div class="w-12 h-12 rounded-full bg-surface-variant overflow-hidden flex-shrink-0">
+<img alt="Strahd Avatar" class="w-full h-full object-cover" data-alt="A stark, high-contrast black and white portrait of a gaunt, aristocratic man with intense eyes. The lighting is dramatic yet modern, resembling a high-end fashion or corporate executive shoot. The background is pure white, emphasizing the sharp lines of his face and intense gaze, perfectly fitting a minimalist, authoritative data dashboard." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDM39mighA3UD6XDapXHPyv0BLPrKGaQzbVzIJFuMqyvqVvPbxIBRCMLYNfk3BeMWRFHqDwzLLZ3gMjxpE0WjFqJqAqAJi3x7xYtKcaE3mrzGamm0xl7Kyr50yOnR_eKw65zxFAI2Cq9HmuHhDxRQ00XesnqlktvJMscb9z2FjWxvk179cl4fxpW03NtpepDI4s5O4sJfcB4euEQCVWXw7E97xwxvDFYoyJBEhmUfTOGqXHNOnOzJTIfNAnLbrgtjVjB3NEtvRX4A"/>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface leading-tight">Strahd von Zarovich</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Vampiro Noble</p>
+</div>
+</div>
+<button class="text-on-surface-variant p-1 rounded-full hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+<div class="mt-xs pt-xs border-t border-border-low-contrast flex justify-between items-center">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-hp-danger"></span>
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Enemigo</span>
+</div>
+<div class="flex items-center gap-1 text-secondary">
+<span class="material-symbols-outlined text-[16px]" data-icon="location_on">location_on</span>
+<span class="font-label-sm text-label-sm">Castillo Ravenloft</span>
+</div>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="bg-surface-container-lowest border border-border-low-contrast rounded-lg p-md flex flex-col gap-sm hover:shadow-[0px_2px_4px_rgba(0,0,0,0.05)] transition-shadow">
+<div class="flex justify-between items-start">
+<div class="flex items-center gap-md">
+<div class="w-12 h-12 rounded-full bg-surface-variant overflow-hidden flex-shrink-0 flex items-center justify-center bg-surface-container-highest text-secondary font-headline-md text-headline-md">
+                            B
+                        </div>
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface leading-tight">Bree la Tabernera</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Informante</p>
+</div>
+</div>
+<button class="text-on-surface-variant p-1 rounded-full hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+<div class="mt-xs pt-xs border-t border-border-low-contrast flex justify-between items-center">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-surface-dim"></span>
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Neutral</span>
+</div>
+<div class="flex items-center gap-1 text-secondary">
+<span class="material-symbols-outlined text-[16px]" data-icon="location_on">location_on</span>
+<span class="font-label-sm text-label-sm">Puerta de Baldur</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- FAB for adding NPC -->
+<button class="fixed bottom-[calc(64px+env(safe-area-inset-bottom,20px)+16px)] right-4 md:right-8 w-14 h-14 bg-primary-container text-on-primary-container rounded-full shadow-[0px_2px_4px_rgba(0,0,0,0.15)] flex items-center justify-center hover:scale-105 active:scale-95 transition-transform z-40">
+<span class="material-symbols-outlined text-[28px]" data-icon="add">add</span>
+</button>
+<!-- BottomNavBar -->
+<nav class="bg-surface-container-lowest text-primary font-label-sm text-label-sm fixed bottom-0 left-0 w-full flex justify-around items-center h-16 pb-safe px-2 border-t border-border-low-contrast active:scale-95 transition-transform duration-150 z-50 md:hidden">
+<button class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-subtle transition-colors rounded-lg w-16 h-14">
+<span class="material-symbols-outlined mb-1" data-icon="swords">swords</span>
+<span>Combat</span>
+</button>
+<button class="flex flex-col items-center justify-center text-primary font-bold hover:bg-surface-subtle transition-colors rounded-lg w-16 h-14">
+<span class="material-symbols-outlined mb-1" data-icon="groups" data-weight="fill" style="font-variation-settings: 'FILL' 1;">groups</span>
+<span>NPCs</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-subtle transition-colors rounded-lg w-16 h-14">
+<span class="material-symbols-outlined mb-1" data-icon="group_work">group_work</span>
+<span>Party</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-subtle transition-colors rounded-lg w-16 h-14">
+<span class="material-symbols-outlined mb-1" data-icon="event_note">event_note</span>
+<span>Events</span>
+</button>
+</nav>
+</body></html>

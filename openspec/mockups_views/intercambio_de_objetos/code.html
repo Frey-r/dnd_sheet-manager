@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Trade Items - Uber Style</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "secondary-fixed": "#e2e2e2",
+                      "success-active": "#05A357",
+                      "secondary": "#5e5e5e",
+                      "on-secondary": "#ffffff",
+                      "tertiary-fixed": "#ffdbcc",
+                      "on-tertiary": "#ffffff",
+                      "on-error": "#ffffff",
+                      "background": "#f9f9f9",
+                      "surface-subtle": "#F6F6F6",
+                      "tertiary-fixed-dim": "#ffb694",
+                      "surface-container-high": "#e8e8e8",
+                      "hp-danger": "#E11900",
+                      "on-surface-variant": "#424654",
+                      "inverse-primary": "#b1c5ff",
+                      "border-low-contrast": "#E2E2E2",
+                      "surface-container-highest": "#e2e2e2",
+                      "surface-container": "#eeeeee",
+                      "outline": "#737786",
+                      "gm-amber": "#FFC043",
+                      "surface-container-lowest": "#ffffff",
+                      "on-secondary-fixed-variant": "#474747",
+                      "surface-container-low": "#f3f3f4",
+                      "outline-variant": "#c2c6d7",
+                      "inverse-surface": "#2f3131",
+                      "tertiary-container": "#c65100",
+                      "on-primary": "#ffffff",
+                      "secondary-fixed-dim": "#c6c6c6",
+                      "on-primary-fixed-variant": "#00419f",
+                      "error-container": "#ffdad6",
+                      "on-error-container": "#93000a",
+                      "on-background": "#1a1c1c",
+                      "error": "#ba1a1a",
+                      "on-secondary-container": "#646464",
+                      "on-primary-fixed": "#001947",
+                      "inverse-on-surface": "#f0f1f1",
+                      "tertiary": "#9e3f00",
+                      "secondary-container": "#e2e2e2",
+                      "primary": "#0055cd",
+                      "surface-bright": "#f9f9f9",
+                      "surface": "#f9f9f9",
+                      "on-tertiary-fixed-variant": "#7b2f00",
+                      "surface-dim": "#dadada",
+                      "on-primary-container": "#fffeff",
+                      "primary-container": "#276ef1",
+                      "primary-fixed-dim": "#b1c5ff",
+                      "on-secondary-fixed": "#1b1b1b",
+                      "on-surface": "#1a1c1c",
+                      "surface-tint": "#0056d0",
+                      "on-tertiary-fixed": "#351000",
+                      "surface-variant": "#e2e2e2",
+                      "on-tertiary-container": "#fffdff",
+                      "primary-fixed": "#dae2ff"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "gutter": "16px",
+                      "unit": "4px",
+                      "margin-mobile": "16px",
+                      "xs": "4px",
+                      "xl": "32px",
+                      "sm": "8px",
+                      "margin-desktop": "40px",
+                      "md": "16px",
+                      "lg": "24px"
+              },
+              "fontFamily": {
+                      "headline-lg": [
+                              "Hanken Grotesk"
+                      ],
+                      "display-lg": [
+                              "Hanken Grotesk"
+                      ],
+                      "headline-md": [
+                              "Hanken Grotesk"
+                      ],
+                      "stat-number": [
+                              "Hanken Grotesk"
+                      ],
+                      "label-bold": [
+                              "Hanken Grotesk"
+                      ],
+                      "label-sm": [
+                              "Hanken Grotesk"
+                      ],
+                      "headline-lg-mobile": [
+                              "Hanken Grotesk"
+                      ],
+                      "body-md": [
+                              "Hanken Grotesk"
+                      ],
+                      "body-lg": [
+                              "Hanken Grotesk"
+                      ]
+              },
+              "fontSize": {
+                      "headline-lg": [
+                              "32px",
+                              {
+                                      "lineHeight": "40px",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "display-lg": [
+                              "44px",
+                              {
+                                      "lineHeight": "52px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "800"
+                              }
+                      ],
+                      "headline-md": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "stat-number": [
+                              "36px",
+                              {
+                                      "lineHeight": "40px",
+                                      "fontWeight": "800"
+                              }
+                      ],
+                      "label-bold": [
+                              "14px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "label-sm": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "headline-lg-mobile": [
+                              "28px",
+                              {
+                                      "lineHeight": "36px",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "body-md": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-lg": [
+                              "18px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "400"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+<style>
+        body {
+            font-family: 'Hanken Grotesk', sans-serif;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background min-h-screen flex flex-col md:flex-row">
+<!-- Desktop Navigation Drawer (Hidden on Mobile) -->
+<nav class="hidden md:flex h-full w-72 bg-surface-container-lowest border-r border-border-low-contrast flex-col py-lg shadow-md shrink-0 fixed h-screen z-40">
+<div class="px-gutter mb-xl flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">account_circle</span>
+<div>
+<h2 class="font-headline-md text-headline-md text-primary">DM Console</h2>
+<p class="font-label-sm text-label-sm text-secondary">Current: Shadow over Mystara</p>
+<p class="font-label-sm text-label-sm text-secondary">v2.4.0</p>
+</div>
+</div>
+<ul class="flex flex-col flex-grow">
+<li class="px-gutter py-md flex items-center gap-md text-on-surface-variant hover:bg-surface-subtle transition-colors cursor-pointer">
+<span class="material-symbols-outlined" data-icon="groups">groups</span>
+<span class="font-body-md text-body-md">Campaigns</span>
+</li>
+<li class="px-gutter py-md flex items-center gap-md text-on-surface-variant hover:bg-surface-subtle transition-colors cursor-pointer">
+<span class="material-symbols-outlined" data-icon="swords">swords</span>
+<span class="font-body-md text-body-md">Encounter Builder</span>
+</li>
+<li class="px-gutter py-md flex items-center gap-md text-on-surface-variant hover:bg-surface-subtle transition-colors cursor-pointer">
+<span class="material-symbols-outlined" data-icon="Pets">pets</span>
+<span class="font-body-md text-body-md">Bestiary</span>
+</li>
+<li class="px-gutter py-md flex items-center gap-md text-on-surface-variant hover:bg-surface-subtle transition-colors cursor-pointer">
+<span class="material-symbols-outlined" data-icon="map">map</span>
+<span class="font-body-md text-body-md">Maps</span>
+</li>
+<li class="px-gutter py-md flex items-center gap-md text-on-surface-variant hover:bg-surface-subtle transition-colors cursor-pointer">
+<span class="material-symbols-outlined" data-icon="edit_note">edit_note</span>
+<span class="font-body-md text-body-md">Notes</span>
+</li>
+<li class="px-gutter py-md flex items-center gap-md bg-surface-container text-primary font-bold border-l-4 border-primary cursor-pointer">
+<span class="material-symbols-outlined" data-icon="swap_horiz">swap_horiz</span>
+<span class="font-body-md text-body-md">Trade</span>
+</li>
+</ul>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-grow md:ml-72 flex flex-col min-h-screen pt-16 md:pt-0 pb-16 md:pb-0">
+<!-- Top App Bar (Mobile Only) -->
+<header class="md:hidden fixed top-0 w-full z-50 bg-surface-container-lowest flex justify-between items-center px-gutter h-16 border-b border-border-low-contrast flat no shadows">
+<span class="material-symbols-outlined text-primary" data-icon="menu">menu</span>
+<span class="font-headline-md text-headline-md font-extrabold text-primary">Campaign Master</span>
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="account_circle">account_circle</span>
+</header>
+<!-- Canvas -->
+<div class="flex-grow p-gutter md:p-margin-desktop flex items-center justify-center">
+<!-- Trade Modal Container -->
+<div class="bg-surface-container-lowest w-full max-w-5xl rounded-lg border border-border-low-contrast shadow-sm overflow-hidden flex flex-col">
+<!-- Modal Header -->
+<div class="p-lg border-b border-border-low-contrast flex justify-between items-center bg-surface-subtle">
+<div>
+<h1 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-background mb-unit">Intercambio de Objetos</h1>
+<div class="flex items-center gap-sm">
+<span class="w-3 h-3 rounded-full bg-gm-amber"></span>
+<span class="font-label-sm text-label-sm text-secondary uppercase tracking-wider">Estado: Pendiente</span>
+</div>
+</div>
+<button class="w-10 h-10 rounded-full hover:bg-surface-container flex items-center justify-center text-secondary transition-colors">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<!-- Trade Panels -->
+<div class="flex flex-col md:flex-row flex-grow">
+<!-- Left Panel: Current Player (Offer) -->
+<div class="flex-1 p-lg border-b md:border-b-0 md:border-r border-border-low-contrast flex flex-col gap-lg">
+<div class="flex items-center gap-md mb-sm">
+<img alt="Player Avatar" class="w-12 h-12 rounded-full border border-border-low-contrast object-cover" data-alt="A close up portrait of a rugged fantasy adventurer with a slight beard, wearing worn leather armor. The lighting is dramatic, highlighting the texture of the leather. The background is dark and out of focus, giving a gritty, cinematic high fantasy aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBUYc9f3pGtpeWt4aDj7XhM-1G_KvwHRIDrZmOVLszmdOEMd37dShAozbuIT4ymGa4phdaAB60hVQDBoiMduc6oZPHi6Q8vRZtR3wiBi2OAdxPAIFKCogOJ9kCBMtAJ5p7Botm7bZgIg2OLshLlVsi2227Gi6FKQUaKmi3axDX2Wy7qS9p603sJgz7YwtgOXQt8afmYFsTBO38j6WbR6oXAwP_XSLWM4BL7Vro21EEbfGt2qFvAPktK2gt04KVLJO5m-j5dnCW8vQ"/>
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface">Tú (Ofreces)</h3>
+<p class="font-body-md text-body-md text-secondary">Thorgar, Nivel 5 Fighter</p>
+</div>
+</div>
+<!-- Gold Input -->
+<div class="bg-surface-subtle p-md rounded border border-border-low-contrast flex items-center justify-between">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-gm-amber" style="font-variation-settings: 'FILL' 1;">monetization_on</span>
+<span class="font-body-md text-body-md text-on-surface font-semibold">Oro a transferir</span>
+</div>
+<div class="relative w-32">
+<input class="w-full bg-surface-container-lowest border border-border-low-contrast rounded px-md py-sm font-body-md text-body-md text-right focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-colors" min="0" type="number" value="50"/>
+</div>
+</div>
+<!-- Items Selection -->
+<div class="flex-grow flex flex-col gap-sm">
+<h4 class="font-label-bold text-label-bold text-on-surface-variant uppercase mb-xs">Objetos Seleccionados</h4>
+<!-- Item Card 1 -->
+<div class="bg-surface-container-lowest p-md rounded border border-border-low-contrast flex items-center justify-between hover:shadow-sm transition-shadow cursor-pointer">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 bg-surface-container rounded flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined">colorize</span>
+</div>
+<div>
+<span class="font-body-md text-body-md text-on-surface block font-medium">Poción de Curación (Común)</span>
+<span class="font-label-sm text-label-sm text-secondary block">Cantidad: 2</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-error cursor-pointer hover:bg-error-container hover:text-on-error-container rounded-full p-unit transition-colors">remove_circle_outline</span>
+</div>
+<!-- Item Card 2 -->
+<div class="bg-surface-container-lowest p-md rounded border border-border-low-contrast flex items-center justify-between hover:shadow-sm transition-shadow cursor-pointer">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 bg-surface-container rounded flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined">shield</span>
+</div>
+<div>
+<span class="font-body-md text-body-md text-on-surface block font-medium">Escudo de Madera</span>
+<span class="font-label-sm text-label-sm text-secondary block">CA +2</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-error cursor-pointer hover:bg-error-container hover:text-on-error-container rounded-full p-unit transition-colors">remove_circle_outline</span>
+</div>
+<button class="mt-sm w-full py-md border border-dashed border-primary-container text-primary-container rounded font-body-md text-body-md font-medium hover:bg-surface-subtle transition-colors flex items-center justify-center gap-sm">
+<span class="material-symbols-outlined">add</span>
+                                Añadir Objeto
+                            </button>
+</div>
+</div>
+<!-- Right Panel: Recipient (Request) -->
+<div class="flex-1 p-lg flex flex-col gap-lg bg-surface-bright">
+<div class="flex items-center gap-md mb-sm">
+<img alt="Recipient Avatar" class="w-12 h-12 rounded-full border border-border-low-contrast object-cover" data-alt="A portrait of a mysterious elven spellcaster wearing a dark hooded cloak. The lighting is moody with hints of purple and blue ambient light reflecting off their pale skin. The aesthetic is sleek, modern high fantasy suitable for a clean digital interface." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBhctp0wN4-RhHc36J4eiDu5Xt9oMT_dJAW-gVdMG5k8-5ARejX1wU3PR6uV-oHISCXQ5w-5BpzkDPwQpWlUrbTJDs25IJQve0fpsjbhZkDK8ej_0jUmtfpsPmFiLFnoFQCY1nsQTZjQY_qQF_3SpDIbnpUzpYBy1WKZI-fErKV3EVPGbYM_PaRrvXQzWBfBxc8yPL8QYNIRagLIB72ALKk2Q53pqrGUByad8TSh5xYFOIi-imRFUs1PlNG9kKc4hrrbzQnFiBUxQ"/>
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface">Elara (Pides)</h3>
+<p class="font-body-md text-body-md text-secondary">Elara, Nivel 5 Wizard</p>
+</div>
+</div>
+<!-- Gold Input (Requested) -->
+<div class="bg-surface-subtle p-md rounded border border-border-low-contrast flex items-center justify-between opacity-70">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-gm-amber">monetization_on</span>
+<span class="font-body-md text-body-md text-on-surface font-semibold">Oro solicitado</span>
+</div>
+<div class="relative w-32">
+<input class="w-full bg-surface-container-lowest border border-border-low-contrast rounded px-md py-sm font-body-md text-body-md text-right focus:outline-none" disabled="" type="number" value="0"/>
+</div>
+</div>
+<!-- Items Requested -->
+<div class="flex-grow flex flex-col gap-sm">
+<h4 class="font-label-bold text-label-bold text-on-surface-variant uppercase mb-xs">Objetos Solicitados</h4>
+<!-- Requested Item 1 -->
+<div class="bg-surface-container-lowest p-md rounded border border-border-low-contrast flex items-center justify-between hover:shadow-sm transition-shadow cursor-pointer">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 bg-inverse-primary text-on-primary-fixed-variant rounded flex items-center justify-center">
+<span class="material-symbols-outlined">menu_book</span>
+</div>
+<div>
+<span class="font-body-md text-body-md text-on-surface block font-medium">Pergamino de Identificar</span>
+<span class="font-label-sm text-label-sm text-secondary block">Mágico</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-error cursor-pointer hover:bg-error-container hover:text-on-error-container rounded-full p-unit transition-colors">remove_circle_outline</span>
+</div>
+<button class="mt-sm w-full py-md border border-dashed border-outline text-outline rounded font-body-md text-body-md font-medium hover:bg-surface-subtle transition-colors flex items-center justify-center gap-sm">
+<span class="material-symbols-outlined">search</span>
+                                Buscar Objeto de Elara
+                            </button>
+</div>
+</div>
+</div>
+<!-- Footer Actions -->
+<div class="p-lg border-t border-border-low-contrast bg-surface-container-lowest flex flex-col-reverse sm:flex-row justify-end gap-md">
+<button class="w-full sm:w-auto px-xl py-md bg-surface-container text-on-surface-variant rounded font-body-md text-body-md font-medium hover:bg-surface-container-high transition-colors">
+                        Cancelar
+                    </button>
+<button class="w-full sm:w-auto px-xl py-md bg-primary-container text-on-primary rounded font-body-md text-body-md font-medium shadow-sm hover:bg-primary transition-colors flex items-center justify-center gap-sm">
+<span class="material-symbols-outlined text-[20px]">send</span>
+                        Enviar Oferta
+                    </button>
+</div>
+</div>
+</div>
+</main>
+<!-- Bottom Navigation Bar (Mobile Only) -->
+<nav class="md:hidden fixed bottom-0 w-full z-50 bg-surface-container-lowest border-t border-border-low-contrast flex justify-around items-center h-16 px-xs flat no shadows">
+<a class="flex flex-col items-center justify-center text-secondary" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-label-sm text-label-sm">Hub</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary" href="#">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="font-label-sm text-label-sm">Stats</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary" href="#">
+<span class="material-symbols-outlined" data-icon="library_books">library_books</span>
+<span class="font-label-sm text-label-sm">Lore</span>
+</a>
+<a class="flex flex-col items-center justify-center text-primary font-bold" href="#">
+<span class="material-symbols-outlined" data-icon="swap_horiz">swap_horiz</span>
+<span class="font-label-sm text-label-sm">Trade</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary" href="#">
+<span class="material-symbols-outlined" data-icon="forum">forum</span>
+<span class="font-label-sm text-label-sm">Chat</span>
+</a>
+</nav>
+</body></html>

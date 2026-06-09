@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Eldrin - Inventario</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary": "#ffffff",
+                        "on-primary-container": "#fffeff",
+                        "on-error": "#ffffff",
+                        "on-tertiary-fixed": "#351000",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-bright": "#f9f9f9",
+                        "inverse-surface": "#2f3131",
+                        "surface-dim": "#dadada",
+                        "on-tertiary-container": "#fffdff",
+                        "secondary-container": "#e2e2e2",
+                        "tertiary-container": "#c65100",
+                        "error": "#ba1a1a",
+                        "gm-amber": "#FFC043",
+                        "hp-danger": "#E11900",
+                        "background": "#f9f9f9",
+                        "error-container": "#ffdad6",
+                        "tertiary-fixed-dim": "#ffb694",
+                        "on-tertiary": "#ffffff",
+                        "border-low-contrast": "#E2E2E2",
+                        "inverse-primary": "#b1c5ff",
+                        "inverse-on-surface": "#f0f1f1",
+                        "surface-container-highest": "#e2e2e2",
+                        "on-secondary-fixed": "#1b1b1b",
+                        "surface-container-high": "#e8e8e8",
+                        "surface-subtle": "#F6F6F6",
+                        "outline-variant": "#c2c6d7",
+                        "outline": "#737786",
+                        "on-primary": "#ffffff",
+                        "surface-tint": "#0056d0",
+                        "surface-variant": "#e2e2e2",
+                        "secondary": "#5e5e5e",
+                        "on-primary-fixed": "#001947",
+                        "secondary-fixed": "#e2e2e2",
+                        "surface": "#f9f9f9",
+                        "success-active": "#05A357",
+                        "on-primary-fixed-variant": "#00419f",
+                        "tertiary": "#9e3f00",
+                        "on-secondary-fixed-variant": "#474747",
+                        "on-error-container": "#93000a",
+                        "tertiary-fixed": "#ffdbcc",
+                        "secondary-fixed-dim": "#c6c6c6",
+                        "on-surface": "#1a1c1c",
+                        "primary-fixed-dim": "#b1c5ff",
+                        "surface-container": "#eeeeee",
+                        "primary-fixed": "#dae2ff",
+                        "on-surface-variant": "#424654",
+                        "primary-container": "#276ef1",
+                        "on-secondary-container": "#646464",
+                        "primary": "#0055cd",
+                        "on-background": "#1a1c1c",
+                        "on-tertiary-fixed-variant": "#7b2f00",
+                        "surface-container-low": "#f3f3f4"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "sm": "8px",
+                        "gutter": "16px",
+                        "md": "16px",
+                        "margin-mobile": "16px",
+                        "xs": "4px",
+                        "xl": "32px",
+                        "unit": "4px",
+                        "margin-desktop": "40px",
+                        "lg": "24px"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["Hanken Grotesk"],
+                        "display-lg": ["Hanken Grotesk"],
+                        "label-bold": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "label-sm": ["Hanken Grotesk"],
+                        "body-md": ["Hanken Grotesk"],
+                        "headline-lg-mobile": ["Hanken Grotesk"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "stat-number": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["32px", { "lineHeight": "40px", "fontWeight": "700" }],
+                        "display-lg": ["44px", { "lineHeight": "52px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                        "label-bold": ["14px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "stat-number": ["36px", { "lineHeight": "40px", "fontWeight": "800" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined[style*="'FILL' 1"] {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface font-body-md min-h-screen flex flex-col pb-24 md:pb-0">
+<!-- TopAppBar -->
+<header class="flex justify-between items-center px-margin-mobile w-full h-16 bg-surface dark:bg-on-secondary-fixed text-primary dark:text-primary-fixed-dim border-b border-border-low-contrast dark:border-outline-variant docked full-width top-0 z-40 sticky">
+<div class="flex items-center gap-sm">
+<div class="w-8 h-8 rounded-full bg-surface-container-highest overflow-hidden flex-shrink-0">
+<img alt="Profile of Elara the Wizard" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAPZeI1qzNYweimKCJq9ZULglFmgHyxO_9Jttai9Ncdgyvd45NWdR7Z5ueKgWI35Qzy2kLUlPw7hUdRRvmvl2M34BP01nRhP6lfWbqh7SAa-nsncDcM-VJbPMxpcWA0CykOT8_6nZbdp3eHYvSp8EAVHpjyPXX_H75QklNrFLx_MiB4KdJsoJ-o5W_r_g0ppCHdt74XYYZloFFoGBsXokvwm9NCV3-7laUtApENOd41sr3QYWvPqC-6jeU4iIZ94XsoJUkUGB4rlg"/>
+</div>
+<span class="font-headline-md text-headline-md-mobile font-bold text-on-surface dark:text-inverse-on-surface truncate">Dragon's Wake Campaign</span>
+</div>
+<button class="hover:bg-surface-container-low dark:hover:bg-surface-container-high transition-colors p-2 rounded-full active:scale-95 duration-200 ease-in-out text-on-surface-variant dark:text-outline">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-grow flex flex-col max-w-5xl mx-auto w-full">
+<!-- Tab Navigation (Sub-nav for Character Sheet) -->
+<nav class="flex border-b border-border-low-contrast bg-surface sticky top-16 z-30 overflow-x-auto no-scrollbar">
+<button class="flex-1 py-md px-4 text-center font-label-bold text-label-bold text-on-surface-variant whitespace-nowrap">Stats</button>
+<button class="flex-1 py-md px-4 text-center font-label-bold text-label-bold text-on-surface-variant whitespace-nowrap">Hechizos</button>
+<button class="flex-1 py-md px-4 text-center font-label-bold text-label-bold text-primary border-b-2 border-primary whitespace-nowrap">Inventario</button>
+<button class="flex-1 py-md px-4 text-center font-label-bold text-label-bold text-on-surface-variant whitespace-nowrap">Bio</button>
+</nav>
+<div class="p-margin-mobile md:p-margin-desktop flex flex-col gap-lg">
+<!-- Wealth & Gold Tracker -->
+<section class="bg-surface-subtle border border-border-low-contrast rounded-lg p-md flex items-center justify-between">
+<div class="flex items-center gap-sm">
+<div class="w-10 h-10 rounded-full bg-gm-amber/20 flex items-center justify-center text-gm-amber">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">monetization_on</span>
+</div>
+<div>
+<p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Riqueza Actual</p>
+<p class="font-headline-md text-headline-md text-on-surface">1,240 <span class="text-on-surface-variant font-body-md text-body-md">po</span></p>
+</div>
+</div>
+<button class="p-2 rounded-full hover:bg-surface-container-high transition-colors text-on-surface-variant">
+<span class="material-symbols-outlined">edit</span>
+</button>
+</section>
+<!-- Equipped Items Grid -->
+<section>
+<h2 class="font-headline-lg text-headline-lg-mobile md:text-headline-lg mb-md">Equipamiento</h2>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-sm">
+<!-- Head -->
+<div class="bg-surface border border-border-low-contrast rounded-lg p-md flex flex-col items-center text-center gap-xs">
+<span class="material-symbols-outlined text-outline-variant text-3xl">face</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Cabeza</span>
+<span class="font-body-md text-body-md text-outline italic">Vacío</span>
+</div>
+<!-- Chest -->
+<div class="bg-surface border border-border-low-contrast rounded-lg p-md flex flex-col items-center text-center gap-xs">
+<span class="material-symbols-outlined text-primary text-3xl" style="font-variation-settings: 'FILL' 1;">checkroom</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Pecho</span>
+<span class="font-body-md text-body-md font-medium text-on-surface">Túnica de Archidruida</span>
+</div>
+<!-- Main Hand -->
+<div class="bg-surface border border-border-low-contrast rounded-lg p-md flex flex-col items-center text-center gap-xs">
+<span class="material-symbols-outlined text-primary text-3xl" style="font-variation-settings: 'FILL' 1;">swords</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Mano Principal</span>
+<span class="font-body-md text-body-md font-medium text-on-surface">Vara de Poder</span>
+</div>
+<!-- Off Hand -->
+<div class="bg-surface border border-border-low-contrast rounded-lg p-md flex flex-col items-center text-center gap-xs">
+<span class="material-symbols-outlined text-primary text-3xl" style="font-variation-settings: 'FILL' 1;">menu_book</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Mano Secundaria</span>
+<span class="font-body-md text-body-md font-medium text-on-surface">Libro de Hechizos</span>
+</div>
+<!-- Hands -->
+<div class="bg-surface border border-border-low-contrast rounded-lg p-md flex flex-col items-center text-center gap-xs">
+<span class="material-symbols-outlined text-primary text-3xl" style="font-variation-settings: 'FILL' 1;">front_hand</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Manos</span>
+<span class="font-body-md text-body-md font-medium text-on-surface">Guantes de Poder</span>
+</div>
+<!-- Feet -->
+<div class="bg-surface border border-border-low-contrast rounded-lg p-md flex flex-col items-center text-center gap-xs">
+<span class="material-symbols-outlined text-primary text-3xl" style="font-variation-settings: 'FILL' 1;">directions_walk</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Pies</span>
+<span class="font-body-md text-body-md font-medium text-on-surface">Botas de Velocidad</span>
+</div>
+<!-- Rings -->
+<div class="bg-surface border border-border-low-contrast rounded-lg p-md flex flex-col items-center text-center gap-xs">
+<span class="material-symbols-outlined text-primary text-3xl" style="font-variation-settings: 'FILL' 1;">radio_button_unchecked</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Anillos</span>
+<span class="font-body-md text-body-md font-medium text-on-surface">Anillo de Protección</span>
+</div>
+<!-- Amulet -->
+<div class="bg-surface border border-border-low-contrast rounded-lg p-md flex flex-col items-center text-center gap-xs">
+<span class="material-symbols-outlined text-primary text-3xl" style="font-variation-settings: 'FILL' 1;">diamond</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Amuleto</span>
+<span class="font-body-md text-body-md font-medium text-on-surface">Amuleto de Salud</span>
+</div>
+</div>
+</section>
+<!-- Backpack (Inventory) -->
+<section>
+<div class="flex justify-between items-end mb-md">
+<h2 class="font-headline-lg text-headline-lg-mobile md:text-headline-lg">Mochila</h2>
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">18 Objetos</span>
+</div>
+<div class="flex flex-col border border-border-low-contrast rounded-lg bg-surface overflow-hidden">
+<!-- Item Row 1 -->
+<div class="flex items-center justify-between p-md border-b border-border-low-contrast last:border-b-0 hover:bg-surface-subtle transition-colors">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded bg-hp-danger/10 flex items-center justify-center text-hp-danger">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">local_drink</span>
+</div>
+<div>
+<p class="font-body-md text-body-md font-medium text-on-surface">Poción de Curación Mayor <span class="text-on-surface-variant ml-2">x3</span></p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Consumible • 0.5 lbs</p>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="px-3 py-1 bg-surface-container-high hover:bg-surface-container-highest rounded text-on-surface font-label-bold text-label-bold text-sm transition-colors">Usar</button>
+<button class="p-1 rounded hover:bg-error-container text-on-surface-variant hover:text-error transition-colors">
+<span class="material-symbols-outlined text-sm">delete</span>
+</button>
+</div>
+</div>
+<!-- Item Row 2 -->
+<div class="flex items-center justify-between p-md border-b border-border-low-contrast last:border-b-0 hover:bg-surface-subtle transition-colors">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded bg-gm-amber/10 flex items-center justify-center text-gm-amber">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">flare</span>
+</div>
+<div>
+<p class="font-body-md text-body-md font-medium text-on-surface">Antorcha <span class="text-on-surface-variant ml-2">x5</span></p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Aventurero • 1 lb</p>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="px-3 py-1 bg-surface-container-high hover:bg-surface-container-highest rounded text-on-surface font-label-bold text-label-bold text-sm transition-colors">Equipar</button>
+<button class="p-1 rounded hover:bg-error-container text-on-surface-variant hover:text-error transition-colors">
+<span class="material-symbols-outlined text-sm">delete</span>
+</button>
+</div>
+</div>
+<!-- Item Row 3 -->
+<div class="flex items-center justify-between p-md border-b border-border-low-contrast last:border-b-0 hover:bg-surface-subtle transition-colors">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded bg-secondary-container flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">restaurant</span>
+</div>
+<div>
+<p class="font-body-md text-body-md font-medium text-on-surface">Raciones <span class="text-on-surface-variant ml-2">x10</span></p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Consumible • 2 lbs</p>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="px-3 py-1 bg-surface-container-high hover:bg-surface-container-highest rounded text-on-surface font-label-bold text-label-bold text-sm transition-colors">Usar</button>
+<button class="p-1 rounded hover:bg-error-container text-on-surface-variant hover:text-error transition-colors">
+<span class="material-symbols-outlined text-sm">delete</span>
+</button>
+</div>
+</div>
+<!-- Item Row 4 -->
+<div class="flex items-center justify-between p-md border-b border-border-low-contrast last:border-b-0 hover:bg-surface-subtle transition-colors">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded bg-secondary-container flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">all_inclusive</span>
+</div>
+<div>
+<p class="font-body-md text-body-md font-medium text-on-surface">Cuerda de cáñamo (50 pies)</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Aventurero • 10 lbs</p>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="px-3 py-1 bg-surface-container-high hover:bg-surface-container-highest rounded text-on-surface font-label-bold text-label-bold text-sm transition-colors">Equipar</button>
+<button class="p-1 rounded hover:bg-error-container text-on-surface-variant hover:text-error transition-colors">
+<span class="material-symbols-outlined text-sm">delete</span>
+</button>
+</div>
+</div>
+<!-- Item Row 5 -->
+<div class="flex items-center justify-between p-md border-b border-border-low-contrast last:border-b-0 hover:bg-surface-subtle transition-colors">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded bg-inverse-primary flex items-center justify-center text-primary-fixed">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">magic_button</span>
+</div>
+<div>
+<p class="font-body-md text-body-md font-medium text-on-surface">Cetro de Cristal</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Magia • 3 lbs</p>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="px-3 py-1 bg-surface-container-high hover:bg-surface-container-highest rounded text-on-surface font-label-bold text-label-bold text-sm transition-colors">Equipar</button>
+<button class="p-1 rounded hover:bg-error-container text-on-surface-variant hover:text-error transition-colors">
+<span class="material-symbols-outlined text-sm">delete</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- Weight Tracker (Sticky Footer above Nav) -->
+<div class="fixed bottom-[72px] md:bottom-0 left-0 w-full bg-surface border-t border-border-low-contrast p-4 z-40">
+<div class="max-w-5xl mx-auto flex flex-col gap-2">
+<div class="flex justify-between items-center">
+<span class="font-label-bold text-label-bold text-on-surface">Carga</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">45 / 150 lbs</span>
+</div>
+<div class="w-full bg-surface-container-high rounded-full h-2">
+<div class="bg-primary h-2 rounded-full" style="width: 30%"></div>
+</div>
+</div>
+</div>
+<!-- Add Item FAB -->
+<button class="fixed right-6 bottom-24 md:bottom-8 w-14 h-14 bg-primary text-on-primary rounded-full shadow-md flex items-center justify-center hover:bg-surface-tint active:scale-95 transition-all z-50">
+<span class="material-symbols-outlined text-3xl">add</span>
+</button>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-sm py-xs bg-surface dark:bg-inverse-surface border-t border-border-low-contrast dark:border-outline-variant md:hidden">
+<button class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-lg px-4 py-1 active:scale-90 duration-150 ease-out">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">person</span>
+<span class="font-label-sm text-label-sm">Sheet</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant p-2 hover:text-primary dark:hover:text-primary-fixed transition-all active:scale-90 duration-150 ease-out">
+<span class="material-symbols-outlined">map</span>
+<span class="font-label-sm text-label-sm">Plot</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant p-2 hover:text-primary dark:hover:text-primary-fixed transition-all active:scale-90 duration-150 ease-out">
+<span class="material-symbols-outlined">forum</span>
+<span class="font-label-sm text-label-sm">Chat</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant p-2 hover:text-primary dark:hover:text-primary-fixed transition-all active:scale-90 duration-150 ease-out">
+<span class="material-symbols-outlined">shopping_bag</span>
+<span class="font-label-sm text-label-sm">Market</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline-variant p-2 hover:text-primary dark:hover:text-primary-fixed transition-all active:scale-90 duration-150 ease-out">
+<span class="material-symbols-outlined">inbox</span>
+<span class="font-label-sm text-label-sm">Inbox</span>
+</button>
+</nav>
+</body></html>

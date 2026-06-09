@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+
+<html lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Bestiario - Campaign Manager</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-primary": "#b1c5ff",
+                        "border-low-contrast": "#E2E2E2",
+                        "error-container": "#ffdad6",
+                        "tertiary-fixed-dim": "#ffb694",
+                        "on-tertiary": "#ffffff",
+                        "gm-amber": "#FFC043",
+                        "hp-danger": "#E11900",
+                        "background": "#f9f9f9",
+                        "surface-variant": "#e2e2e2",
+                        "secondary": "#5e5e5e",
+                        "outline": "#737786",
+                        "on-primary": "#ffffff",
+                        "surface-tint": "#0056d0",
+                        "surface-container-high": "#e8e8e8",
+                        "surface-subtle": "#F6F6F6",
+                        "outline-variant": "#c2c6d7",
+                        "inverse-on-surface": "#f0f1f1",
+                        "surface-container-highest": "#e2e2e2",
+                        "on-secondary-fixed": "#1b1b1b",
+                        "on-tertiary-fixed": "#351000",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-bright": "#f9f9f9",
+                        "inverse-surface": "#2f3131",
+                        "on-error": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "on-primary-container": "#fffeff",
+                        "error": "#ba1a1a",
+                        "secondary-container": "#e2e2e2",
+                        "tertiary-container": "#c65100",
+                        "on-tertiary-container": "#fffdff",
+                        "surface-dim": "#dadada",
+                        "surface-container": "#eeeeee",
+                        "primary-fixed": "#dae2ff",
+                        "primary-fixed-dim": "#b1c5ff",
+                        "secondary-fixed-dim": "#c6c6c6",
+                        "on-surface": "#1a1c1c",
+                        "on-tertiary-fixed-variant": "#7b2f00",
+                        "surface-container-low": "#f3f3f4",
+                        "primary": "#0055cd",
+                        "on-background": "#1a1c1c",
+                        "primary-container": "#276ef1",
+                        "on-secondary-container": "#646464",
+                        "on-surface-variant": "#424654",
+                        "secondary-fixed": "#e2e2e2",
+                        "surface": "#f9f9f9",
+                        "success-active": "#05A357",
+                        "on-primary-fixed": "#001947",
+                        "on-error-container": "#93000a",
+                        "tertiary-fixed": "#ffdbcc",
+                        "tertiary": "#9e3f00",
+                        "on-secondary-fixed-variant": "#474747",
+                        "on-primary-fixed-variant": "#00419f"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "sm": "8px",
+                        "gutter": "16px",
+                        "md": "16px",
+                        "margin-mobile": "16px",
+                        "xs": "4px",
+                        "xl": "32px",
+                        "unit": "4px",
+                        "margin-desktop": "40px",
+                        "lg": "24px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Hanken Grotesk"],
+                        "label-sm": ["Hanken Grotesk"],
+                        "stat-number": ["Hanken Grotesk"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "headline-lg-mobile": ["Hanken Grotesk"],
+                        "label-bold": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "display-lg": ["Hanken Grotesk"],
+                        "headline-lg": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                        "stat-number": ["36px", {"lineHeight": "40px", "fontWeight": "800"}],
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                        "headline-lg-mobile": ["28px", {"lineHeight": "36px", "fontWeight": "700"}],
+                        "label-bold": ["14px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "display-lg": ["44px", {"lineHeight": "52px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                        "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "700"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Hanken Grotesk', sans-serif; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background min-h-screen pb-24 md:pb-0 md:flex">
+<!-- TopAppBar (Mobile) -->
+<header class="md:hidden bg-surface dark:bg-surface-dim font-headline-md text-headline-md fixed top-0 w-full z-50 border-b border-border-low-contrast dark:border-outline-variant flex items-center justify-between px-margin-mobile h-14">
+<div class="flex items-center gap-md">
+<button class="text-primary dark:text-primary-fixed hover:bg-surface-subtle dark:hover:bg-surface-container-high rounded-full p-2 transition-colors">
+<span class="material-symbols-outlined" data-icon="menu">menu</span>
+</button>
+<h1 class="font-headline-md text-headline-md font-bold text-on-surface dark:text-inverse-on-surface">Bestiario</h1>
+</div>
+<img alt="DM Avatar" class="w-8 h-8 rounded-full border border-border-low-contrast" data-alt="A small, stylized avatar portrait of a Dungeons and Dragons Dungeon Master in a corporate modern style. The portrait features clean lines, high contrast, and a professional aesthetic typical of modern software interfaces, using subtle grey and blue tones." src="https://lh3.googleusercontent.com/aida-public/AB6AXuASJ_F7E149gXfKgshljrLQs1qsQSlIUNfMq9a1ybm3_xiSFxfijBiDUSjbQTqOe0_-9o4kmos8M_vbU1LWHCOTJkcx8Z8LzrIjES48wAPa-uOLigwMsQlm3sxR9ZRml9tbmSHviM0vyqH10gtx6Cw5nAzfzwlr2P13iJcpfV9m97f9toWobRUFnA4Eky9aiKXtuRCm74XoAnAhfK9vqmSb-FrQs1Huj52D-KRW4eJQ7zyxOKcHDFCcvRT32x8FMZiY31GuD19-TQ"/>
+</header>
+<!-- NavigationDrawer (Web) -->
+<aside class="hidden md:flex flex-col py-lg px-md h-full bg-surface dark:bg-surface-dim font-body-md text-body-md border-r border-border-low-contrast dark:border-outline-variant shadow-sm dark:shadow-none w-80 fixed left-0 top-0 bottom-0 z-40">
+<div class="flex items-center gap-md mb-xl">
+<img alt="DM Avatar" class="w-12 h-12 rounded-full border border-border-low-contrast" data-alt="A stylized avatar portrait of a Dungeons and Dragons Dungeon Master in a corporate modern style. The portrait features clean lines, high contrast, and a professional aesthetic typical of modern software interfaces, using subtle grey and blue tones." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDsIfGSftHoLLF13tA6dyYHl2pDCjYl4qGycEX_lfXIgJc63CXJ8maAM7oBrP92LR96WxVpweYtSG2TDZfxob9hBzpr8RNQYctkUZNPTWFCHuWeKnKmBLIoi3oPVCGVkovoFR1FABx5EaUWafuJ-1QL51btVM64Jrhq2xr95GwOVH-5QzWY8k1SSAmsvB5Pb9HzqoDd2_xZ1_YVN-QPv2729xJWgvrq8op74pxONT3uueJe1kD4UjPqkQaXmd9RyDnf60uE6UcSfg"/>
+<div>
+<div class="font-headline-lg text-headline-lg font-extrabold text-on-surface">Dungeon Master</div>
+<div class="text-on-surface-variant text-sm">The Forgotten Realms • Session 42</div>
+</div>
+</div>
+<nav class="flex-1 space-y-sm">
+<a class="flex items-center gap-md p-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container dark:hover:bg-surface-container-high transition-colors duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span>Characters</span>
+</a>
+<a class="flex items-center gap-md p-md bg-primary-container text-on-primary-container font-label-bold rounded-lg transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="pets">pets</span>
+<span>Bestiario</span>
+</a>
+<a class="flex items-center gap-md p-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container dark:hover:bg-surface-container-high transition-colors duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined" data-icon="inventory_2">inventory_2</span>
+<span>Loot</span>
+</a>
+<a class="flex items-center gap-md p-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container dark:hover:bg-surface-container-high transition-colors duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined" data-icon="map">map</span>
+<span>Maps</span>
+</a>
+<a class="flex items-center gap-md p-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container dark:hover:bg-surface-container-high transition-colors duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span>Settings</span>
+</a>
+</nav>
+</aside>
+<!-- Main Content Canvas -->
+<main class="mt-14 md:mt-0 md:ml-80 p-margin-mobile md:p-margin-desktop max-w-7xl mx-auto w-full">
+<!-- Search & Filter Section -->
+<section class="mb-xl">
+<div class="relative w-full mb-md">
+<span class="material-symbols-outlined absolute left-md top-1/2 -translate-y-1/2 text-on-surface-variant" data-icon="search">search</span>
+<input class="w-full bg-surface-subtle border-0 border-b border-border-low-contrast focus:border-primary focus:ring-0 pl-12 pr-4 py-3 font-body-md text-body-md rounded-t-DEFAULT outline-none transition-colors" placeholder="Buscar criatura..." type="text"/>
+</div>
+<div class="flex flex-col sm:flex-row gap-sm items-start sm:items-center">
+<span class="font-label-bold text-label-bold text-on-surface-variant mr-2">Filtros:</span>
+<div class="flex overflow-x-auto hide-scrollbar gap-sm w-full pb-2">
+<button class="whitespace-nowrap px-4 py-1.5 rounded-full border border-border-low-contrast bg-surface text-on-surface font-label-sm text-label-sm hover:bg-surface-container-low transition-colors">Todos</button>
+<button class="whitespace-nowrap px-4 py-1.5 rounded-full border border-primary bg-primary-fixed text-on-primary-fixed font-label-sm text-label-sm">No-Muerto</button>
+<button class="whitespace-nowrap px-4 py-1.5 rounded-full border border-border-low-contrast bg-surface text-on-surface font-label-sm text-label-sm hover:bg-surface-container-low transition-colors">Monstruosidad</button>
+<button class="whitespace-nowrap px-4 py-1.5 rounded-full border border-border-low-contrast bg-surface text-on-surface font-label-sm text-label-sm hover:bg-surface-container-low transition-colors">Dragón</button>
+<button class="whitespace-nowrap px-4 py-1.5 rounded-full border border-border-low-contrast bg-surface text-on-surface font-label-sm text-label-sm hover:bg-surface-container-low transition-colors">CR 1-5</button>
+<button class="whitespace-nowrap px-4 py-1.5 rounded-full border border-border-low-contrast bg-surface text-on-surface font-label-sm text-label-sm hover:bg-surface-container-low transition-colors">CR 6+</button>
+</div>
+</div>
+</section>
+<!-- Bestiary Grid -->
+<section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md">
+<!-- Card 1 -->
+<article class="bg-surface rounded-lg border border-border-low-contrast p-md hover:shadow-sm transition-shadow flex flex-col gap-sm">
+<div class="flex items-start gap-md">
+<img alt="Beholder Thumbnail" class="w-16 h-16 rounded object-cover border border-border-low-contrast" data-alt="A stark, high-contrast digital illustration of a Beholder monster floating in a pure white void. The style is strictly corporate modern, resembling a polished technical diagram rather than traditional fantasy art, utilizing shades of dark grey and deep blue." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA1qqtb6hBY8Vwui1zNjorQX2Nn-irSjcG-tteQWNphhUW9m0amPvHKsIxibdks-z4iinIRU3RlMHUiJPkYKQ0O5iwNFUXFRBVgj6tJLPIgy5YMP98DmB7bFPFFkXsPKbNN_7Vir9PwVdlYSNVaYGvDXWq3-yUECnPIb1gHlaHCvof6lSmhCaJqrhBs0BGiVusUHgGY2hYGNBkOaEnzDNRXWp7qXQb7rgTuObqrPdopmIpl7YK3VaeEzmb00ik5BKXezdzxtsxPfA"/>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<h3 class="font-headline-md text-headline-md text-on-surface">Beholder</h3>
+<span class="bg-tertiary-fixed text-on-tertiary-fixed px-2 py-0.5 rounded font-label-sm text-label-sm font-bold">CR 13</span>
+</div>
+<p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mt-1">Aberración</p>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-xs my-xs bg-surface-subtle p-sm rounded border border-border-low-contrast">
+<div>
+<span class="font-label-sm text-label-sm text-on-surface-variant block">HP Máximo</span>
+<span class="font-body-md text-body-md font-bold text-hp-danger">180</span>
+</div>
+<div>
+<span class="font-label-sm text-label-sm text-on-surface-variant block">Clase Armadura</span>
+<span class="font-body-md text-body-md font-bold text-on-surface">18</span>
+</div>
+</div>
+<p class="font-body-md text-body-md text-secondary line-clamp-2 mt-auto">Un tirano flotante con un ojo central masivo y múltiples pedúnculos oculares, cada uno capaz de lanzar rayos mágicos mortales.</p>
+</article>
+<!-- Card 2 -->
+<article class="bg-surface rounded-lg border border-border-low-contrast p-md hover:shadow-sm transition-shadow flex flex-col gap-sm">
+<div class="flex items-start gap-md">
+<img alt="Vampire Thumbnail" class="w-16 h-16 rounded object-cover border border-border-low-contrast" data-alt="A minimalist, high-contrast vector graphic representing a Vampire lord. The image is styled like a clean, modern UI icon, utilizing stark blacks, whites, and a single accent of deep crimson red against a completely neutral background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDfMPK1J7UKlf0iAKhZUrgpGG4hMWW_mk_Kx_HcfURQb9floP0r4HjNGAfzeB_qHonvuizHh1oW9mTBnQDkqjRxoCNGBAzxZgX7n9Lgu4qYAw4JmaM6oEmkVxM3LZUF6IHjyWffdvwL7qHM1Ki4WERJF_wIxQCNV9ZjdoOodvIju9lXQ9LSemAHjLveuqSry0HAXagYyJPmzm5tkQA6mn8ks14cP3ROTlDZjEDnNaeWPKCsJQput5HYg3L_Bix68yQJJN7WWV4-BA"/>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<h3 class="font-headline-md text-headline-md text-on-surface">Vampiro</h3>
+<span class="bg-error-container text-on-error-container px-2 py-0.5 rounded font-label-sm text-label-sm font-bold">CR 15</span>
+</div>
+<p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mt-1">No-Muerto</p>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-xs my-xs bg-surface-subtle p-sm rounded border border-border-low-contrast">
+<div>
+<span class="font-label-sm text-label-sm text-on-surface-variant block">HP Máximo</span>
+<span class="font-body-md text-body-md font-bold text-hp-danger">144</span>
+</div>
+<div>
+<span class="font-label-sm text-label-sm text-on-surface-variant block">Clase Armadura</span>
+<span class="font-body-md text-body-md font-bold text-on-surface">16</span>
+</div>
+</div>
+<p class="font-body-md text-body-md text-secondary line-clamp-2 mt-auto">Un depredador no-muerto aristocrático que se alimenta de la sangre de los vivos, poseyendo fuerza sobrehumana y encanto letal.</p>
+</article>
+<!-- Card 3 -->
+<article class="bg-surface rounded-lg border border-border-low-contrast p-md hover:shadow-sm transition-shadow flex flex-col gap-sm">
+<div class="flex items-start gap-md">
+<img alt="Dragon Thumbnail" class="w-16 h-16 rounded object-cover border border-border-low-contrast" data-alt="A sleek, geometric abstraction of a Red Dragon. Designed for a modern data dashboard, the illustration uses sharp angles, flat colors, and a disciplined palette of white, off-white, and striking red lines, completely devoid of traditional fantasy grunge." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDiWMvCwwqcneocuft5jlhqVx11wPOR-9oOFH8wEK0_mBML3TNBxEwtQ0kwZdDfmrZmQDLckLw6KxBcIy1QJSPvSx9_XNP0Ruz9SZxSXnp8YSjvV-ntVMcEkhHZYto9W5DqUW_xK7Z5UKbgU-0Eawlsypzmyd4f5zD2U4n3HicYFE2B18m8NIS5dR2oezacSdgSoRdggGM9IUds-pO9hi7ngQJ5GalO1VAjdhwTwOg5C98AWmo9MOoLAYRUg91YQeadvjV0kAIRPA"/>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<h3 class="font-headline-md text-headline-md text-on-surface">Dragón Rojo</h3>
+<span class="bg-error-container text-on-error-container px-2 py-0.5 rounded font-label-sm text-label-sm font-bold">CR 24</span>
+</div>
+<p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mt-1">Dragón</p>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-xs my-xs bg-surface-subtle p-sm rounded border border-border-low-contrast">
+<div>
+<span class="font-label-sm text-label-sm text-on-surface-variant block">HP Máximo</span>
+<span class="font-body-md text-body-md font-bold text-hp-danger">546</span>
+</div>
+<div>
+<span class="font-label-sm text-label-sm text-on-surface-variant block">Clase Armadura</span>
+<span class="font-body-md text-body-md font-bold text-on-surface">22</span>
+</div>
+</div>
+<p class="font-body-md text-body-md text-secondary line-clamp-2 mt-auto">El más codicioso y arrogante de los dragones cromáticos, un titán de escamas carmesí y aliento de fuego devastador.</p>
+</article>
+</section>
+</main>
+<!-- Floating Action Button (FAB) -->
+<button class="fixed right-margin-mobile bottom-24 md:bottom-margin-desktop md:right-margin-desktop bg-primary text-on-primary p-4 rounded-full shadow-[0px_2px_4px_rgba(0,0,0,0.2)] hover:bg-primary-container transition-transform active:scale-95 z-50 flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+</button>
+<!-- BottomNavBar (Mobile) -->
+<nav class="md:hidden bg-surface dark:bg-surface-container-lowest font-label-sm text-label-sm fixed bottom-0 w-full z-50 border-t border-border-low-contrast dark:border-outline-variant flex justify-around items-center h-16 px-xs pb-safe">
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim hover:bg-surface-container-low dark:hover:bg-surface-container-high w-full h-full active:scale-95 transition-transform duration-100" href="#">
+<span class="material-symbols-outlined" data-icon="swords">swords</span>
+<span>Combat</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim hover:bg-surface-container-low dark:hover:bg-surface-container-high w-full h-full active:scale-95 transition-transform duration-100" href="#">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+<span>NPCs</span>
+</a>
+<a class="flex flex-col items-center justify-center text-primary dark:text-primary-fixed font-label-bold hover:bg-surface-container-low dark:hover:bg-surface-container-high w-full h-full active:scale-95 transition-transform duration-100" href="#">
+<span class="material-symbols-outlined" data-icon="pets">pets</span>
+<span>Bestiario</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim hover:bg-surface-container-low dark:hover:bg-surface-container-high w-full h-full active:scale-95 transition-transform duration-100" href="#">
+<span class="material-symbols-outlined" data-icon="map">map</span>
+<span>Maps</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim hover:bg-surface-container-low dark:hover:bg-surface-container-high w-full h-full active:scale-95 transition-transform duration-100" href="#">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+<span>Notes</span>
+</a>
+</nav>
+</body></html>

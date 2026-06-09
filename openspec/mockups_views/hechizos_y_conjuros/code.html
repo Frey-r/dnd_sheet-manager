@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Hoja de Personaje - Hechizos</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary-fixed": "#1b1b1b",
+                        "inverse-on-surface": "#f0f1f1",
+                        "on-tertiary": "#ffffff",
+                        "surface-bright": "#f9f9f9",
+                        "primary-fixed-dim": "#b1c5ff",
+                        "on-tertiary-container": "#fffdff",
+                        "surface-subtle": "#F6F6F6",
+                        "surface-variant": "#e2e2e2",
+                        "inverse-surface": "#2f3131",
+                        "background": "#f9f9f9",
+                        "on-secondary-fixed-variant": "#474747",
+                        "on-primary-fixed": "#001947",
+                        "secondary": "#5e5e5e",
+                        "surface-container-low": "#f3f3f4",
+                        "on-error": "#ffffff",
+                        "primary-container": "#276ef1",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary-container": "#e2e2e2",
+                        "on-secondary-container": "#646464",
+                        "error": "#ba1a1a",
+                        "secondary-fixed-dim": "#c6c6c6",
+                        "gm-amber": "#FFC043",
+                        "tertiary-fixed": "#ffdbcc",
+                        "secondary-fixed": "#e2e2e2",
+                        "surface-container-highest": "#e2e2e2",
+                        "border-low-contrast": "#E2E2E2",
+                        "tertiary": "#9e3f00",
+                        "error-container": "#ffdad6",
+                        "on-surface-variant": "#424654",
+                        "on-tertiary-fixed": "#351000",
+                        "surface-dim": "#dadada",
+                        "hp-danger": "#E11900",
+                        "surface": "#f9f9f9",
+                        "on-surface": "#1a1c1c",
+                        "on-primary": "#ffffff",
+                        "outline-variant": "#c2c6d7",
+                        "on-primary-container": "#fffeff",
+                        "inverse-primary": "#b1c5ff",
+                        "surface-container-high": "#e8e8e8",
+                        "on-secondary": "#ffffff",
+                        "tertiary-container": "#c65100",
+                        "on-primary-fixed-variant": "#00419f",
+                        "primary": "#0055cd",
+                        "on-tertiary-fixed-variant": "#7b2f00",
+                        "tertiary-fixed-dim": "#ffb694",
+                        "success-active": "#05A357",
+                        "surface-tint": "#0056d0",
+                        "on-error-container": "#93000a",
+                        "primary-fixed": "#dae2ff",
+                        "surface-container": "#eeeeee",
+                        "outline": "#737786",
+                        "on-background": "#1a1c1c"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin-mobile": "16px",
+                        "md": "16px",
+                        "xs": "4px",
+                        "unit": "4px",
+                        "margin-desktop": "40px",
+                        "xl": "32px",
+                        "sm": "8px",
+                        "gutter": "16px",
+                        "lg": "24px"
+                    },
+                    "fontFamily": {
+                        "label-bold": ["Hanken Grotesk"],
+                        "body-md": ["Hanken Grotesk"],
+                        "display-lg": ["Hanken Grotesk"],
+                        "stat-number": ["Hanken Grotesk"],
+                        "headline-lg": ["Hanken Grotesk"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "label-sm": ["Hanken Grotesk"],
+                        "headline-lg-mobile": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "label-bold": ["14px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "display-lg": ["44px", { "lineHeight": "52px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                        "stat-number": ["36px", { "lineHeight": "40px", "fontWeight": "800" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Hanken Grotesk', sans-serif; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background min-h-screen pb-24 md:pb-0 pt-16 md:pt-20">
+<!-- TopAppBar -->
+<header class="fixed top-0 left-0 w-full z-50 bg-surface border-b border-border-low-contrast flex justify-between items-center px-margin-mobile h-16 md:hidden">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full overflow-hidden bg-surface-variant flex items-center justify-center">
+<img alt="Avatar" class="w-full h-full object-cover" data-alt="A highly detailed close up portrait of a high elf wizard character from Dungeons and Dragons. The elf has sharp, angular features, pale skin, and long flowing silver hair. They are wearing intricate, dark blue robes with silver arcane embroidery. The lighting is dramatic and moody, casting deep shadows that emphasize their authoritative and magical presence. The background is a soft, dark blur suggesting a dimly lit library or study." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDR1I4ghMZ7KPfLhtUEhO42lJtHmjhlAnm4_UauKJ6LVZo45aNkeZPBhJXTbv3RMOU5NQsLmuilTHmJJsybUg_-ZxU1-Ou7LjVjvLduaCgeYivYw5jNKjIvsf4wfVQHpmwv00XQBd80j3eQek5yDPKyUYCoxFQPQsj8DorgVxUWxQNfniwfNRL7XRnmThc732Jx6eX9wu9qqaqJM_XvTOqbIUhW-svm0l53in6b1mHkHt06Q1JguP8NY6UhNfI7ZWTCmUOy56rrEw"/>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md-mobile font-bold text-on-surface">Eldrin</h1>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Alto Elfo Mago L5</p>
+</div>
+</div>
+<button class="text-on-surface-variant hover:bg-surface-container-low transition-colors p-2 rounded-full active:scale-95 duration-200 ease-in-out">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</header>
+<!-- Desktop Navigation -->
+<nav class="hidden md:flex fixed top-0 left-0 w-full z-50 bg-surface border-b border-border-low-contrast px-margin-desktop h-20 items-center justify-between">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full overflow-hidden bg-surface-variant flex items-center justify-center">
+<img alt="Avatar" class="w-full h-full object-cover" data-alt="A highly detailed close up portrait of a high elf wizard character from Dungeons and Dragons. The elf has sharp, angular features, pale skin, and long flowing silver hair. They are wearing intricate, dark blue robes with silver arcane embroidery. The lighting is dramatic and moody, casting deep shadows that emphasize their authoritative and magical presence. The background is a soft, dark blur suggesting a dimly lit library or study." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDaYLRspA8j5fSmp5hPF14dg2DeeY68uhjmrfeuKG_4WuWMNYunptTQtBt0FVRiCFlG2bX8AzZmJW4RHVho9iisS4aDBhAREJ6WlN49yIyBZXaEXAfqwLACeKWVhqtb8J8g-Mwaz42pRBaQQ7r95McWsWG1EDYk8Zut2x8wHjPfejonh60otQexpkslR6n05ezdeV-dDyYh0-TpdhOkwOAeGZSYVIzhtROUXc-NaszJVnSpwfRwVn6TCfzFGKlF_yqxl1g8DMAnUw"/>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md font-bold text-on-surface">Eldrin</h1>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Alto Elfo Mago Nivel 5</p>
+</div>
+</div>
+<div class="flex gap-8">
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors flex items-center gap-2" href="#">
+<span class="material-symbols-outlined">person</span> Stats
+            </a>
+<a class="font-body-md text-body-md text-primary font-semibold border-b-2 border-primary pb-1 flex items-center gap-2" href="#">
+<span class="material-symbols-outlined">auto_awesome</span> Hechizos
+            </a>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors flex items-center gap-2" href="#">
+<span class="material-symbols-outlined">shopping_bag</span> Inventario
+            </a>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors flex items-center gap-2" href="#">
+<span class="material-symbols-outlined">history_edu</span> Bio
+            </a>
+</div>
+</nav>
+<!-- Mobile Tab Navigation -->
+<div class="md:hidden flex w-full border-b border-border-low-contrast bg-surface sticky top-16 z-40">
+<a class="flex-1 text-center py-3 font-label-bold text-label-bold text-on-surface-variant border-b-2 border-transparent" href="#">Stats</a>
+<a class="flex-1 text-center py-3 font-label-bold text-label-bold text-primary border-b-2 border-primary" href="#">Hechizos</a>
+<a class="flex-1 text-center py-3 font-label-bold text-label-bold text-on-surface-variant border-b-2 border-transparent" href="#">Inventario</a>
+<a class="flex-1 text-center py-3 font-label-bold text-label-bold text-on-surface-variant border-b-2 border-transparent" href="#">Bio</a>
+</div>
+<main class="max-w-7xl mx-auto px-margin-mobile md:px-margin-desktop py-lg grid grid-cols-1 md:grid-cols-12 gap-lg">
+<!-- Spellcasting Summary -->
+<section class="md:col-span-12 flex gap-md">
+<div class="flex-1 bg-surface-subtle border border-border-low-contrast rounded-lg p-md text-center">
+<p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-xs">CD de Salvación</p>
+<p class="font-stat-number text-stat-number text-on-surface">15</p>
+</div>
+<div class="flex-1 bg-surface-subtle border border-border-low-contrast rounded-lg p-md text-center">
+<p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-xs">Bono de Ataque</p>
+<p class="font-stat-number text-stat-number text-on-surface">+7</p>
+</div>
+</section>
+<!-- Spell Slots Tracker -->
+<section class="md:col-span-4 bg-surface rounded-lg border border-border-low-contrast p-md h-fit">
+<h2 class="font-headline-md text-headline-md-mobile md:text-headline-md font-bold mb-md text-on-surface flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">battery_charging_full</span> Espacios de Conjuro
+            </h2>
+<div class="space-y-md">
+<!-- Level 1 Slots -->
+<div class="flex justify-between items-center border-b border-border-low-contrast pb-sm">
+<div>
+<p class="font-label-bold text-label-bold text-on-surface">Nivel 1</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">2/4 restantes</p>
+</div>
+<div class="flex gap-xs">
+<button class="w-6 h-6 rounded border border-primary-container bg-primary-container text-on-primary-container flex items-center justify-center cursor-pointer transition-colors hover:bg-surface-tint">
+<span class="material-symbols-outlined text-[14px]">close</span>
+</button>
+<button class="w-6 h-6 rounded border border-primary-container bg-primary-container text-on-primary-container flex items-center justify-center cursor-pointer transition-colors hover:bg-surface-tint">
+<span class="material-symbols-outlined text-[14px]">close</span>
+</button>
+<button class="w-6 h-6 rounded border border-outline-variant bg-surface-subtle flex items-center justify-center cursor-pointer transition-colors hover:border-primary">
+</button>
+<button class="w-6 h-6 rounded border border-outline-variant bg-surface-subtle flex items-center justify-center cursor-pointer transition-colors hover:border-primary">
+</button>
+</div>
+</div>
+<!-- Level 2 Slots -->
+<div class="flex justify-between items-center border-b border-border-low-contrast pb-sm">
+<div>
+<p class="font-label-bold text-label-bold text-on-surface">Nivel 2</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">3/3 restantes</p>
+</div>
+<div class="flex gap-xs">
+<button class="w-6 h-6 rounded border border-outline-variant bg-surface-subtle flex items-center justify-center cursor-pointer transition-colors hover:border-primary">
+</button>
+<button class="w-6 h-6 rounded border border-outline-variant bg-surface-subtle flex items-center justify-center cursor-pointer transition-colors hover:border-primary">
+</button>
+<button class="w-6 h-6 rounded border border-outline-variant bg-surface-subtle flex items-center justify-center cursor-pointer transition-colors hover:border-primary">
+</button>
+</div>
+</div>
+<!-- Level 3 Slots -->
+<div class="flex justify-between items-center pb-sm">
+<div>
+<p class="font-label-bold text-label-bold text-on-surface">Nivel 3</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">1/2 restantes</p>
+</div>
+<div class="flex gap-xs">
+<button class="w-6 h-6 rounded border border-primary-container bg-primary-container text-on-primary-container flex items-center justify-center cursor-pointer transition-colors hover:bg-surface-tint">
+<span class="material-symbols-outlined text-[14px]">close</span>
+</button>
+<button class="w-6 h-6 rounded border border-outline-variant bg-surface-subtle flex items-center justify-center cursor-pointer transition-colors hover:border-primary">
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- Prepared Spells -->
+<section class="md:col-span-8 space-y-lg">
+<!-- Level 1 Spells -->
+<div>
+<h3 class="font-headline-md text-headline-md-mobile md:text-headline-md font-bold mb-md text-on-surface border-b border-border-low-contrast pb-xs">Nivel 1</h3>
+<div class="space-y-sm">
+<!-- Spell Card -->
+<div class="bg-surface rounded-lg border border-border-low-contrast p-md flex flex-col sm:flex-row sm:items-center justify-between gap-md">
+<div class="flex-1">
+<div class="flex items-center gap-2 mb-xs">
+<h4 class="font-label-bold text-label-bold text-on-surface text-lg">Proyectil Mágico</h4>
+<span class="bg-surface-variant text-on-surface-variant px-2 py-0.5 rounded text-[10px] font-bold uppercase">Evocación</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant text-sm line-clamp-2">Creas tres dardos brillantes de fuerza mágica. Cada dardo impacta a una criatura de tu elección...</p>
+<div class="flex gap-3 mt-2 text-xs text-on-surface-variant font-label-sm">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">schedule</span> 1 Acción</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">straighten</span> 120 pies</span>
+</div>
+</div>
+<button class="w-full sm:w-auto bg-primary-container text-on-primary-container font-label-bold text-label-bold py-2 px-4 rounded transition-colors hover:bg-surface-tint">
+                            Lanzar
+                        </button>
+</div>
+<!-- Spell Card -->
+<div class="bg-surface rounded-lg border border-border-low-contrast p-md flex flex-col sm:flex-row sm:items-center justify-between gap-md">
+<div class="flex-1">
+<div class="flex items-center gap-2 mb-xs">
+<h4 class="font-label-bold text-label-bold text-on-surface text-lg">Escudo</h4>
+<span class="bg-surface-variant text-on-surface-variant px-2 py-0.5 rounded text-[10px] font-bold uppercase">Abjuración</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant text-sm line-clamp-2">Una barrera invisible de fuerza mágica aparece y te protege. Hasta el comienzo de tu siguiente turno...</p>
+<div class="flex gap-3 mt-2 text-xs text-on-surface-variant font-label-sm">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">flash_on</span> 1 Reacción</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">person</span> Personal</span>
+</div>
+</div>
+<button class="w-full sm:w-auto bg-primary-container text-on-primary-container font-label-bold text-label-bold py-2 px-4 rounded transition-colors hover:bg-surface-tint">
+                            Lanzar
+                        </button>
+</div>
+</div>
+</div>
+<!-- Level 2 Spells -->
+<div>
+<h3 class="font-headline-md text-headline-md-mobile md:text-headline-md font-bold mb-md text-on-surface border-b border-border-low-contrast pb-xs">Nivel 2</h3>
+<div class="space-y-sm">
+<!-- Spell Card -->
+<div class="bg-surface rounded-lg border border-border-low-contrast p-md flex flex-col sm:flex-row sm:items-center justify-between gap-md">
+<div class="flex-1">
+<div class="flex items-center gap-2 mb-xs">
+<h4 class="font-label-bold text-label-bold text-on-surface text-lg">Paso Brumoso</h4>
+<span class="bg-surface-variant text-on-surface-variant px-2 py-0.5 rounded text-[10px] font-bold uppercase">Conjuración</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant text-sm line-clamp-2">Brevemente rodeado por niebla plateada, te teletransportas hasta 30 pies a un espacio desocupado...</p>
+<div class="flex gap-3 mt-2 text-xs text-on-surface-variant font-label-sm">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">directions_run</span> 1 Acción Adicional</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">person</span> Personal</span>
+</div>
+</div>
+<button class="w-full sm:w-auto bg-primary-container text-on-primary-container font-label-bold text-label-bold py-2 px-4 rounded transition-colors hover:bg-surface-tint">
+                            Lanzar
+                        </button>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar (Mobile Only) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-sm py-xs bg-surface-container-lowest border-t border-border-low-contrast">
+<a class="flex flex-col items-center justify-center text-on-surface-variant p-2 hover:text-primary transition-all" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">person_filled</span>
+<span class="font-label-sm text-label-sm mt-1">Sheet</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant p-2 hover:text-primary transition-all" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">map</span>
+<span class="font-label-sm text-label-sm mt-1">Plot</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant p-2 hover:text-primary transition-all" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">forum</span>
+<span class="font-label-sm text-label-sm mt-1">Chat</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant p-2 hover:text-primary transition-all" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">shopping_bag</span>
+<span class="font-label-sm text-label-sm mt-1">Market</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-lg px-4 py-1 hover:text-primary transition-all" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">inbox</span>
+<span class="font-label-sm text-label-sm mt-1">Inbox</span>
+</a>
+</nav>
+<!-- Spellbook Search (Floating) -->
+<div class="fixed bottom-24 md:bottom-8 right-margin-mobile md:right-margin-desktop z-40">
+<button class="bg-primary-container text-on-primary-container rounded-full w-14 h-14 shadow-md flex items-center justify-center hover:bg-surface-tint transition-colors active:scale-95">
+<span class="material-symbols-outlined text-2xl">search</span>
+</button>
+</div>
+</body></html>

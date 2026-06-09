@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Gestión de la Party - GM Console</title>
+<!-- Google Fonts: Hanken Grotesk -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Theme Configuration -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary-fixed-variant": "#474747",
+                        "on-primary-fixed": "#001947",
+                        "tertiary-fixed-dim": "#ffb694",
+                        "border-low-contrast": "#E2E2E2",
+                        "inverse-on-surface": "#f0f1f1",
+                        "tertiary": "#9e3f00",
+                        "surface-bright": "#f9f9f9",
+                        "on-surface": "#1a1c1c",
+                        "surface-dim": "#dadada",
+                        "primary-fixed": "#dae2ff",
+                        "primary-container": "#276ef1",
+                        "error": "#ba1a1a",
+                        "hp-danger": "#E11900",
+                        "outline": "#737786",
+                        "primary-fixed-dim": "#b1c5ff",
+                        "surface": "#f9f9f9",
+                        "secondary-fixed-dim": "#c6c6c6",
+                        "on-primary-fixed-variant": "#00419f",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary": "#5e5e5e",
+                        "tertiary-fixed": "#ffdbcc",
+                        "secondary-container": "#e2e2e2",
+                        "on-tertiary-container": "#fffdff",
+                        "on-error-container": "#93000a",
+                        "secondary-fixed": "#e2e2e2",
+                        "on-secondary-fixed": "#1b1b1b",
+                        "on-primary-container": "#fffeff",
+                        "on-tertiary-fixed-variant": "#7b2f00",
+                        "surface-container-highest": "#e2e2e2",
+                        "on-secondary-container": "#646464",
+                        "on-background": "#1a1c1c",
+                        "surface-tint": "#0056d0",
+                        "success-active": "#05A357",
+                        "on-surface-variant": "#424654",
+                        "primary": "#0055cd",
+                        "on-tertiary-fixed": "#351000",
+                        "on-tertiary": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "background": "#f9f9f9",
+                        "on-secondary": "#ffffff",
+                        "tertiary-container": "#c65100",
+                        "surface-container-low": "#f3f3f4",
+                        "surface-subtle": "#F6F6F6",
+                        "on-error": "#ffffff",
+                        "outline-variant": "#c2c6d7",
+                        "inverse-surface": "#2f3131",
+                        "surface-container": "#eeeeee",
+                        "surface-variant": "#e2e2e2",
+                        "error-container": "#ffdad6",
+                        "inverse-primary": "#b1c5ff",
+                        "surface-container-high": "#e8e8e8",
+                        "gm-amber": "#FFC043"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xs": "4px",
+                        "md": "16px",
+                        "margin-desktop": "40px",
+                        "unit": "4px",
+                        "margin-mobile": "16px",
+                        "gutter": "16px",
+                        "xl": "32px",
+                        "sm": "8px",
+                        "lg": "24px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "headline-lg-mobile": ["Hanken Grotesk"],
+                        "stat-number": ["Hanken Grotesk"],
+                        "label-sm": ["Hanken Grotesk"],
+                        "headline-lg": ["Hanken Grotesk"],
+                        "display-lg": ["Hanken Grotesk"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "label-bold": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "700" }],
+                        "stat-number": ["36px", { "lineHeight": "40px", "fontWeight": "800" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "fontWeight": "700" }],
+                        "display-lg": ["44px", { "lineHeight": "52px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "label-bold": ["14px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background antialiased font-body-md min-h-screen pb-24">
+<!-- TopAppBar -->
+<header class="bg-surface dark:bg-on-surface docked full-width top-0 border-b border-border-low-contrast dark:border-outline flat no shadows fixed top-0 left-0 w-full z-50 flex justify-between items-center px-margin-mobile h-16">
+<div class="flex items-center gap-md">
+<button class="text-primary dark:text-primary-fixed-dim hover:bg-surface-container-low dark:hover:bg-surface-container-highest transition-colors active:opacity-80 transition-opacity p-2 -ml-2 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="menu">menu</span>
+</button>
+<h1 class="font-headline-md text-headline-md text-primary dark:text-primary-fixed">GM Console</h1>
+</div>
+<div class="flex items-center">
+<div class="w-8 h-8 rounded-full bg-surface-container-highest border border-border-low-contrast overflow-hidden flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant">person</span>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="pt-24 px-margin-mobile md:px-margin-desktop max-w-7xl mx-auto space-y-lg">
+<!-- Header Section -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-md">
+<div>
+<h2 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface">Gestión de la Party</h2>
+<p class="font-body-md text-body-md text-on-surface-variant mt-xs">4 Jugadores Activos • Promedio Nivel 4</p>
+</div>
+<!-- Group Actions (Desktop) -->
+<div class="hidden md:flex gap-sm">
+<button class="px-md py-sm rounded-DEFAULT border border-border-low-contrast bg-surface-container-lowest hover:bg-surface-container-low transition-colors font-label-bold text-label-bold text-on-surface flex items-center gap-xs">
+<span class="material-symbols-outlined text-[18px]">bedtime</span> Descanso Corto
+                </button>
+<button class="px-md py-sm rounded-DEFAULT border border-border-low-contrast bg-surface-container-lowest hover:bg-surface-container-low transition-colors font-label-bold text-label-bold text-on-surface flex items-center gap-xs">
+<span class="material-symbols-outlined text-[18px]">hotel</span> Descanso Largo
+                </button>
+<button class="px-md py-sm rounded-DEFAULT bg-primary-container text-on-primary-container hover:opacity-90 transition-opacity font-label-bold text-label-bold flex items-center gap-xs">
+<span class="material-symbols-outlined text-[18px]">workspace_premium</span> Repartir EXP
+                </button>
+</div>
+</div>
+<!-- Party Summary Metrics -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-md">
+<div class="bg-surface-container-lowest border border-border-low-contrast p-md rounded-lg flex flex-col items-center justify-center text-center">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-xs">Nivel Grupo</span>
+<span class="font-stat-number text-stat-number text-on-surface">4</span>
+</div>
+<div class="bg-surface-container-lowest border border-border-low-contrast p-md rounded-lg flex flex-col items-center justify-center text-center">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-xs">CA Promedio</span>
+<span class="font-stat-number text-stat-number text-on-surface">14.3</span>
+</div>
+<div class="bg-surface-container-lowest border border-border-low-contrast p-md rounded-lg flex flex-col items-center justify-center text-center">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-xs">Percepción Pasiva Max</span>
+<span class="font-stat-number text-stat-number text-on-surface">18</span>
+</div>
+<div class="bg-surface-container-lowest border border-border-low-contrast p-md rounded-lg flex flex-col items-center justify-center text-center">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-xs">Salud Total</span>
+<span class="font-stat-number text-stat-number text-on-surface text-success-active">125</span>
+</div>
+</div>
+<!-- Character Cards Grid -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-md">
+<!-- Character 1 -->
+<div class="bg-surface-container-lowest border border-border-low-contrast rounded-lg overflow-hidden flex flex-col relative group hover:border-primary-fixed-dim transition-colors">
+<div class="absolute top-md right-md flex gap-sm">
+<div class="bg-success-active/10 text-success-active px-2 py-1 rounded-full font-label-sm text-label-sm flex items-center gap-xs">
+<div class="w-2 h-2 rounded-full bg-success-active"></div> Activo
+                    </div>
+<button class="text-on-surface-variant hover:text-primary transition-colors bg-surface-container-lowest rounded-full p-1 border border-border-low-contrast">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+</button>
+</div>
+<div class="p-md flex flex-col items-center border-b border-border-low-contrast bg-surface-subtle">
+<div class="w-16 h-16 rounded-full bg-surface-container-high mb-md border-2 border-surface-container-lowest shadow-sm flex items-center justify-center overflow-hidden">
+<img alt="Avatar" class="w-full h-full object-cover" data-alt="A detailed portrait of a rogue character." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDezuqfV7zRI11tDPHftsiEvszCOVD82DJxKlMaJz37-KljHl16qj73tAZHrVB9qBf97hD3Z_8o8LGtCubzW5ykwa1lMPVzKAWYP_CxKQcq7LEqeKCQhrfZo7k5k7CnrpbAXKf49Ejv0l70rIXLxA8tFCdAheXFCfQDk2w-ZPziSiNsi1EyLkN88oRXsA7Ojqv6fo95-4OYtPta97QW4KJHWTODoAe_LX01SFfFpkDHDpA7dIgm2jCcpPp3uh8m-OstVDVBThRRdQ"/>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface">Kaelen el Rápido</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Pícaro (Humano) • Nivel 4</p>
+</div>
+<div class="p-md grid grid-cols-3 gap-sm text-center">
+<div>
+<div class="font-label-sm text-label-sm text-on-surface-variant mb-xs">HP</div>
+<div class="font-label-bold text-label-bold text-success-active">45/45</div>
+</div>
+<div>
+<div class="font-label-sm text-label-sm text-on-surface-variant mb-xs">CA</div>
+<div class="font-label-bold text-label-bold text-on-surface">16</div>
+</div>
+<div>
+<div class="font-label-sm text-label-sm text-on-surface-variant mb-xs">PP</div>
+<div class="font-label-bold text-label-bold text-on-surface">18</div>
+</div>
+</div>
+</div>
+<!-- Character 2 -->
+<div class="bg-surface-container-lowest border border-border-low-contrast rounded-lg overflow-hidden flex flex-col relative group hover:border-primary-fixed-dim transition-colors">
+<div class="absolute top-md right-md flex gap-sm">
+<div class="bg-surface-variant text-on-surface-variant px-2 py-1 rounded-full font-label-sm text-label-sm flex items-center gap-xs">
+<div class="w-2 h-2 rounded-full bg-secondary-fixed-dim"></div> Resting
+                    </div>
+<button class="text-on-surface-variant hover:text-primary transition-colors bg-surface-container-lowest rounded-full p-1 border border-border-low-contrast">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+</button>
+</div>
+<div class="p-md flex flex-col items-center border-b border-border-low-contrast bg-surface-subtle">
+<div class="w-16 h-16 rounded-full bg-surface-container-high mb-md border-2 border-surface-container-lowest shadow-sm flex items-center justify-center overflow-hidden">
+<img alt="Avatar" class="w-full h-full object-cover" data-alt="A detailed portrait of a wizard character." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBj7QpkT0u50tiSW0_Xu-0SrnfKjY5VaQvxUy1i_YQDW8LJUUJfnzRbo-hKwhsqGmp63QjuYZbjXcXM4Helku-SGOfjLG2v6blVnYr20sD1mSEj6g2fxgt4wXjqPq-1R74Tl34mw9plvQOueutfHrHYWDCXyXveRgtqY3P64VhfbD3HOZTr4SMe-ktHccIJ5oAIcs5aidipO8SmVFUjcDuDEOT9FL_8S7jBggJZOxvG5iOyXtZwYJQSNbndD2vjVUO9y33hEi76Kw"/>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface">Lyra la Sabia</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Mago (Elfo) • Nivel 4</p>
+</div>
+<div class="p-md grid grid-cols-3 gap-sm text-center">
+<div>
+<div class="font-label-sm text-label-sm text-on-surface-variant mb-xs">HP</div>
+<div class="font-label-bold text-label-bold text-gm-amber">22/28</div>
+</div>
+<div>
+<div class="font-label-sm text-label-sm text-on-surface-variant mb-xs">CA</div>
+<div class="font-label-bold text-label-bold text-on-surface">12</div>
+</div>
+<div>
+<div class="font-label-sm text-label-sm text-on-surface-variant mb-xs">PP</div>
+<div class="font-label-bold text-label-bold text-on-surface">15</div>
+</div>
+</div>
+</div>
+<!-- Character 3 -->
+<div class="bg-surface-container-lowest border border-border-low-contrast rounded-lg overflow-hidden flex flex-col relative group hover:border-primary-fixed-dim transition-colors">
+<div class="absolute top-md right-md flex gap-sm">
+<div class="bg-success-active/10 text-success-active px-2 py-1 rounded-full font-label-sm text-label-sm flex items-center gap-xs">
+<div class="w-2 h-2 rounded-full bg-success-active"></div> Activo
+                    </div>
+<button class="text-on-surface-variant hover:text-primary transition-colors bg-surface-container-lowest rounded-full p-1 border border-border-low-contrast">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+</button>
+</div>
+<div class="p-md flex flex-col items-center border-b border-border-low-contrast bg-surface-subtle">
+<div class="w-16 h-16 rounded-full bg-surface-container-high mb-md border-2 border-surface-container-lowest shadow-sm flex items-center justify-center overflow-hidden">
+<img alt="Avatar" class="w-full h-full object-cover" data-alt="A detailed portrait of a barbarian character." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBVkVQvdQwac6XJ-0Mj_HMXUA_vvgWl8ncurOYOHIzo7VkfJ4NoSvKf-VnetZUt1CpfrOGvYXBDIVeKjGKfVsR36_K3iGr2PXZxrftxD9UtnVUxRMLxH7tY-rLJzs0D37mccSC9_DCGmPOWNftjB3MalLT9sgg5ze8enfxO5X1xWr8m6UrM4ecH7prq4_Gb5NfIK_PyOpcGt93KBV6ozUbm6A67gut76S7MaoDjzrGomwM10jQXepyYEqyfK47i6nELZn9HSNVPBQ"/>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface">Grok el Fuerte</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Bárbaro (Orco) • Nivel 4</p>
+</div>
+<div class="p-md grid grid-cols-3 gap-sm text-center">
+<div>
+<div class="font-label-sm text-label-sm text-on-surface-variant mb-xs">HP</div>
+<div class="font-label-bold text-label-bold text-success-active">58/62</div>
+</div>
+<div>
+<div class="font-label-sm text-label-sm text-on-surface-variant mb-xs">CA</div>
+<div class="font-label-bold text-label-bold text-on-surface">15</div>
+</div>
+<div>
+<div class="font-label-sm text-label-sm text-on-surface-variant mb-xs">PP</div>
+<div class="font-label-bold text-label-bold text-on-surface">11</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Group Actions (Mobile) -->
+<div class="flex flex-col gap-sm md:hidden">
+<button class="w-full py-md rounded-DEFAULT border border-border-low-contrast bg-surface-container-lowest font-label-bold text-label-bold text-on-surface flex items-center justify-center gap-xs">
+<span class="material-symbols-outlined text-[20px]">bedtime</span> Descanso Corto
+            </button>
+<button class="w-full py-md rounded-DEFAULT border border-border-low-contrast bg-surface-container-lowest font-label-bold text-label-bold text-on-surface flex items-center justify-center gap-xs">
+<span class="material-symbols-outlined text-[20px]">hotel</span> Descanso Largo
+            </button>
+<button class="w-full py-md rounded-DEFAULT bg-primary-container text-on-primary-container font-label-bold text-label-bold flex items-center justify-center gap-xs">
+<span class="material-symbols-outlined text-[20px]">workspace_premium</span> Repartir Experiencia
+            </button>
+</div>
+</main>
+<!-- Floating Action Button -->
+<button aria-label="Añadir Jugador" class="fixed bottom-24 right-4 md:right-8 w-14 h-14 bg-primary-container text-on-primary-container rounded-full shadow-[0_4px_8px_rgba(0,0,0,0.1)] flex items-center justify-center hover:scale-105 transition-transform z-40">
+<span class="material-symbols-outlined" style="font-size: 28px;">add</span>
+</button>
+<!-- BottomNavBar (Mobile Only) -->
+<nav class="bg-surface dark:bg-on-surface docked full-width bottom-0 border-t border-border-low-contrast dark:border-outline flat no shadows fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 py-3 pb-safe md:hidden">
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-secondary-fixed-dim px-4 py-1 hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors active:scale-95 transition-transform duration-150">
+<span class="material-symbols-outlined" data-icon="swords">swords</span>
+<span class="font-label-bold text-label-bold mt-1 text-[10px]">Combat</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-secondary-fixed-dim px-4 py-1 hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors active:scale-95 transition-transform duration-150">
+<span class="material-symbols-outlined" data-icon="groups">groups</span>
+<span class="font-label-bold text-label-bold mt-1 text-[10px]">NPCs</span>
+</button>
+<button class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-lg px-4 py-1 hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors active:scale-95 transition-transform duration-150">
+<span class="material-symbols-outlined" data-icon="person_pin_circle" style="font-variation-settings: 'FILL' 1;">person_pin_circle</span>
+<span class="font-label-bold text-label-bold mt-1 text-[10px]">Party</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-secondary-fixed-dim px-4 py-1 hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors active:scale-95 transition-transform duration-150">
+<span class="material-symbols-outlined" data-icon="event">event</span>
+<span class="font-label-bold text-label-bold mt-1 text-[10px]">Events</span>
+</button>
+</nav>
+</body></html>

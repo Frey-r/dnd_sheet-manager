@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Campaign Notes - GM Tool</title>
+<!-- Google Fonts: Hanken Grotesk -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Theme Config -->
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-tertiary-container": "#fffdff",
+                      "on-tertiary-fixed": "#351000",
+                      "on-secondary": "#ffffff",
+                      "on-primary-fixed": "#001947",
+                      "outline": "#737786",
+                      "on-tertiary": "#ffffff",
+                      "error-container": "#ffdad6",
+                      "tertiary-fixed": "#ffdbcc",
+                      "surface-dim": "#dadada",
+                      "hp-danger": "#E11900",
+                      "surface-variant": "#e2e2e2",
+                      "primary-fixed": "#dae2ff",
+                      "on-secondary-container": "#646464",
+                      "surface-subtle": "#F6F6F6",
+                      "on-primary-fixed-variant": "#00419f",
+                      "on-primary-container": "#fffeff",
+                      "gm-amber": "#FFC043",
+                      "on-error": "#ffffff",
+                      "primary-container": "#276ef1",
+                      "surface-container-lowest": "#ffffff",
+                      "surface-container-high": "#e8e8e8",
+                      "on-tertiary-fixed-variant": "#7b2f00",
+                      "inverse-on-surface": "#f0f1f1",
+                      "on-primary": "#ffffff",
+                      "error": "#ba1a1a",
+                      "primary": "#0055cd",
+                      "outline-variant": "#c2c6d7",
+                      "background": "#f9f9f9",
+                      "surface-container-low": "#f3f3f4",
+                      "tertiary-fixed-dim": "#ffb694",
+                      "on-background": "#1a1c1c",
+                      "inverse-surface": "#2f3131",
+                      "inverse-primary": "#b1c5ff",
+                      "on-surface": "#1a1c1c",
+                      "tertiary-container": "#c65100",
+                      "secondary": "#5e5e5e",
+                      "success-active": "#05A357",
+                      "surface-bright": "#f9f9f9",
+                      "secondary-container": "#e2e2e2",
+                      "primary-fixed-dim": "#b1c5ff",
+                      "secondary-fixed": "#e2e2e2",
+                      "secondary-fixed-dim": "#c6c6c6",
+                      "surface-tint": "#0056d0",
+                      "border-low-contrast": "#E2E2E2",
+                      "surface": "#f9f9f9",
+                      "on-surface-variant": "#424654",
+                      "on-secondary-fixed-variant": "#474747",
+                      "on-secondary-fixed": "#1b1b1b",
+                      "tertiary": "#9e3f00",
+                      "surface-container-highest": "#e2e2e2",
+                      "on-error-container": "#93000a",
+                      "surface-container": "#eeeeee"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "margin-mobile": "16px",
+                      "xl": "32px",
+                      "margin-desktop": "40px",
+                      "unit": "4px",
+                      "xs": "4px",
+                      "md": "16px",
+                      "gutter": "16px",
+                      "sm": "8px",
+                      "lg": "24px"
+              },
+              "fontFamily": {
+                      "stat-number": ["Hanken Grotesk"],
+                      "headline-md": ["Hanken Grotesk"],
+                      "display-lg": ["Hanken Grotesk"],
+                      "body-lg": ["Hanken Grotesk"],
+                      "label-sm": ["Hanken Grotesk"],
+                      "label-bold": ["Hanken Grotesk"],
+                      "headline-lg": ["Hanken Grotesk"],
+                      "headline-lg-mobile": ["Hanken Grotesk"],
+                      "body-md": ["Hanken Grotesk"]
+              },
+              "fontSize": {
+                      "stat-number": ["36px", { "lineHeight": "40px", "fontWeight": "800" }],
+                      "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                      "display-lg": ["44px", { "lineHeight": "52px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                      "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                      "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+                      "label-bold": ["14px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }],
+                      "headline-lg": ["32px", { "lineHeight": "40px", "fontWeight": "700" }],
+                      "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "700" }],
+                      "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }]
+              }
+            }
+          }
+        }
+    </script>
+<style>
+        /* Hide scrollbar for category chips */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface font-body-md antialiased selection:bg-primary-container selection:text-on-primary-container">
+<!-- TopAppBar -->
+<header class="flex items-center justify-between px-margin-mobile h-16 w-full z-50 bg-surface fixed top-0 left-0 right-0 shadow-[0_1px_3px_rgba(0,0,0,0.02)] md:hidden">
+<button class="text-on-surface hover:bg-surface-subtle p-2 rounded-full transition-colors duration-200 active:opacity-70 flex items-center justify-center">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">menu</span>
+</button>
+<h1 class="text-headline-md font-headline-md text-on-surface font-bold tracking-tight">Campaign Notes</h1>
+<button class="text-on-surface hover:bg-surface-subtle p-2 rounded-full transition-colors duration-200 active:opacity-70 flex items-center justify-center">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">search</span>
+</button>
+</header>
+<!-- NavigationDrawer (Desktop) -->
+<nav class="hidden md:flex flex-col fixed left-0 top-0 h-full w-72 z-40 p-md bg-surface border-r border-border-low-contrast">
+<div class="mb-lg px-4 pt-4">
+<h2 class="text-headline-lg font-headline-lg text-on-surface font-extrabold tracking-tight">Campaign Manager</h2>
+</div>
+<ul class="flex flex-col gap-2">
+<li>
+<a class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">dashboard</span>
+<span class="text-body-md font-body-md font-medium">Dashboard</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-4 px-4 py-3 bg-primary-container text-on-primary-container font-bold rounded-lg transition-all duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">description</span>
+<span class="text-body-md font-body-md">Campaign Notes</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">swords</span>
+<span class="text-body-md font-body-md font-medium">Combat Tracker</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">pets</span>
+<span class="text-body-md font-body-md font-medium">Bestiary</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">group</span>
+<span class="text-body-md font-body-md font-medium">Player Characters</span>
+</a>
+</li>
+</ul>
+</nav>
+<!-- Main Content Canvas -->
+<main class="pt-16 pb-24 px-margin-mobile md:ml-72 md:p-margin-desktop md:pt-12 min-h-screen">
+<!-- Desktop Header (Visible only on md+) -->
+<div class="hidden md:flex justify-between items-end mb-lg">
+<h1 class="text-display-lg font-display-lg text-on-surface">Campaign Notes</h1>
+</div>
+<!-- Search Bar Area -->
+<div class="mb-lg mt-4 md:mt-0 relative max-w-2xl">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-on-surface-variant">search</span>
+</div>
+<input class="w-full pl-10 pr-4 py-3 bg-surface-subtle border-b border-border-low-contrast text-on-surface text-body-md font-body-md focus:outline-none focus:border-primary focus:bg-surface-container-lowest transition-colors rounded-t-DEFAULT" placeholder="Search notes, locations, NPCs..." type="text"/>
+</div>
+<!-- Category Chips -->
+<div class="flex gap-2 overflow-x-auto no-scrollbar pb-2 mb-lg -mx-margin-mobile px-margin-mobile md:mx-0 md:px-0">
+<button class="whitespace-nowrap px-4 py-1.5 rounded-full bg-on-surface text-surface-container-lowest text-label-bold font-label-bold transition-transform active:scale-95">All</button>
+<button class="whitespace-nowrap px-4 py-1.5 rounded-full bg-surface-container-lowest border border-border-low-contrast text-on-surface-variant text-label-sm font-label-sm hover:bg-surface-subtle transition-colors">Plot</button>
+<button class="whitespace-nowrap px-4 py-1.5 rounded-full bg-surface-container-lowest border border-border-low-contrast text-on-surface-variant text-label-sm font-label-sm hover:bg-surface-subtle transition-colors">Locations</button>
+<button class="whitespace-nowrap px-4 py-1.5 rounded-full bg-surface-container-lowest border border-border-low-contrast text-on-surface-variant text-label-sm font-label-sm hover:bg-surface-subtle transition-colors">Factions</button>
+<button class="whitespace-nowrap px-4 py-1.5 rounded-full bg-surface-container-lowest border border-border-low-contrast text-on-surface-variant text-label-sm font-label-sm hover:bg-surface-subtle transition-colors">Quests</button>
+</div>
+<!-- Notes Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+<!-- Note Card 1 -->
+<article class="bg-surface-container-lowest border border-border-low-contrast rounded-lg p-4 hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-shadow duration-200 cursor-pointer flex flex-col justify-between h-48">
+<div>
+<div class="flex justify-between items-start mb-2">
+<h3 class="text-body-lg font-body-lg font-bold text-on-surface leading-tight">The Obsidian Prophecy</h3>
+<span class="inline-block px-2 py-0.5 rounded bg-surface-subtle text-on-surface-variant text-[10px] uppercase tracking-wider font-bold">Plot</span>
+</div>
+<p class="text-body-md font-body-md text-on-surface-variant line-clamp-3">
+                        Found in the ruins of Kaelen. Speaks of a shadow rising in the east during the blood moon. The key lies beneath the weeping willow in the Whispering Woods.
+                    </p>
+</div>
+<div class="mt-4 flex items-center text-label-sm font-label-sm text-on-surface-variant gap-1">
+<span class="material-symbols-outlined text-[14px]">schedule</span>
+                    2 hours ago
+                </div>
+</article>
+<!-- Note Card 2 -->
+<article class="bg-surface-container-lowest border border-border-low-contrast rounded-lg p-4 hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-shadow duration-200 cursor-pointer flex flex-col justify-between h-48">
+<div>
+<div class="flex justify-between items-start mb-2">
+<h3 class="text-body-lg font-body-lg font-bold text-on-surface leading-tight">Blackwater Tavern</h3>
+<span class="inline-block px-2 py-0.5 rounded bg-surface-subtle text-on-surface-variant text-[10px] uppercase tracking-wider font-bold">Locations</span>
+</div>
+<p class="text-body-md font-body-md text-on-surface-variant line-clamp-3">
+                        Owner is Garret (half-orc, missing left ear). Rumored smuggling ring operates out of the cellar. Password to enter the back room is currently 'Oyster'.
+                    </p>
+</div>
+<div class="mt-4 flex items-center text-label-sm font-label-sm text-on-surface-variant gap-1">
+<span class="material-symbols-outlined text-[14px]">schedule</span>
+                    Yesterday
+                </div>
+</article>
+<!-- Note Card 3 -->
+<article class="bg-surface-container-lowest border border-border-low-contrast rounded-lg p-4 hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-shadow duration-200 cursor-pointer flex flex-col justify-between h-48">
+<div>
+<div class="flex justify-between items-start mb-2">
+<h3 class="text-body-lg font-body-lg font-bold text-on-surface leading-tight">Crimson Hand</h3>
+<span class="inline-block px-2 py-0.5 rounded bg-surface-subtle text-on-surface-variant text-[10px] uppercase tracking-wider font-bold">Factions</span>
+</div>
+<p class="text-body-md font-body-md text-on-surface-variant line-clamp-3">
+                        Thieves guild operating primarily in the lower mercantile district. Leader unknown, but all official correspondence uses distinctive red wax seals with a gauntlet motif.
+                    </p>
+</div>
+<div class="mt-4 flex items-center text-label-sm font-label-sm text-on-surface-variant gap-1">
+<span class="material-symbols-outlined text-[14px]">schedule</span>
+                    Oct 12
+                </div>
+</article>
+<!-- Note Card 4 -->
+<article class="bg-surface-container-lowest border border-border-low-contrast rounded-lg p-4 hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-shadow duration-200 cursor-pointer flex flex-col justify-between h-48">
+<div>
+<div class="flex justify-between items-start mb-2">
+<h3 class="text-body-lg font-body-lg font-bold text-on-surface leading-tight">Retrieve the Sunstone</h3>
+<span class="inline-block px-2 py-0.5 rounded bg-surface-subtle text-on-surface-variant text-[10px] uppercase tracking-wider font-bold">Quests</span>
+</div>
+<p class="text-body-md font-body-md text-on-surface-variant line-clamp-3">
+                        The high cleric in Oakhaven desperately needs the Sunstone artifact to cure the spreading plague. It is reportedly located deep within the Sunken Temple of Pelor.
+                    </p>
+</div>
+<div class="mt-4 flex items-center text-label-sm font-label-sm text-on-surface-variant gap-1">
+<span class="material-symbols-outlined text-[14px]">schedule</span>
+                    Oct 10
+                </div>
+</article>
+<!-- Quick Add Card Placeholder -->
+<button class="bg-surface-subtle border border-dashed border-outline-variant rounded-lg p-4 hover:bg-surface-container-highest transition-colors duration-200 flex flex-col items-center justify-center h-48 group">
+<div class="bg-surface-container-lowest rounded-full p-2 mb-2 shadow-[0_2px_4px_rgba(0,0,0,0.05)] group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-primary">add</span>
+</div>
+<span class="text-body-md font-body-md font-medium text-on-surface-variant group-hover:text-primary transition-colors">Quick Add Note</span>
+</button>
+</div>
+</main>
+<!-- Floating Action Button (FAB) -->
+<button class="fixed bottom-24 right-4 md:bottom-8 md:right-8 bg-primary-container text-on-primary-container rounded-full w-14 h-14 flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.15)] hover:bg-surface-tint hover:text-on-primary transition-all duration-200 active:scale-95 z-50">
+<span class="material-symbols-outlined text-[28px]" style="font-variation-settings: 'wght' 600;">add</span>
+</button>
+<!-- BottomNavBar (Mobile) -->
+<nav class="md:hidden fixed bottom-0 w-full z-50 flex justify-around items-center h-16 px-4 bg-surface shadow-[0_-1px_3px_rgba(0,0,0,0.02)]">
+<a class="flex flex-col items-center justify-center text-primary font-bold active:scale-95 transition-transform duration-150 w-16" href="#">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 1;">edit_note</span>
+<span class="text-label-sm font-label-sm leading-none">Notes</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary active:scale-95 transition-transform duration-150 w-16" href="#">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 0;">swords</span>
+<span class="text-label-sm font-label-sm leading-none">Combat</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary active:scale-95 transition-transform duration-150 w-16" href="#">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 0;">public</span>
+<span class="text-label-sm font-label-sm leading-none">World</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary active:scale-95 transition-transform duration-150 w-16" href="#">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 0;">history_edu</span>
+<span class="text-label-sm font-label-sm leading-none">Logs</span>
+</a>
+</nav>
+</body></html>

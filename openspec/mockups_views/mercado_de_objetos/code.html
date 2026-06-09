@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+
+<html lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Mercado - Dragon's Wake</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-secondary": "#ffffff",
+                        "inverse-surface": "#2f3131",
+                        "on-surface": "#1a1c1c",
+                        "outline": "#737786",
+                        "surface-container": "#eeeeee",
+                        "error": "#ba1a1a",
+                        "success-active": "#05A357",
+                        "secondary-container": "#e2e2e2",
+                        "on-tertiary-container": "#fffdff",
+                        "tertiary-container": "#c65100",
+                        "gm-amber": "#FFC043",
+                        "border-low-contrast": "#E2E2E2",
+                        "on-background": "#1a1c1c",
+                        "inverse-primary": "#b1c5ff",
+                        "secondary-fixed-dim": "#c6c6c6",
+                        "primary-fixed-dim": "#b1c5ff",
+                        "surface": "#f9f9f9",
+                        "tertiary-fixed-dim": "#ffb694",
+                        "primary-container": "#276ef1",
+                        "on-tertiary-fixed": "#351000",
+                        "on-secondary-fixed-variant": "#474747",
+                        "primary-fixed": "#dae2ff",
+                        "on-secondary-container": "#646464",
+                        "on-primary-fixed": "#001947",
+                        "on-primary": "#ffffff",
+                        "surface-bright": "#f9f9f9",
+                        "on-primary-container": "#fffeff",
+                        "background": "#f9f9f9",
+                        "surface-container-high": "#e8e8e8",
+                        "inverse-on-surface": "#f0f1f1",
+                        "secondary-fixed": "#e2e2e2",
+                        "on-tertiary": "#ffffff",
+                        "outline-variant": "#c2c6d7",
+                        "secondary": "#5e5e5e",
+                        "surface-container-highest": "#e2e2e2",
+                        "on-error": "#ffffff",
+                        "surface-dim": "#dadada",
+                        "surface-variant": "#e2e2e2",
+                        "on-primary-fixed-variant": "#00419f",
+                        "tertiary": "#9e3f00",
+                        "primary": "#0055cd",
+                        "tertiary-fixed": "#ffdbcc",
+                        "on-error-container": "#93000a",
+                        "on-secondary-fixed": "#1b1b1b",
+                        "on-tertiary-fixed-variant": "#7b2f00",
+                        "surface-container-low": "#f3f3f4",
+                        "error-container": "#ffdad6",
+                        "on-surface-variant": "#424654",
+                        "hp-danger": "#E11900",
+                        "surface-tint": "#0056d0",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-subtle": "#F6F6F6"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    spacing: {
+                        "unit": "4px",
+                        "sm": "8px",
+                        "margin-desktop": "40px",
+                        "lg": "24px",
+                        "md": "16px",
+                        "gutter": "16px",
+                        "xs": "4px",
+                        "xl": "32px",
+                        "margin-mobile": "16px"
+                    },
+                    fontFamily: {
+                        "label-sm": ["Hanken Grotesk"],
+                        "headline-lg": ["Hanken Grotesk"],
+                        "label-bold": ["Hanken Grotesk"],
+                        "stat-number": ["Hanken Grotesk"],
+                        "body-md": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "headline-lg-mobile": ["Hanken Grotesk"],
+                        "display-lg": ["Hanken Grotesk"],
+                        "body-lg": ["Hanken Grotesk"]
+                    },
+                    fontSize: {
+                        "label-sm": ["12px", { lineHeight: "16px", fontWeight: "500" }],
+                        "headline-lg": ["32px", { lineHeight: "40px", fontWeight: "700" }],
+                        "label-bold": ["14px", { lineHeight: "16px", letterSpacing: "0.05em", fontWeight: "700" }],
+                        "stat-number": ["36px", { lineHeight: "40px", fontWeight: "800" }],
+                        "body-md": ["16px", { lineHeight: "24px", fontWeight: "400" }],
+                        "headline-md": ["24px", { lineHeight: "32px", fontWeight: "600" }],
+                        "headline-lg-mobile": ["28px", { lineHeight: "36px", fontWeight: "700" }],
+                        "display-lg": ["44px", { lineHeight: "52px", letterSpacing: "-0.02em", fontWeight: "800" }],
+                        "body-lg": ["18px", { lineHeight: "28px", fontWeight: "400" }]
+                    }
+                }
+            }
+        };
+    </script>
+<style>
+        body { font-family: 'Hanken Grotesk', sans-serif; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-background text-on-background pb-24">
+<!-- TopAppBar -->
+<header class="bg-surface text-primary font-headline-md text-headline-md font-extrabold border-b border-border-low-contrast flex justify-between items-center w-full px-margin-mobile h-16 sticky top-0 z-40">
+<div class="flex items-center gap-sm">
+<div class="w-8 h-8 rounded-full bg-surface-container-high overflow-hidden">
+<img alt="Profile" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDZl6nei8ob4DmM-P_n1usomin6mYDfkfVuUYuABTMeXFK5PNq2xG2GpvfWkJOpLO8k7UMR7RxodIyLKWlMf-Vchwp4_ZlwdDIjMalthUhM3jdR0dM_jzBxgz9aqM4WWEmvdevvcDqXtWIkKBTZi70t62T06UFa4nao4PvUd8eVQt1E96xdidub98hBjweN00141z4YGU58A3FZg0SmTwMyFqgDsAjITLK0FRxK_qNn79WWsJ4tDaOYhXYqywH4j25hfBWBLtlW9g"/>
+</div>
+<span>Dragon's Wake</span>
+</div>
+<button class="text-secondary hover:bg-surface-container-low transition-colors duration-200 p-2 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+</header>
+<main class="px-margin-mobile pt-md max-w-7xl mx-auto">
+<!-- Search Bar -->
+<div class="mb-lg relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+<input class="w-full bg-surface-subtle border-none rounded-lg py-3 pl-12 pr-4 font-body-md text-body-md text-on-surface placeholder:text-on-surface-variant focus:ring-2 focus:ring-primary-container outline-none transition-shadow" placeholder="Buscar objetos..." type="text"/>
+</div>
+<!-- Filter Chips -->
+<div class="flex gap-sm overflow-x-auto hide-scrollbar mb-lg pb-1 -mx-margin-mobile px-margin-mobile md:mx-0 md:px-0">
+<button class="whitespace-nowrap px-4 py-2 rounded-full bg-primary-container text-on-primary-container font-label-bold text-label-bold transition-colors">Todo</button>
+<button class="whitespace-nowrap px-4 py-2 rounded-full bg-surface-container-low text-on-surface hover:bg-surface-container transition-colors font-label-bold text-label-bold">Armas</button>
+<button class="whitespace-nowrap px-4 py-2 rounded-full bg-surface-container-low text-on-surface hover:bg-surface-container transition-colors font-label-bold text-label-bold">Armaduras</button>
+<button class="whitespace-nowrap px-4 py-2 rounded-full bg-surface-container-low text-on-surface hover:bg-surface-container transition-colors font-label-bold text-label-bold">Pociones</button>
+<button class="whitespace-nowrap px-4 py-2 rounded-full bg-surface-container-low text-on-surface hover:bg-surface-container transition-colors font-label-bold text-label-bold">Magia</button>
+</div>
+<!-- Items Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md">
+<!-- Item Card: Espada Larga -->
+<div class="bg-surface rounded-lg border border-border-low-contrast overflow-hidden flex flex-row h-32 hover:shadow-sm transition-shadow">
+<div class="w-32 bg-surface-container-low flex-shrink-0">
+<img alt="Espada Larga" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCGkrjTN-rTzdmOw14nXCozNcGaZWLyGP6EprhbSU7M0_mmhCMne56U0tufu8L_pbuN8faLNmqdIlv_Rxy_AVNQ8qfP1RlzLSxN0W3LLVK0qHMx9RtJFhCJukvYtm-wYUZ-MWFpGSyPZ9EsZVCNRTNlJLzZdz9lZ8IPj4b5Yn9BUCbqjkYL3zJqpFjWw9nVlkAoLkxqELvl3NCQ9hRRx2K5fY8A8f-KZCMHvHxcJ5ueyvXLzrldb3W-2HGkLGfb2BF1ctMZ7aXElw"/>
+</div>
+<div class="p-3 flex flex-col justify-between flex-grow">
+<div>
+<div class="flex justify-between items-start mb-1">
+<h3 class="font-headline-md text-body-md font-semibold text-on-surface leading-tight">Espada Larga</h3>
+<span class="font-label-sm text-label-sm bg-surface-container text-secondary px-2 py-0.5 rounded-sm">Común</span>
+</div>
+<p class="font-body-md text-label-sm text-on-surface-variant">Arma marcial cuerpo a cuerpo</p>
+</div>
+<div class="flex justify-between items-center mt-2">
+<span class="font-stat-number text-headline-md text-on-surface">15 <span class="text-label-sm text-on-surface-variant font-normal">po</span></span>
+<button class="bg-primary-container text-on-primary-container font-label-bold text-label-bold px-4 py-2 rounded-full hover:bg-primary transition-colors">Comprar</button>
+</div>
+</div>
+</div>
+<!-- Item Card: Coraza de Cuero -->
+<div class="bg-surface rounded-lg border border-border-low-contrast overflow-hidden flex flex-row h-32 hover:shadow-sm transition-shadow">
+<div class="w-32 bg-surface-container-low flex-shrink-0">
+<img alt="Coraza de Cuero" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBMzgTnhBGdDgHZvzlT7uJ8x8kMYL0Qk0RXrGFc_Psp2pOFqp9OcNNOk7nTkc8qzbSz4t3AoWwBw7pSCI8mWDxkqAI6lZjufbZlSsUMlkkdN2EmZUzc7cnk0FEND9VgHliYBi8j9ZjNg-Dk3RSmVCN3d2NVB1OoRnmxYYz-TiV718ODQ9pRK5LplnHIWtEhswnemAuoKT-nhmR85LAW9ZZihAfhnbuYA_XCnxQRzjxkoUB5rO8kTaBiE-LB_939MA9Ifb-0KXauIw"/>
+</div>
+<div class="p-3 flex flex-col justify-between flex-grow">
+<div>
+<div class="flex justify-between items-start mb-1">
+<h3 class="font-headline-md text-body-md font-semibold text-on-surface leading-tight">Coraza de Cuero</h3>
+<span class="font-label-sm text-label-sm bg-surface-container text-secondary px-2 py-0.5 rounded-sm">Común</span>
+</div>
+<p class="font-body-md text-label-sm text-on-surface-variant">Armadura ligera</p>
+</div>
+<div class="flex justify-between items-center mt-2">
+<span class="font-stat-number text-headline-md text-on-surface">10 <span class="text-label-sm text-on-surface-variant font-normal">po</span></span>
+<button class="bg-primary-container text-on-primary-container font-label-bold text-label-bold px-4 py-2 rounded-full hover:bg-primary transition-colors">Comprar</button>
+</div>
+</div>
+</div>
+<!-- Item Card: Poción de Curación -->
+<div class="bg-surface rounded-lg border border-border-low-contrast overflow-hidden flex flex-row h-32 hover:shadow-sm transition-shadow">
+<div class="w-32 bg-surface-container-low flex-shrink-0">
+<img alt="Poción de Curación" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDPKrImJ-M0zQ10CMOfM1j3urxF4b_FFZc-BZ1D1zYQra2Sf0BLgC0IEm40joOMqVHLQ6mQiBY0CKKBeK4l11gNuA6GkBR2FJrpVbkjQDn0-kNc7VNH_45GepsV2JjHC8oo16uX_rGjGfWbvt-hRqhFVVIVUtKv9rVL-5uWA_CrdUzZmFKfksdUJ19_HXwFk2CX7ItikONBUdRSfM4VzMST0mladd9wRBkGo6QAvGIMf447FZyspr94k8YkMJw0jKw09V14XoC7MQ"/>
+</div>
+<div class="p-3 flex flex-col justify-between flex-grow">
+<div>
+<div class="flex justify-between items-start mb-1">
+<h3 class="font-headline-md text-body-md font-semibold text-on-surface leading-tight">Poción de Curación</h3>
+<span class="font-label-sm text-label-sm bg-surface-container text-secondary px-2 py-0.5 rounded-sm">Común</span>
+</div>
+<p class="font-body-md text-label-sm text-on-surface-variant">Consumible</p>
+</div>
+<div class="flex justify-between items-center mt-2">
+<span class="font-stat-number text-headline-md text-on-surface">50 <span class="text-label-sm text-on-surface-variant font-normal">po</span></span>
+<button class="bg-primary-container text-on-primary-container font-label-bold text-label-bold px-4 py-2 rounded-full hover:bg-primary transition-colors">Comprar</button>
+</div>
+</div>
+</div>
+<!-- Placeholder Item Card 1 -->
+<div class="bg-surface rounded-lg border border-border-low-contrast overflow-hidden flex flex-row h-32 hover:shadow-sm transition-shadow">
+<div class="w-32 bg-surface-container-low flex-shrink-0 relative">
+<div class="absolute inset-0 bg-gradient-to-br from-surface-container-high to-surface-container flex items-center justify-center">
+<span class="material-symbols-outlined text-outline text-headline-lg" data-icon="auto_awesome">auto_awesome</span>
+</div>
+</div>
+<div class="p-3 flex flex-col justify-between flex-grow">
+<div>
+<div class="flex justify-between items-start mb-1">
+<h3 class="font-headline-md text-body-md font-semibold text-on-surface leading-tight">Amuleto de Salud</h3>
+<span class="font-label-sm text-label-sm bg-success-active/10 text-success-active px-2 py-0.5 rounded-sm">Poco Común</span>
+</div>
+<p class="font-body-md text-label-sm text-on-surface-variant">Objeto maravilloso</p>
+</div>
+<div class="flex justify-between items-center mt-2">
+<span class="font-stat-number text-headline-md text-on-surface">200 <span class="text-label-sm text-on-surface-variant font-normal">po</span></span>
+<button class="bg-primary-container text-on-primary-container font-label-bold text-label-bold px-4 py-2 rounded-full hover:bg-primary transition-colors">Comprar</button>
+</div>
+</div>
+</div>
+<!-- Placeholder Item Card 2 -->
+<div class="bg-surface rounded-lg border border-border-low-contrast overflow-hidden flex flex-row h-32 hover:shadow-sm transition-shadow">
+<div class="w-32 bg-surface-container-low flex-shrink-0 relative">
+<div class="absolute inset-0 bg-gradient-to-br from-surface-container-high to-surface-container flex items-center justify-center">
+<span class="material-symbols-outlined text-outline text-headline-lg" data-icon="shield">shield</span>
+</div>
+</div>
+<div class="p-3 flex flex-col justify-between flex-grow">
+<div>
+<div class="flex justify-between items-start mb-1">
+<h3 class="font-headline-md text-body-md font-semibold text-on-surface leading-tight">Escudo +1</h3>
+<span class="font-label-sm text-label-sm bg-primary/10 text-primary px-2 py-0.5 rounded-sm">Raro</span>
+</div>
+<p class="font-body-md text-label-sm text-on-surface-variant">Armadura, Escudo</p>
+</div>
+<div class="flex justify-between items-center mt-2">
+<span class="font-stat-number text-headline-md text-on-surface">1500 <span class="text-label-sm text-on-surface-variant font-normal">po</span></span>
+<button class="bg-primary-container text-on-primary-container font-label-bold text-label-bold px-4 py-2 rounded-full hover:bg-primary transition-colors">Comprar</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar (Mobile only) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 py-3 bg-surface border-t border-border-low-contrast">
+<button class="flex flex-col items-center justify-center text-on-surface-variant px-3 py-1 scale-95 active:scale-90 transition-transform duration-150 hover:text-primary">
+<span class="material-symbols-outlined mb-1" data-icon="person_filled">person_filled</span>
+<span class="font-label-sm text-label-sm">Hoja</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant px-3 py-1 scale-95 active:scale-90 transition-transform duration-150 hover:text-primary">
+<span class="material-symbols-outlined mb-1" data-icon="auto_stories">auto_stories</span>
+<span class="font-label-sm text-label-sm">Trama</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant px-3 py-1 scale-95 active:scale-90 transition-transform duration-150 hover:text-primary">
+<span class="material-symbols-outlined mb-1" data-icon="forum">forum</span>
+<span class="font-label-sm text-label-sm">Chat</span>
+</button>
+<button class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-xl px-3 py-1 scale-95 active:scale-90 transition-transform duration-150">
+<span class="material-symbols-outlined mb-1" data-icon="shopping_bag">shopping_bag</span>
+<span class="font-label-sm text-label-sm font-bold">Mercado</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant px-3 py-1 scale-95 active:scale-90 transition-transform duration-150 hover:text-primary">
+<span class="material-symbols-outlined mb-1" data-icon="inbox">inbox</span>
+<span class="font-label-sm text-label-sm">Inbox</span>
+</button>
+</nav>
+<!-- Side Nav (Desktop only placeholder) -->
+<aside class="hidden md:flex fixed left-0 top-16 bottom-0 w-64 bg-surface border-r border-border-low-contrast flex-col py-lg px-md gap-sm">
+<button class="flex items-center gap-md text-on-surface-variant hover:bg-surface-container-low px-4 py-3 rounded-lg transition-colors">
+<span class="material-symbols-outlined" data-icon="person_filled">person_filled</span>
+<span class="font-label-bold text-body-md">Hoja</span>
+</button>
+<button class="flex items-center gap-md text-on-surface-variant hover:bg-surface-container-low px-4 py-3 rounded-lg transition-colors">
+<span class="material-symbols-outlined" data-icon="auto_stories">auto_stories</span>
+<span class="font-label-bold text-body-md">Trama</span>
+</button>
+<button class="flex items-center gap-md text-on-surface-variant hover:bg-surface-container-low px-4 py-3 rounded-lg transition-colors">
+<span class="material-symbols-outlined" data-icon="forum">forum</span>
+<span class="font-label-bold text-body-md">Chat</span>
+</button>
+<button class="flex items-center gap-md bg-primary-container text-on-primary-container px-4 py-3 rounded-lg font-bold transition-colors">
+<span class="material-symbols-outlined" data-icon="shopping_bag">shopping_bag</span>
+<span class="font-label-bold text-body-md">Mercado</span>
+</button>
+<button class="flex items-center gap-md text-on-surface-variant hover:bg-surface-container-low px-4 py-3 rounded-lg transition-colors">
+<span class="material-symbols-outlined" data-icon="inbox">inbox</span>
+<span class="font-label-bold text-body-md">Inbox</span>
+</button>
+</aside>
+<style>
+        @media (min-width: 768px) {
+            main {
+                margin-left: 16rem; /* Match aside width */
+                padding-bottom: 2rem; /* Remove mobile nav padding */
+            }
+        }
+    </style>
+</body></html>

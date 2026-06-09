@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Campaign Manager - Iniciar Sesión</title>
+<!-- Google Fonts & Material Symbols -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Configuration (Provided by Design System) -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "hp-danger": "#E11900",
+                    "on-tertiary": "#ffffff",
+                    "tertiary-container": "#c65100",
+                    "primary-fixed": "#dae2ff",
+                    "on-secondary-container": "#646464",
+                    "surface": "#f9f9f9",
+                    "on-surface-variant": "#424654",
+                    "outline": "#737786",
+                    "inverse-primary": "#b1c5ff",
+                    "on-secondary-fixed": "#1b1b1b",
+                    "on-error-container": "#93000a",
+                    "on-secondary-fixed-variant": "#474747",
+                    "primary-fixed-dim": "#b1c5ff",
+                    "on-background": "#1a1c1c",
+                    "surface-dim": "#dadada",
+                    "on-surface": "#1a1c1c",
+                    "primary": "#0055cd",
+                    "surface-container-lowest": "#ffffff",
+                    "inverse-surface": "#2f3131",
+                    "border-low-contrast": "#E2E2E2",
+                    "error": "#ba1a1a",
+                    "secondary-container": "#e2e2e2",
+                    "tertiary-fixed": "#ffdbcc",
+                    "on-primary-container": "#fffeff",
+                    "surface-container": "#eeeeee",
+                    "on-primary-fixed": "#001947",
+                    "surface-container-highest": "#e2e2e2",
+                    "on-error": "#ffffff",
+                    "surface-container-low": "#f3f3f4",
+                    "success-active": "#05A357",
+                    "on-tertiary-container": "#fffdff",
+                    "error-container": "#ffdad6",
+                    "secondary-fixed": "#e2e2e2",
+                    "on-secondary": "#ffffff",
+                    "secondary-fixed-dim": "#c6c6c6",
+                    "surface-container-high": "#e8e8e8",
+                    "secondary": "#5e5e5e",
+                    "gm-amber": "#FFC043",
+                    "on-primary-fixed-variant": "#00419f",
+                    "surface-bright": "#f9f9f9",
+                    "tertiary-fixed-dim": "#ffb694",
+                    "primary-container": "#276ef1",
+                    "inverse-on-surface": "#f0f1f1",
+                    "surface-variant": "#e2e2e2",
+                    "on-tertiary-fixed-variant": "#7b2f00",
+                    "surface-tint": "#0056d0",
+                    "surface-subtle": "#F6F6F6",
+                    "background": "#f9f9f9",
+                    "outline-variant": "#c2c6d7",
+                    "on-primary": "#ffffff",
+                    "tertiary": "#9e3f00",
+                    "on-tertiary-fixed": "#351000"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "xs": "4px",
+                    "sm": "8px",
+                    "gutter": "16px",
+                    "md": "16px",
+                    "xl": "32px",
+                    "lg": "24px",
+                    "unit": "4px",
+                    "margin-mobile": "16px",
+                    "margin-desktop": "40px"
+            },
+            "fontFamily": {
+                    "headline-lg-mobile": ["Hanken Grotesk"],
+                    "label-bold": ["Hanken Grotesk"],
+                    "display-lg": ["Hanken Grotesk"],
+                    "label-sm": ["Hanken Grotesk"],
+                    "body-md": ["Hanken Grotesk"],
+                    "body-lg": ["Hanken Grotesk"],
+                    "headline-lg": ["Hanken Grotesk"],
+                    "headline-md": ["Hanken Grotesk"],
+                    "stat-number": ["Hanken Grotesk"]
+            },
+            "fontSize": {
+                    "headline-lg-mobile": ["28px", {"lineHeight": "36px", "fontWeight": "700"}],
+                    "label-bold": ["14px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "display-lg": ["44px", {"lineHeight": "52px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "700"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "stat-number": ["36px", {"lineHeight": "40px", "fontWeight": "800"}]
+            }
+          },
+        }
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+          font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        /* Custom input styles for Base Web aesthetic */
+        .base-input {
+            background-color: theme('colors.surface-subtle');
+            border: 1px solid transparent;
+            border-bottom: 1px solid theme('colors.border-low-contrast');
+            transition: all 0.2s ease-in-out;
+        }
+        .base-input:focus {
+            outline: none;
+            border-color: theme('colors.primary');
+            border-bottom-width: 2px;
+            box-shadow: none;
+            background-color: theme('colors.surface-container-lowest');
+        }
+        .base-input:focus + label, .base-input:not(:placeholder-shown) + label {
+            transform: translateY(-16px) scale(0.85);
+            color: theme('colors.secondary');
+        }
+        .floating-label {
+            transition: all 0.2s ease-in-out;
+            transform-origin: left top;
+            pointer-events: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface min-h-screen flex flex-col antialiased">
+<!-- Suppressed Nav Shells due to Transactional/Linear Intent (Login) -->
+<!-- Main Content Area -->
+<main class="flex-grow flex flex-col md:flex-row min-h-screen w-full">
+<!-- Left Side: Visual / Brand Area (Hidden on small mobile, visible on md+) -->
+<div class="hidden md:flex md:w-1/2 lg:w-[55%] relative overflow-hidden bg-surface-container-lowest border-r border-border-low-contrast items-center justify-center p-xl">
+<!-- Decorative background pattern or image representing the "systematic" nature of the tool -->
+<div class="absolute inset-0 z-0">
+<img alt="Abstract systematic data representation" class="w-full h-full object-cover opacity-60" data-alt="A clean, highly structured abstract architectural or geometric scene representing systematic data organization. The environment features pristine white surfaces, subtle drop shadows, and striking lines, creating a deeply modern, corporate aesthetic suitable for a high-efficiency logistics or campaign management tool. The lighting is crisp and cool, casting precise shadows that define form without overwhelming detail. Subtle hints of deep primary blue (#0055cd) accent the otherwise monochromatic white and gray environment." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAR7DVkr6X1n_LRCDSrA5tWLpixZJfs0OkvFPpcPe-4lMV9u8AU-SIhecVhP77PeJj0aLNTw--R4GTMV5EaY3QDbnPZk2hNYpIjBGnI8DiFDMJS8j-aEoijKpmF5V5w-ZG52O6QZT9sxT5_n5o6MLU5cZ6b_ZHorbOLE1gQG1icXVKHfwI_fQ4ZemfYhKu2dITie6OG4av17UTZIb1GcfFpK9xur1caK4ErXXBe0ifCKMgBgJVgfuvkl2th5-A3gkWh6VhutuKu2Q"/>
+<div class="absolute inset-0 bg-gradient-to-r from-surface/90 to-surface/40"></div>
+</div>
+<div class="relative z-10 max-w-lg text-center md:text-left">
+<div class="flex items-center gap-sm mb-lg">
+<span class="material-symbols-outlined text-primary text-[40px]" data-icon="hub">hub</span>
+<span class="font-headline-lg text-headline-lg font-bold tracking-tight text-on-surface">Campaign Manager</span>
+</div>
+<h2 class="font-display-lg text-display-lg text-on-surface mb-md">Gestión táctica,<br/>precisión total.</h2>
+<p class="font-body-lg text-body-lg text-secondary">Accede a tus datos de campaña, registros de combate y notas del DM en una plataforma diseñada para la eficiencia y la claridad.</p>
+</div>
+</div>
+<!-- Right Side: Login Form -->
+<div class="w-full md:w-1/2 lg:w-[45%] flex flex-col justify-center px-margin-mobile py-xl md:px-xl lg:px-[10%] bg-surface-container-lowest">
+<!-- Mobile Brand Logo (Visible only on mobile) -->
+<div class="md:hidden flex items-center gap-sm mb-xl">
+<span class="material-symbols-outlined text-primary text-[32px]" data-icon="hub">hub</span>
+<span class="font-headline-md-mobile text-headline-md-mobile font-bold tracking-tight text-on-surface">Campaign Manager</span>
+</div>
+<div class="w-full max-w-md mx-auto md:mx-0">
+<h1 class="font-display-lg text-display-lg md:text-[44px] text-[36px] font-extrabold tracking-tight text-on-surface mb-lg leading-tight">Bienvenido de nuevo</h1>
+<form action="#" class="space-y-lg" method="POST">
+<!-- Email Input Group -->
+<div class="relative pt-6">
+<input class="base-input peer block w-full px-4 py-3 font-body-md text-body-md text-on-surface rounded-t-DEFAULT" id="email" name="email" placeholder=" " required="" type="email"/>
+<label class="floating-label absolute left-4 top-8 font-body-md text-body-md text-on-surface-variant peer-focus:text-primary" for="email">
+                            Correo electrónico
+                        </label>
+</div>
+<!-- Password Input Group -->
+<div class="relative pt-6">
+<input class="base-input peer block w-full px-4 py-3 font-body-md text-body-md text-on-surface rounded-t-DEFAULT" id="password" name="password" placeholder=" " required="" type="password"/>
+<label class="floating-label absolute left-4 top-8 font-body-md text-body-md text-on-surface-variant peer-focus:text-primary" for="password">
+                            Contraseña
+                        </label>
+<button aria-label="Mostrar contraseña" class="absolute right-4 top-9 text-secondary hover:text-on-surface transition-colors focus:outline-none" type="button">
+<span class="material-symbols-outlined" data-icon="visibility">visibility</span>
+</button>
+</div>
+<!-- Remember Me & Forgot Password -->
+<div class="flex items-center justify-between pt-sm">
+<label class="flex items-center cursor-pointer group">
+<div class="relative flex items-center justify-center w-5 h-5 mr-sm rounded border border-outline bg-surface-subtle group-hover:border-primary transition-colors">
+<input class="peer sr-only" id="remember" name="remember" type="checkbox"/>
+<span class="material-symbols-outlined text-on-primary text-[16px] opacity-0 peer-checked:opacity-100 absolute inset-0 flex items-center justify-center bg-primary rounded border-primary pointer-events-none transition-opacity" data-icon="check" style="font-variation-settings: 'FILL' 1;">check</span>
+</div>
+<span class="font-body-md text-body-md text-on-surface-variant select-none">Recordarme</span>
+</label>
+<a class="font-label-bold text-label-bold text-primary hover:text-on-primary-fixed-variant transition-colors underline-offset-4 hover:underline" href="#">¿Olvidaste tu contraseña?</a>
+</div>
+<!-- Submit Button -->
+<div class="pt-md">
+<button class="w-full flex justify-center items-center py-4 px-6 border border-transparent rounded-DEFAULT shadow-sm font-label-bold text-label-bold text-on-primary bg-primary-container hover:bg-surface-tint focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors" type="submit">
+                            Iniciar Sesión
+                            <span class="material-symbols-outlined ml-sm" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</div>
+</form>
+<!-- Sign Up Link -->
+<div class="mt-lg text-center md:text-left">
+<p class="font-body-md text-body-md text-secondary">
+                        ¿No tienes cuenta? 
+                        <a class="font-label-bold text-label-bold text-primary hover:text-on-primary-fixed-variant transition-colors underline-offset-4 hover:underline ml-xs" href="#">Regístrate</a>
+</p>
+</div>
+</div>
+</div>
+</main>
+<!-- Optional micro-interaction script for the password toggle (purely visual for the prototype) -->
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const togglePasswordBtn = document.querySelector('button[aria-label="Mostrar contraseña"]');
+            const passwordInput = document.getElementById('password');
+            const icon = togglePasswordBtn.querySelector('.material-symbols-outlined');
+
+            togglePasswordBtn.addEventListener('click', () => {
+                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                passwordInput.setAttribute('type', type);
+                icon.textContent = type === 'password' ? 'visibility' : 'visibility_off';
+            });
+        });
+    </script>
+</body></html>

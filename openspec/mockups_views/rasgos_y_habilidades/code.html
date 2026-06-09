@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Character Sheet - Features &amp; Abilities</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary-fixed": "#e2e2e2",
+                        "success-active": "#05A357",
+                        "secondary": "#5e5e5e",
+                        "on-secondary": "#ffffff",
+                        "tertiary-fixed": "#ffdbcc",
+                        "on-tertiary": "#ffffff",
+                        "on-error": "#ffffff",
+                        "background": "#f9f9f9",
+                        "surface-subtle": "#F6F6F6",
+                        "tertiary-fixed-dim": "#ffb694",
+                        "surface-container-high": "#e8e8e8",
+                        "hp-danger": "#E11900",
+                        "on-surface-variant": "#424654",
+                        "inverse-primary": "#b1c5ff",
+                        "border-low-contrast": "#E2E2E2",
+                        "surface-container-highest": "#e2e2e2",
+                        "surface-container": "#eeeeee",
+                        "outline": "#737786",
+                        "gm-amber": "#FFC043",
+                        "surface-container-lowest": "#ffffff",
+                        "on-secondary-fixed-variant": "#474747",
+                        "surface-container-low": "#f3f3f4",
+                        "outline-variant": "#c2c6d7",
+                        "inverse-surface": "#2f3131",
+                        "tertiary-container": "#c65100",
+                        "on-primary": "#ffffff",
+                        "secondary-fixed-dim": "#c6c6c6",
+                        "on-primary-fixed-variant": "#00419f",
+                        "error-container": "#ffdad6",
+                        "on-error-container": "#93000a",
+                        "on-background": "#1a1c1c",
+                        "error": "#ba1a1a",
+                        "on-secondary-container": "#646464",
+                        "on-primary-fixed": "#001947",
+                        "inverse-on-surface": "#f0f1f1",
+                        "tertiary": "#9e3f00",
+                        "secondary-container": "#e2e2e2",
+                        "primary": "#0055cd",
+                        "surface-bright": "#f9f9f9",
+                        "surface": "#f9f9f9",
+                        "on-tertiary-fixed-variant": "#7b2f00",
+                        "surface-dim": "#dadada",
+                        "on-primary-container": "#fffeff",
+                        "primary-container": "#276ef1",
+                        "primary-fixed-dim": "#b1c5ff",
+                        "on-secondary-fixed": "#1b1b1b",
+                        "on-surface": "#1a1c1c",
+                        "surface-tint": "#0056d0",
+                        "on-tertiary-fixed": "#351000",
+                        "surface-variant": "#e2e2e2",
+                        "on-tertiary-container": "#fffdff",
+                        "primary-fixed": "#dae2ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "16px",
+                        "unit": "4px",
+                        "margin-mobile": "16px",
+                        "xs": "4px",
+                        "xl": "32px",
+                        "sm": "8px",
+                        "margin-desktop": "40px",
+                        "md": "16px",
+                        "lg": "24px"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["Hanken Grotesk"],
+                        "display-lg": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "stat-number": ["Hanken Grotesk"],
+                        "label-bold": ["Hanken Grotesk"],
+                        "label-sm": ["Hanken Grotesk"],
+                        "headline-lg-mobile": ["Hanken Grotesk"],
+                        "body-md": ["Hanken Grotesk"],
+                        "body-lg": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["32px", { "lineHeight": "40px", "fontWeight": "700" }],
+                        "display-lg": ["44px", { "lineHeight": "52px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "stat-number": ["36px", { "lineHeight": "40px", "fontWeight": "800" }],
+                        "label-bold": ["14px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Hanken Grotesk', sans-serif; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .fill-icon { font-variation-settings: 'FILL' 1; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background antialiased min-h-screen flex flex-col pt-16 pb-20 md:pb-0 md:pl-72">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-surface-container-lowest border-b border-border-low-contrast h-16 flex justify-between items-center px-gutter md:pl-[304px] transition-all">
+<div class="flex items-center gap-sm">
+<button class="md:hidden p-sm text-primary hover:bg-surface-container transition-colors rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<h1 class="font-headline-md text-headline-md text-primary font-extrabold tracking-tight">Campaign Master</h1>
+</div>
+<div class="w-8 h-8 rounded-full bg-surface-variant overflow-hidden border border-border-low-contrast flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity">
+<span class="material-symbols-outlined text-secondary text-sm">person</span>
+</div>
+</header>
+<!-- SideNav (Desktop) -->
+<nav class="hidden md:flex flex-col h-full w-72 bg-surface-container-lowest border-r border-border-low-contrast shadow-md fixed left-0 top-0 pt-16 z-40 overflow-y-auto">
+<div class="px-md py-lg border-b border-border-low-contrast mb-sm">
+<div class="flex items-center gap-sm mb-xs">
+<div class="w-10 h-10 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-label-bold text-label-bold">DM</div>
+<div>
+<div class="font-label-bold text-label-bold text-on-surface">DM Console</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">Current: Shadow over Mystara</div>
+</div>
+</div>
+<div class="font-label-sm text-label-sm text-secondary mt-xs">v2.4.0</div>
+</div>
+<div class="flex flex-col py-sm gap-xs px-sm">
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-subtle transition-colors cursor-pointer" href="#">
+<span class="material-symbols-outlined">groups</span>
+<span class="font-body-md text-body-md">Campaigns</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg bg-surface-container text-primary font-bold border-l-4 border-primary cursor-pointer" href="#">
+<span class="material-symbols-outlined fill-icon">person</span>
+<span class="font-body-md text-body-md">Character Hub</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-subtle transition-colors cursor-pointer" href="#">
+<span class="material-symbols-outlined">swords</span>
+<span class="font-body-md text-body-md">Encounter Builder</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-subtle transition-colors cursor-pointer" href="#">
+<span class="material-symbols-outlined">pets</span>
+<span class="font-body-md text-body-md">Bestiary</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-subtle transition-colors cursor-pointer" href="#">
+<span class="material-symbols-outlined">map</span>
+<span class="font-body-md text-body-md">Maps</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-subtle transition-colors cursor-pointer" href="#">
+<span class="material-symbols-outlined">edit_note</span>
+<span class="font-body-md text-body-md">Notes</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-subtle transition-colors cursor-pointer" href="#">
+<span class="material-symbols-outlined">shopping_cart</span>
+<span class="font-body-md text-body-md">Marketplace</span>
+</a>
+</div>
+</nav>
+<!-- Main Content -->
+<main class="flex-1 p-margin-mobile md:p-margin-desktop overflow-x-hidden">
+<!-- Header Section -->
+<div class="mb-lg">
+<h2 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-background mb-xs">Kaelen Vane</h2>
+<div class="flex flex-wrap gap-sm items-center">
+<span class="px-sm py-unit bg-surface-variant text-on-surface rounded font-label-sm text-label-sm">Fighter 5</span>
+<span class="px-sm py-unit bg-surface-variant text-on-surface rounded font-label-sm text-label-sm">Human Variant</span>
+<span class="px-sm py-unit bg-surface-variant text-on-surface rounded font-label-sm text-label-sm">Soldier</span>
+</div>
+</div>
+<!-- Tab Navigation (Internal Content Tab) -->
+<div class="flex gap-md border-b border-border-low-contrast mb-lg overflow-x-auto pb-sm no-scrollbar">
+<button class="font-body-md text-body-md text-on-surface-variant whitespace-nowrap px-xs py-sm hover:text-primary transition-colors">Core Stats</button>
+<button class="font-body-md text-body-md text-primary border-b-2 border-primary font-bold whitespace-nowrap px-xs py-sm">Features &amp; Abilities</button>
+<button class="font-body-md text-body-md text-on-surface-variant whitespace-nowrap px-xs py-sm hover:text-primary transition-colors">Inventory</button>
+<button class="font-body-md text-body-md text-on-surface-variant whitespace-nowrap px-xs py-sm hover:text-primary transition-colors">Spells</button>
+</div>
+<!-- Grid Layout for Features -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-lg">
+<!-- Left Column (Passive Stats & Languages) -->
+<div class="md:col-span-4 flex flex-col gap-lg">
+<!-- Passive Senses -->
+<div class="bg-surface-container-lowest border border-border-low-contrast rounded-lg p-md">
+<h3 class="font-label-bold text-label-bold text-on-surface mb-md uppercase tracking-wider">Passive Senses</h3>
+<div class="flex flex-col gap-sm">
+<div class="flex justify-between items-center bg-surface-subtle p-sm rounded border border-border-low-contrast">
+<span class="font-body-md text-body-md text-on-surface">Passive Perception</span>
+<span class="font-stat-number text-stat-number text-on-background">14</span>
+</div>
+<div class="flex justify-between items-center bg-surface-subtle p-sm rounded border border-border-low-contrast">
+<span class="font-body-md text-body-md text-on-surface">Passive Investigation</span>
+<span class="font-stat-number text-stat-number text-on-background">11</span>
+</div>
+<div class="flex justify-between items-center bg-surface-subtle p-sm rounded border border-border-low-contrast">
+<span class="font-body-md text-body-md text-on-surface">Passive Insight</span>
+<span class="font-stat-number text-stat-number text-on-background">12</span>
+</div>
+</div>
+</div>
+<!-- Languages & Proficiencies -->
+<div class="bg-surface-container-lowest border border-border-low-contrast rounded-lg p-md">
+<h3 class="font-label-bold text-label-bold text-on-surface mb-md uppercase tracking-wider">Languages &amp; Proficiencies</h3>
+<div class="mb-md">
+<h4 class="font-label-sm text-label-sm text-secondary mb-xs">Languages</h4>
+<div class="flex flex-wrap gap-xs">
+<span class="px-sm py-unit bg-secondary-container text-on-secondary-container rounded font-label-sm text-label-sm">Common</span>
+<span class="px-sm py-unit bg-secondary-container text-on-secondary-container rounded font-label-sm text-label-sm">Elvish</span>
+<span class="px-sm py-unit bg-secondary-container text-on-secondary-container rounded font-label-sm text-label-sm">Dwarvish</span>
+</div>
+</div>
+<div>
+<h4 class="font-label-sm text-label-sm text-secondary mb-xs">Armor &amp; Weapons</h4>
+<div class="flex flex-wrap gap-xs">
+<span class="px-sm py-unit bg-surface-variant text-on-surface rounded font-label-sm text-label-sm">All Armor</span>
+<span class="px-sm py-unit bg-surface-variant text-on-surface rounded font-label-sm text-label-sm">Shields</span>
+<span class="px-sm py-unit bg-surface-variant text-on-surface rounded font-label-sm text-label-sm">Simple Weapons</span>
+<span class="px-sm py-unit bg-surface-variant text-on-surface rounded font-label-sm text-label-sm">Martial Weapons</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Column (Features Lists) -->
+<div class="md:col-span-8 flex flex-col gap-lg">
+<!-- Class Features -->
+<section>
+<div class="flex justify-between items-center mb-sm">
+<h3 class="font-label-bold text-label-bold text-on-surface uppercase tracking-wider">Class Features</h3>
+<span class="font-label-sm text-label-sm text-secondary">Fighter</span>
+</div>
+<div class="flex flex-col gap-sm">
+<!-- Feature Item with Uses -->
+<div class="bg-surface-container-lowest border border-border-low-contrast rounded-lg p-md relative overflow-hidden group hover:border-primary transition-colors cursor-pointer">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
+<div class="flex justify-between items-start mb-xs">
+<div>
+<h4 class="font-body-lg text-body-lg text-on-background font-bold flex items-center gap-xs">
+                                        Action Surge
+                                        <span class="px-xs py-unit bg-surface-variant text-secondary rounded text-[10px] uppercase font-bold tracking-widest">Level 2</span>
+</h4>
+</div>
+<!-- Counter -->
+<div class="flex flex-col items-end">
+<span class="font-label-sm text-label-sm text-secondary mb-unit">Uses</span>
+<div class="flex gap-unit">
+<div class="w-4 h-4 rounded-full bg-primary flex items-center justify-center text-on-primary text-[10px]">✓</div>
+<div class="w-4 h-4 rounded-full border border-border-low-contrast bg-surface-subtle"></div>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface mt-unit">1 / 2</span>
+</div>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant line-clamp-2 mt-sm">You can push yourself beyond your normal limits for a moment. On your turn, you can take one additional action on top of your regular action and a possible bonus action.</p>
+</div>
+<!-- Feature Item without Uses -->
+<div class="bg-surface-container-lowest border border-border-low-contrast rounded-lg p-md relative overflow-hidden group hover:border-primary transition-colors cursor-pointer">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-secondary-fixed-dim"></div>
+<div class="flex justify-between items-start mb-xs">
+<div>
+<h4 class="font-body-lg text-body-lg text-on-background font-bold flex items-center gap-xs">
+                                        Fighting Style: Great Weapon Fighting
+                                        <span class="px-xs py-unit bg-surface-variant text-secondary rounded text-[10px] uppercase font-bold tracking-widest">Level 1</span>
+</h4>
+</div>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant line-clamp-2 mt-sm">When you roll a 1 or 2 on a damage die for an attack you make with a melee weapon that you are wielding with two hands, you can reroll the die and must use the new roll, even if the new roll is a 1 or a 2. The weapon must have the two-handed or versatile property for you to gain this benefit.</p>
+</div>
+<!-- Feature Item with Uses -->
+<div class="bg-surface-container-lowest border border-border-low-contrast rounded-lg p-md relative overflow-hidden group hover:border-primary transition-colors cursor-pointer">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
+<div class="flex justify-between items-start mb-xs">
+<div>
+<h4 class="font-body-lg text-body-lg text-on-background font-bold flex items-center gap-xs">
+                                        Second Wind
+                                        <span class="px-xs py-unit bg-surface-variant text-secondary rounded text-[10px] uppercase font-bold tracking-widest">Level 1</span>
+</h4>
+</div>
+<!-- Counter -->
+<div class="flex flex-col items-end">
+<span class="font-label-sm text-label-sm text-secondary mb-unit">Uses</span>
+<div class="flex gap-unit">
+<div class="w-4 h-4 rounded-full border border-border-low-contrast bg-surface-subtle"></div>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface mt-unit">0 / 1</span>
+</div>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant line-clamp-2 mt-sm">You have a limited well of stamina that you can draw on to protect yourself from harm. On your turn, you can use a bonus action to regain hit points equal to 1d10 + your fighter level.</p>
+</div>
+</div>
+</section>
+<!-- Feats -->
+<section>
+<div class="flex justify-between items-center mb-sm">
+<h3 class="font-label-bold text-label-bold text-on-surface uppercase tracking-wider">Feats</h3>
+</div>
+<div class="flex flex-col gap-sm">
+<div class="bg-surface-container-lowest border border-border-low-contrast rounded-lg p-md relative overflow-hidden hover:bg-surface-subtle transition-colors cursor-pointer">
+<div class="flex justify-between items-start mb-xs">
+<div>
+<h4 class="font-body-lg text-body-lg text-on-background font-bold flex items-center gap-xs">
+                                        Polearm Master
+                                    </h4>
+</div>
+</div>
+<ul class="list-disc list-inside font-body-md text-body-md text-on-surface-variant mt-sm space-y-1">
+<li>When you take the Attack action and attack with only a glaive, halberd, quarterstaff, or spear, you can use a bonus action to make a melee attack with the opposite end of the weapon.</li>
+<li>While you are wielding a glaive, halberd, pike, quarterstaff, or spear, other creatures provoke an opportunity attack from you when they enter the reach you have with that weapon.</li>
+</ul>
+</div>
+<div class="bg-surface-container-lowest border border-border-low-contrast rounded-lg p-md relative overflow-hidden hover:bg-surface-subtle transition-colors cursor-pointer">
+<div class="flex justify-between items-start mb-xs">
+<div>
+<h4 class="font-body-lg text-body-lg text-on-background font-bold flex items-center gap-xs">
+                                        Sentinel
+                                    </h4>
+</div>
+</div>
+<ul class="list-disc list-inside font-body-md text-body-md text-on-surface-variant mt-sm space-y-1">
+<li>When you hit a creature with an opportunity attack, the creature's speed becomes 0 for the rest of the turn.</li>
+<li>Creatures provoke opportunity attacks from you even if they take the Disengage action before leaving your reach.</li>
+<li>When a creature within 5 feet of you makes an attack against a target other than you, you can use your reaction to make a melee weapon attack against the attacking creature.</li>
+</ul>
+</div>
+</div>
+</section>
+<!-- Racial Traits -->
+<section>
+<div class="flex justify-between items-center mb-sm">
+<h3 class="font-label-bold text-label-bold text-on-surface uppercase tracking-wider">Racial Traits</h3>
+<span class="font-label-sm text-label-sm text-secondary">Human Variant</span>
+</div>
+<div class="flex flex-col gap-sm">
+<div class="bg-surface-container-lowest border border-border-low-contrast rounded-lg p-md relative overflow-hidden hover:bg-surface-subtle transition-colors cursor-pointer">
+<div class="flex justify-between items-start mb-xs">
+<div>
+<h4 class="font-body-lg text-body-lg text-on-background font-bold flex items-center gap-xs">
+                                        Bonus Feat
+                                    </h4>
+</div>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant mt-sm">You gain one feat of your choice.</p>
+</div>
+</div>
+</section>
+</div>
+</div>
+</main>
+<!-- BottomNavBar (Mobile) -->
+<nav class="md:hidden fixed bottom-0 w-full z-50 bg-surface-container-lowest border-t border-border-low-contrast h-16 flex justify-around items-center px-xs">
+<a class="flex flex-col items-center justify-center text-primary font-bold" href="#">
+<span class="material-symbols-outlined fill-icon">dashboard</span>
+<span class="font-label-sm text-label-sm mt-unit">Hub</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">person</span>
+<span class="font-label-sm text-label-sm mt-unit">Stats</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">library_books</span>
+<span class="font-label-sm text-label-sm mt-unit">Lore</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">swap_horiz</span>
+<span class="font-label-sm text-label-sm mt-unit">Trade</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">forum</span>
+<span class="font-label-sm text-label-sm mt-unit">Chat</span>
+</a>
+</nav>
+</body></html>

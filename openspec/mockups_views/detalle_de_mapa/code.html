@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Map Vault - Detalle de Mapa</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "error": "#ba1a1a",
+                        "on-primary-fixed-variant": "#00419f",
+                        "inverse-surface": "#2f3131",
+                        "tertiary-fixed": "#ffdbcc",
+                        "on-error-container": "#93000a",
+                        "surface-subtle": "#F6F6F6",
+                        "border-low-contrast": "#E2E2E2",
+                        "on-tertiary": "#ffffff",
+                        "surface": "#f9f9f9",
+                        "secondary": "#5e5e5e",
+                        "secondary-fixed": "#e2e2e2",
+                        "surface-bright": "#f9f9f9",
+                        "gm-amber": "#FFC043",
+                        "outline-variant": "#c2c6d7",
+                        "on-secondary-fixed-variant": "#474747",
+                        "inverse-primary": "#b1c5ff",
+                        "on-background": "#1a1c1c",
+                        "secondary-container": "#e2e2e2",
+                        "surface-container-low": "#f3f3f4",
+                        "tertiary": "#9e3f00",
+                        "hp-danger": "#E11900",
+                        "surface-container-highest": "#e2e2e2",
+                        "on-tertiary-fixed-variant": "#7b2f00",
+                        "inverse-on-surface": "#f0f1f1",
+                        "on-surface": "#1a1c1c",
+                        "success-active": "#05A357",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-variant": "#e2e2e2",
+                        "surface-tint": "#0056d0",
+                        "tertiary-fixed-dim": "#ffb694",
+                        "primary-container": "#276ef1",
+                        "on-error": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "on-secondary-fixed": "#1b1b1b",
+                        "on-tertiary-fixed": "#351000",
+                        "secondary-fixed-dim": "#c6c6c6",
+                        "on-primary-fixed": "#001947",
+                        "surface-container": "#eeeeee",
+                        "primary": "#0055cd",
+                        "tertiary-container": "#c65100",
+                        "surface-container-high": "#e8e8e8",
+                        "on-secondary": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "primary-fixed": "#dae2ff",
+                        "on-tertiary-container": "#fffdff",
+                        "primary-fixed-dim": "#b1c5ff",
+                        "surface-dim": "#dadada",
+                        "background": "#f9f9f9",
+                        "outline": "#737786",
+                        "on-primary-container": "#fffeff",
+                        "on-surface-variant": "#424654",
+                        "on-secondary-container": "#646464"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin-desktop": "40px",
+                        "lg": "24px",
+                        "md": "16px",
+                        "unit": "4px",
+                        "gutter": "16px",
+                        "xs": "4px",
+                        "sm": "8px",
+                        "xl": "32px",
+                        "margin-mobile": "16px"
+                    },
+                    "fontFamily": {
+                        "display-lg": ["Hanken Grotesk"],
+                        "label-bold": ["Hanken Grotesk"],
+                        "headline-lg-mobile": ["Hanken Grotesk"],
+                        "label-sm": ["Hanken Grotesk"],
+                        "headline-lg": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "body-md": ["Hanken Grotesk"],
+                        "stat-number": ["Hanken Grotesk"],
+                        "body-lg": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "display-lg": ["44px", { "lineHeight": "52px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                        "label-bold": ["14px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "700" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "fontWeight": "700" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "stat-number": ["36px", { "lineHeight": "40px", "fontWeight": "800" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Hanken Grotesk', sans-serif; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background h-screen w-screen overflow-hidden flex flex-col">
+<!-- TopAppBar -->
+<header class="bg-surface dark:bg-surface-container docked full-width top-0 border-b border-border-low-contrast dark:border-outline-variant flat no shadows flex items-center justify-between px-margin-mobile md:px-margin-desktop w-full h-16 z-50">
+<button class="text-primary dark:text-primary-fixed hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors active:opacity-80 transition-opacity p-2 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+</button>
+<div class="font-headline-lg-mobile text-headline-lg-mobile md:font-headline-lg md:text-headline-lg font-bold text-primary dark:text-primary-fixed text-center flex-1">
+            Valle de Barovia
+        </div>
+<div class="flex gap-2">
+<button class="text-primary dark:text-primary-fixed hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors active:opacity-80 transition-opacity p-2 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="share">share</span>
+</button>
+<button class="text-primary dark:text-primary-fixed hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors active:opacity-80 transition-opacity p-2 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="flex-1 relative overflow-hidden bg-surface-subtle">
+<!-- Interactive Map Canvas -->
+<div class="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing" id="map-container">
+<img alt="Detailed map of Barovia" class="w-full h-full object-cover origin-center transition-transform duration-200 ease-out" data-alt="A highly detailed, top-down tactical map of a dark, gothic fantasy region known as the Valley of Barovia. The map is rendered in a modern, high-contrast, clean corporate style, moving away from traditional parchment. It features sharp topological lines, deep pine green forests, and distinct white roads. A prominent gothic castle is marked near the center. The lighting is neutral and flat to maximize legibility of the terrain features." id="map-image" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBfng14AaVwKrUbE5GJ0izxVS3bqDGaGM_Zl0XNNrLV8Ct6l9y1TCwYOq2RmZqLUatJPv_MzuPVczwlpRgNSJUrIuQbpIxcJOctQk61T7fiBM17N4on23CHEqjBqA8FOktv9vp7a6U5VqV1I5UanvE88sq2dA0H8QlG5xSUxgXdn0kpOi8MQuZDrabWZosQrz18GfSOoiGOIqL4sYRwNxenn-K_EDIg7dL3MPOOjLt0QdvSf1eCstXlpU37Nol6O8M5tGdx6BC4RA" style="transform: scale(1.2) translate(5%, -5%);"/>
+<!-- Map Pins Overlay -->
+<div class="absolute top-[40%] left-[60%] flex flex-col items-center group cursor-pointer">
+<div class="w-8 h-8 rounded-full bg-primary-container border-2 border-surface flex items-center justify-center shadow-md z-10 hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-on-primary-container text-sm" data-icon="location_on" data-weight="fill" style="font-variation-settings: 'FILL' 1;">location_on</span>
+</div>
+<div class="mt-1 px-2 py-1 bg-surface/90 backdrop-blur-sm border border-border-low-contrast rounded font-label-sm text-label-sm text-on-surface opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                    Castillo Ravenloft
+                </div>
+</div>
+<div class="absolute top-[60%] left-[30%] flex flex-col items-center group cursor-pointer">
+<div class="w-6 h-6 rounded-full bg-gm-amber border-2 border-surface flex items-center justify-center shadow-md z-10 hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-on-surface text-xs" data-icon="home" data-weight="fill" style="font-variation-settings: 'FILL' 1;">home</span>
+</div>
+<div class="mt-1 px-2 py-1 bg-surface/90 backdrop-blur-sm border border-border-low-contrast rounded font-label-sm text-label-sm text-on-surface whitespace-nowrap">
+                    Pueblo de Barovia
+                </div>
+</div>
+<!-- Grid Overlay (Hidden by default, controlled via JS) -->
+<div class="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+PHBhdGggZD0iTTAgMGg0MHY0MEgweiIgZmlsbD0ibm9uZSIvPjxwYXRoIGQ9Ik0wIDB2NDBNNDAgMHY0ME0wIDBoNDBNMCA0MGg0MCIgc3Ryb2tlPSJyZ2JhKDI1NSwyNTUsMjU1LDAuMykiIHN0cm9rZS13aWR0aD0iMSIvPjwvc3ZnPg==')] opacity-0 transition-opacity duration-300 pointer-events-none" id="grid-overlay"></div>
+</div>
+<!-- Floating UI: Zoom Controls -->
+<div class="absolute right-margin-mobile md:right-margin-desktop top-margin-mobile md:top-margin-desktop flex flex-col gap-sm bg-surface border border-border-low-contrast rounded-lg shadow-sm p-1 z-20">
+<button class="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high rounded transition-colors active:scale-95" id="btn-zoom-in">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+</button>
+<div class="w-full h-px bg-border-low-contrast"></div>
+<button class="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high rounded transition-colors active:scale-95" id="btn-zoom-out">
+<span class="material-symbols-outlined" data-icon="remove">remove</span>
+</button>
+</div>
+<!-- Floating UI: Layer Controls Toggle -->
+<div class="absolute left-margin-mobile md:left-margin-desktop top-margin-mobile md:top-margin-desktop z-20">
+<button class="bg-surface border border-border-low-contrast rounded-full shadow-sm px-4 py-2 flex items-center gap-sm font-label-bold text-label-bold text-on-surface hover:bg-surface-container-high transition-colors active:scale-95" id="layers-toggle">
+<span class="material-symbols-outlined" data-icon="layers">layers</span>
+                Capas
+            </button>
+<!-- Layer Controls Menu -->
+<div class="hidden absolute top-full left-0 mt-sm bg-surface border border-border-low-contrast rounded-lg shadow-md w-48 overflow-hidden" id="layers-menu">
+<label class="flex items-center justify-between p-md hover:bg-surface-container-low cursor-pointer border-b border-border-low-contrast last:border-0">
+<span class="font-body-md text-body-md text-on-surface flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-sm" data-icon="grid_on">grid_on</span>
+                        Cuadrícula
+                    </span>
+<input class="form-checkbox h-4 w-4 text-primary rounded border-outline-variant focus:ring-primary focus:ring-offset-surface" id="toggle-grid" type="checkbox"/>
+</label>
+<label class="flex items-center justify-between p-md hover:bg-surface-container-low cursor-pointer border-b border-border-low-contrast last:border-0">
+<span class="font-body-md text-body-md text-on-surface flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-sm" data-icon="cloud">cloud</span>
+                        Niebla
+                    </span>
+<input checked="" class="form-checkbox h-4 w-4 text-primary rounded border-outline-variant focus:ring-primary focus:ring-offset-surface" type="checkbox"/>
+</label>
+<label class="flex items-center justify-between p-md hover:bg-surface-container-low cursor-pointer border-b border-border-low-contrast last:border-0">
+<span class="font-body-md text-body-md text-on-surface flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-sm" data-icon="location_on">location_on</span>
+                        Marcadores
+                    </span>
+<input checked="" class="form-checkbox h-4 w-4 text-primary rounded border-outline-variant focus:ring-primary focus:ring-offset-surface" type="checkbox"/>
+</label>
+</div>
+</div>
+<!-- Bottom Sheet / Location Details Panel -->
+<div class="absolute bottom-0 left-0 w-full bg-surface border-t border-border-low-contrast shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] rounded-t-xl z-30 transition-transform duration-300 transform translate-y-0" id="bottom-sheet">
+<!-- Drag Handle -->
+<div class="w-full flex justify-center py-sm cursor-pointer" id="sheet-handle">
+<div class="w-12 h-1 bg-outline-variant rounded-full"></div>
+</div>
+<div class="px-margin-mobile md:px-margin-desktop pb-margin-desktop">
+<div class="flex justify-between items-start mb-sm">
+<div>
+<div class="font-label-bold text-label-bold text-secondary uppercase tracking-wider mb-xs">Ubicación Actual</div>
+<h2 class="font-headline-md text-headline-md font-bold text-on-surface">Pueblo de Barovia</h2>
+</div>
+<button class="bg-primary-container text-on-primary-container px-4 py-2 rounded font-label-bold text-label-bold hover:bg-primary transition-colors active:scale-95">
+                        Editar
+                    </button>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant mb-lg max-w-3xl">
+                    Un lugar sombrío bajo la sombra del Castillo Ravenloft. Las calles están embarradas y los rostros de los habitantes reflejan una desesperanza perpetua.
+                </p>
+<div class="border-t border-border-low-contrast pt-md">
+<h3 class="font-label-bold text-label-bold text-on-surface mb-md">Puntos de Interés</h3>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-sm">
+<div class="flex items-start gap-md p-md bg-surface-subtle border border-border-low-contrast rounded-lg hover:border-primary-container transition-colors cursor-pointer group">
+<div class="w-10 h-10 rounded bg-surface border border-border-low-contrast flex items-center justify-center flex-shrink-0 group-hover:text-primary-container">
+<span class="material-symbols-outlined" data-icon="storefront">storefront</span>
+</div>
+<div>
+<div class="font-label-bold text-label-bold text-on-surface">Taberna Sangre de Vida</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant mt-xs">El único lugar con calor en el pueblo. Los propietarios son cautelosos con los forasteros.</div>
+</div>
+</div>
+<div class="flex items-start gap-md p-md bg-surface-subtle border border-border-low-contrast rounded-lg hover:border-primary-container transition-colors cursor-pointer group">
+<div class="w-10 h-10 rounded bg-surface border border-border-low-contrast flex items-center justify-center flex-shrink-0 group-hover:text-primary-container">
+<span class="material-symbols-outlined" data-icon="church">church</span>
+</div>
+<div>
+<div class="font-label-bold text-label-bold text-on-surface">Iglesia de Barovia</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant mt-xs">Hogar del Padre Donavich. Se escuchan gritos desde el sótano durante la noche.</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<script>
+        // Layers Toggle Logic
+        const layersBtn = document.getElementById('layers-toggle');
+        const layersMenu = document.getElementById('layers-menu');
+        
+        layersBtn.addEventListener('click', () => {
+            layersMenu.classList.toggle('hidden');
+        });
+
+        // Grid Toggle
+        const toggleGrid = document.getElementById('toggle-grid');
+        const gridOverlay = document.getElementById('grid-overlay');
+        
+        toggleGrid.addEventListener('change', (e) => {
+            if(e.target.checked) {
+                gridOverlay.classList.remove('opacity-0');
+                gridOverlay.classList.add('opacity-100');
+            } else {
+                gridOverlay.classList.add('opacity-0');
+                gridOverlay.classList.remove('opacity-100');
+            }
+        });
+
+        // Simple Bottom Sheet Toggle for demonstration
+        const bottomSheet = document.getElementById('bottom-sheet');
+        const sheetHandle = document.getElementById('sheet-handle');
+        let isExpanded = true;
+
+        sheetHandle.addEventListener('click', () => {
+            if(isExpanded) {
+                bottomSheet.classList.add('translate-y-[85%]');
+            } else {
+                bottomSheet.classList.remove('translate-y-[85%]');
+            }
+            isExpanded = !isExpanded;
+        });
+        
+        // Simple Zoom logic (visual only)
+        const mapImage = document.getElementById('map-image');
+        const btnZoomIn = document.getElementById('btn-zoom-in');
+        const btnZoomOut = document.getElementById('btn-zoom-out');
+        let currentScale = 1.2;
+        
+        btnZoomIn.addEventListener('click', () => {
+            if(currentScale < 3) {
+                currentScale += 0.2;
+                mapImage.style.transform = `scale(${currentScale}) translate(5%, -5%)`;
+            }
+        });
+        
+        btnZoomOut.addEventListener('click', () => {
+            if(currentScale > 0.8) {
+                currentScale -= 0.2;
+                mapImage.style.transform = `scale(${currentScale}) translate(5%, -5%)`;
+            }
+        });
+    </script>
+</body></html>

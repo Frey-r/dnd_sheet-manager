@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+
+<html lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Calendario de Eventos</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,100..900;1,100..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-fixed-dim": "#b1c5ff",
+                        "on-background": "#1a1c1c",
+                        "tertiary-fixed": "#ffdbcc",
+                        "on-error-container": "#93000a",
+                        "on-primary-container": "#fffeff",
+                        "error-container": "#ffdad6",
+                        "background": "#f9f9f9",
+                        "on-tertiary-fixed-variant": "#7b2f00",
+                        "secondary": "#5e5e5e",
+                        "surface-container-low": "#f3f3f4",
+                        "on-primary": "#ffffff",
+                        "surface": "#f9f9f9",
+                        "inverse-primary": "#b1c5ff",
+                        "tertiary-fixed-dim": "#ffb694",
+                        "on-tertiary": "#ffffff",
+                        "hp-danger": "#E11900",
+                        "surface-variant": "#e2e2e2",
+                        "outline": "#737786",
+                        "on-primary-fixed-variant": "#00419f",
+                        "on-secondary": "#ffffff",
+                        "inverse-on-surface": "#f0f1f1",
+                        "on-surface-variant": "#424654",
+                        "error": "#ba1a1a",
+                        "surface-container-high": "#e8e8e8",
+                        "border-low-contrast": "#E2E2E2",
+                        "on-primary-fixed": "#001947",
+                        "gm-amber": "#FFC043",
+                        "on-tertiary-container": "#fffdff",
+                        "on-tertiary-fixed": "#351000",
+                        "surface-dim": "#dadada",
+                        "on-surface": "#1a1c1c",
+                        "secondary-fixed-dim": "#c6c6c6",
+                        "surface-tint": "#0056d0",
+                        "surface-container": "#eeeeee",
+                        "on-secondary-fixed": "#1b1b1b",
+                        "tertiary": "#9e3f00",
+                        "on-secondary-container": "#646464",
+                        "tertiary-container": "#c65100",
+                        "surface-subtle": "#F6F6F6",
+                        "inverse-surface": "#2f3131",
+                        "surface-bright": "#f9f9f9",
+                        "primary": "#0055cd",
+                        "outline-variant": "#c2c6d7",
+                        "success-active": "#05A357",
+                        "surface-container-highest": "#e2e2e2",
+                        "on-error": "#ffffff",
+                        "primary-fixed": "#dae2ff",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary-fixed": "#e2e2e2",
+                        "on-secondary-fixed-variant": "#474747",
+                        "secondary-container": "#e2e2e2",
+                        "primary-container": "#276ef1"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "unit": "4px",
+                        "lg": "24px",
+                        "md": "16px",
+                        "margin-mobile": "16px",
+                        "gutter": "16px",
+                        "margin-desktop": "40px",
+                        "sm": "8px",
+                        "xl": "32px",
+                        "xs": "4px"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["Hanken Grotesk"],
+                        "headline-lg-mobile": ["Hanken Grotesk"],
+                        "display-lg": ["Hanken Grotesk"],
+                        "body-md": ["Hanken Grotesk"],
+                        "label-sm": ["Hanken Grotesk"],
+                        "label-bold": ["Hanken Grotesk"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "stat-number": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["32px", { "lineHeight": "40px", "fontWeight": "700" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "700" }],
+                        "display-lg": ["44px", { "lineHeight": "52px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+                        "label-bold": ["14px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "stat-number": ["36px", { "lineHeight": "40px", "fontWeight": "800" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface pb-[80px] md:hidden">
+<!-- TopAppBar -->
+<header class="flex justify-between items-center w-full px-margin-mobile h-16 bg-surface dark:bg-surface-container-low border-b border-border-low-contrast full-width top-0 z-40 sticky">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary dark:text-primary-fixed-dim" data-icon="menu">menu</span>
+<h1 class="font-headline-md text-headline-md font-bold text-primary dark:text-primary-fixed-dim">GM Console</h1>
+</div>
+<div class="w-8 h-8 rounded-full bg-surface-variant overflow-hidden">
+<img alt="GM Portrait" class="w-full h-full object-cover" data-alt="A close up portrait of a serious looking game master. The lighting is dramatic and moody, with deep shadows and a warm glow. The overall aesthetic is professional and high quality, suitable for a mobile application avatar. The subject is a human male with a neatly trimmed beard." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCX4RyAnDiuvQzD3WGRSh5Sd_MA8Aa77HPKxzszqge5NtzVjej2i9evS4gH7XsOEtZ68rkDP3NowoedROOhF3Xo7vfH8oPOOOh7eYXWLR8d1mTULsKRnU9CIOwYQ5aXWx710md__9LA_8kD62PKEf1eDxnXzZoUZNTrL0deudhNSnVqZviEIYLkklyjU6UHNTycCBWwXtLKYeZO_rFNBz5PLv-l3LxhCpTN7dgkDg1OOwiAKc_mmzliplqXmKylFgYwHxwaruw11w"/>
+</div>
+</header>
+<main class="px-margin-mobile pt-lg flex flex-col gap-lg">
+<!-- Header -->
+<section>
+<h2 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">Calendario de Eventos</h2>
+</section>
+<!-- Date Selector -->
+<section>
+<div class="flex justify-between items-center mb-sm">
+<span class="font-body-md text-body-md text-on-surface-variant font-medium">Octubre 2023</span>
+<span class="material-symbols-outlined text-on-surface-variant">calendar_today</span>
+</div>
+<div class="flex gap-sm overflow-x-auto hide-scrollbar pb-xs">
+<!-- Days -->
+<div class="flex flex-col items-center justify-center min-w-[48px] h-14 rounded-lg bg-surface-subtle border border-border-low-contrast">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Lun</span>
+<span class="font-body-md text-body-md text-on-surface">12</span>
+</div>
+<div class="flex flex-col items-center justify-center min-w-[48px] h-14 rounded-lg bg-surface-subtle border border-border-low-contrast">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Mar</span>
+<span class="font-body-md text-body-md text-on-surface">13</span>
+</div>
+<!-- Active Day -->
+<div class="flex flex-col items-center justify-center min-w-[48px] h-14 rounded-lg bg-primary text-on-primary shadow-sm">
+<span class="font-label-sm text-label-sm text-on-primary">Mié</span>
+<span class="font-body-md text-body-md text-on-primary font-bold">14</span>
+</div>
+<div class="flex flex-col items-center justify-center min-w-[48px] h-14 rounded-lg bg-surface-subtle border border-border-low-contrast">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Jue</span>
+<span class="font-body-md text-body-md text-on-surface">15</span>
+</div>
+<div class="flex flex-col items-center justify-center min-w-[48px] h-14 rounded-lg bg-surface-subtle border border-border-low-contrast">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Vie</span>
+<span class="font-body-md text-body-md text-on-surface">16</span>
+</div>
+<div class="flex flex-col items-center justify-center min-w-[48px] h-14 rounded-lg bg-surface-subtle border border-border-low-contrast">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Sáb</span>
+<span class="font-body-md text-body-md text-on-surface">17</span>
+</div>
+<div class="flex flex-col items-center justify-center min-w-[48px] h-14 rounded-lg bg-surface-subtle border border-border-low-contrast">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Dom</span>
+<span class="font-body-md text-body-md text-on-surface">18</span>
+</div>
+</div>
+</section>
+<!-- Events List -->
+<section class="flex flex-col gap-md">
+<!-- Event Item 1: Session -->
+<div class="bg-surface-container-lowest border border-border-low-contrast rounded-lg p-md flex flex-col gap-sm">
+<div class="flex justify-between items-start">
+<div class="flex items-center gap-xs">
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<span class="font-label-bold text-label-bold text-primary">Sesión</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">19:00 - 23:00</span>
+</div>
+<h3 class="font-body-lg text-body-lg font-bold text-on-surface">Sesión 25: El Asalto al Castillo</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Los jugadores intentarán infiltrarse en la fortaleza del Barón Negro. Preparar mapas del nivel inferior y estadísticas de los guardias de élite.</p>
+<div class="flex gap-xs mt-xs">
+<span class="px-2 py-1 rounded bg-surface-container-low font-label-sm text-label-sm text-on-surface-variant border border-border-low-contrast">Combate</span>
+<span class="px-2 py-1 rounded bg-surface-container-low font-label-sm text-label-sm text-on-surface-variant border border-border-low-contrast">Infiltración</span>
+</div>
+</div>
+<!-- Event Item 2: World Event -->
+<div class="bg-surface-container-lowest border border-border-low-contrast rounded-lg p-md flex flex-col gap-sm">
+<div class="flex justify-between items-start">
+<div class="flex items-center gap-xs">
+<div class="w-2 h-2 rounded-full bg-gm-amber"></div>
+<span class="font-label-bold text-label-bold text-gm-amber">Evento de Mundo</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Día Completo</span>
+</div>
+<h3 class="font-body-lg text-body-lg font-bold text-on-surface">Festival del Solsticio</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">La ciudad de Oakhaven celebra el solsticio. Oportunidad para interacciones sociales y minijuegos. Los precios en las tiendas aumentan un 10%.</p>
+</div>
+<!-- Event Item 3: Deadline -->
+<div class="bg-surface-container-lowest border border-border-low-contrast rounded-lg p-md flex flex-col gap-sm">
+<div class="flex justify-between items-start">
+<div class="flex items-center gap-xs">
+<div class="w-2 h-2 rounded-full bg-hp-danger"></div>
+<span class="font-label-bold text-label-bold text-hp-danger">Límite de Tiempo</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">2 Días Restantes</span>
+</div>
+<h3 class="font-body-lg text-body-lg font-bold text-on-surface">Ritual de Sangre</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Si los jugadores no interrumpen el culto, el demonio será invocado. Afectará permanentemente la región norte.</p>
+</div>
+</section>
+<!-- Quick Actions -->
+<section class="flex flex-col gap-sm pt-sm">
+<button class="w-full bg-primary text-on-primary font-label-bold text-label-bold py-3 rounded-lg flex items-center justify-center gap-sm active:opacity-80 transition-opacity">
+<span class="material-symbols-outlined" data-icon="add_circle" style="font-variation-settings: 'FILL' 1;">add_circle</span>
+                Programar Nueva Sesión
+            </button>
+<button class="w-full bg-surface-container-lowest border border-border-low-contrast text-on-surface font-label-bold text-label-bold py-3 rounded-lg flex items-center justify-center gap-sm active:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined" data-icon="flag">flag</span>
+                Añadir Hito de Trama
+            </button>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 w-full z-50 flex justify-around items-center h-16 bg-surface dark:bg-surface-container-low px-2 border-t border-border-low-contrast">
+<!-- Inactive: Combat -->
+<a class="flex flex-col items-center justify-center text-secondary dark:text-on-secondary-fixed-variant hover:bg-surface-container-low dark:hover:bg-surface-container-highest active:scale-95 transition-transform duration-100 p-2 rounded-lg w-16" href="#">
+<span class="material-symbols-outlined" data-icon="swords">swords</span>
+<span class="font-label-bold text-label-bold text-[10px] mt-1">Combat</span>
+</a>
+<!-- Inactive: NPCs -->
+<a class="flex flex-col items-center justify-center text-secondary dark:text-on-secondary-fixed-variant hover:bg-surface-container-low dark:hover:bg-surface-container-highest active:scale-95 transition-transform duration-100 p-2 rounded-lg w-16" href="#">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+<span class="font-label-bold text-label-bold text-[10px] mt-1">NPCs</span>
+</a>
+<!-- Inactive: Party -->
+<a class="flex flex-col items-center justify-center text-secondary dark:text-on-secondary-fixed-variant hover:bg-surface-container-low dark:hover:bg-surface-container-highest active:scale-95 transition-transform duration-100 p-2 rounded-lg w-16" href="#">
+<span class="material-symbols-outlined" data-icon="groups">groups</span>
+<span class="font-label-bold text-label-bold text-[10px] mt-1">Party</span>
+</a>
+<!-- Active: Events -->
+<a class="flex flex-col items-center justify-center text-primary dark:text-primary-fixed-dim hover:bg-surface-container-low dark:hover:bg-surface-container-highest active:scale-95 transition-transform duration-100 p-2 rounded-lg w-16" href="#">
+<span class="material-symbols-outlined" data-icon="event_note" style="font-variation-settings: 'FILL' 1;">event_note</span>
+<span class="font-label-bold text-label-bold text-[10px] mt-1">Events</span>
+</a>
+</nav>
+</body></html>

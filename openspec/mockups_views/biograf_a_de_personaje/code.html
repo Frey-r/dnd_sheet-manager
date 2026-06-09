@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Eldrin - Biography</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-tertiary-container": "#fffdff",
+                        "on-tertiary-fixed": "#351000",
+                        "on-secondary": "#ffffff",
+                        "on-primary-fixed": "#001947",
+                        "outline": "#737786",
+                        "on-tertiary": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "tertiary-fixed": "#ffdbcc",
+                        "hp-danger": "#E11900",
+                        "surface-dim": "#dadada",
+                        "primary-fixed": "#dae2ff",
+                        "surface-variant": "#e2e2e2",
+                        "on-secondary-container": "#646464",
+                        "surface-subtle": "#F6F6F6",
+                        "on-primary-fixed-variant": "#00419f",
+                        "on-primary-container": "#fffeff",
+                        "on-error": "#ffffff",
+                        "gm-amber": "#FFC043",
+                        "primary-container": "#276ef1",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-high": "#e8e8e8",
+                        "on-tertiary-fixed-variant": "#7b2f00",
+                        "inverse-on-surface": "#f0f1f1",
+                        "on-primary": "#ffffff",
+                        "error": "#ba1a1a",
+                        "primary": "#0055cd",
+                        "outline-variant": "#c2c6d7",
+                        "background": "#f9f9f9",
+                        "surface-container-low": "#f3f3f4",
+                        "on-background": "#1a1c1c",
+                        "tertiary-fixed-dim": "#ffb694",
+                        "inverse-surface": "#2f3131",
+                        "inverse-primary": "#b1c5ff",
+                        "on-surface": "#1a1c1c",
+                        "success-active": "#05A357",
+                        "tertiary-container": "#c65100",
+                        "secondary": "#5e5e5e",
+                        "surface-bright": "#f9f9f9",
+                        "secondary-container": "#e2e2e2",
+                        "primary-fixed-dim": "#b1c5ff",
+                        "secondary-fixed-dim": "#c6c6c6",
+                        "secondary-fixed": "#e2e2e2",
+                        "border-low-contrast": "#E2E2E2",
+                        "surface-tint": "#0056d0",
+                        "surface": "#f9f9f9",
+                        "on-surface-variant": "#424654",
+                        "on-secondary-fixed-variant": "#474747",
+                        "on-secondary-fixed": "#1b1b1b",
+                        "tertiary": "#9e3f00",
+                        "surface-container-highest": "#e2e2e2",
+                        "on-error-container": "#93000a",
+                        "surface-container": "#eeeeee"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "lg": "24px",
+                        "gutter": "16px",
+                        "sm": "8px",
+                        "xs": "4px",
+                        "md": "16px",
+                        "margin-mobile": "16px",
+                        "xl": "32px",
+                        "margin-desktop": "40px",
+                        "unit": "4px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "display-lg": ["Hanken Grotesk"],
+                        "stat-number": ["Hanken Grotesk"],
+                        "body-md": ["Hanken Grotesk"],
+                        "headline-lg-mobile": ["Hanken Grotesk"],
+                        "headline-lg": ["Hanken Grotesk"],
+                        "label-sm": ["Hanken Grotesk"],
+                        "label-bold": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "display-lg": ["44px", { "lineHeight": "52px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                        "stat-number": ["36px", { "lineHeight": "40px", "fontWeight": "800" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "700" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "fontWeight": "700" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+                        "label-bold": ["14px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Hanken Grotesk', sans-serif; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface min-h-screen pb-24 md:pb-8 flex flex-col md:flex-row">
+<!-- NavigationDrawer (Web) -->
+<nav class="hidden md:flex flex-col py-lg px-md h-full w-72 left-0 fixed border-r border-border-low-contrast dark:border-outline-variant shadow-sm bg-surface dark:bg-on-background z-50">
+<div class="mb-lg px-sm">
+<h1 class="font-headline-md text-headline-md text-primary">Character Sheet</h1>
+</div>
+<div class="flex flex-col gap-sm">
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-secondary dark:text-on-secondary-fixed-variant hover:bg-surface-subtle transition-all duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="analytics">analytics</span>
+<span class="font-label-bold text-label-bold">Stats</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-secondary dark:text-on-secondary-fixed-variant hover:bg-surface-subtle transition-all duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="auto_fix_high">auto_fix_high</span>
+<span class="font-label-bold text-label-bold">Spells</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-secondary dark:text-on-secondary-fixed-variant hover:bg-surface-subtle transition-all duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="inventory_2">inventory_2</span>
+<span class="font-label-bold text-label-bold">Inventory</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg bg-secondary-container dark:bg-secondary text-primary font-bold hover:bg-surface-subtle transition-all duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="person_book" style="font-variation-settings: 'FILL' 1;">person_book</span>
+<span class="font-label-bold text-label-bold">Bio</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="flex-1 md:ml-72 flex flex-col min-h-screen">
+<!-- TopAppBar (Mobile & Web Context) -->
+<header class="w-full top-0 sticky border-b border-border-low-contrast dark:border-outline-variant flat no shadows bg-surface dark:bg-on-background flex justify-between items-center px-margin-mobile h-16 z-40 transition-colors duration-200">
+<div class="flex items-center gap-md">
+<div class="w-8 h-8 rounded-full bg-surface-variant overflow-hidden border border-border-low-contrast">
+<img alt="Eldrin Profile" class="w-full h-full object-cover" data-alt="A detailed digital painting portrait of a High Elf Wizard. The elf has sharp, aristocratic features, pale skin, and long flowing silver hair. He is wearing elegant, dark blue scholarly robes with silver arcane embroidery. The lighting is dramatic and moody, with a cool blue undertone suggesting magical energy. The background is a dark, out-of-focus library. The overall style is high-fantasy, polished, and realistic, suitable for a professional Dungeons and Dragons character portrait." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAgXsmuPT-6kDhd227oZEsyURQ6qbmtZUZwemc1JVmRt0oAJWRjq5fRjaJ7S3DgPERUK3-fwp4vCDm60peAvi1jbVohI-ub2KfucC6JogRxmzV1KAswgDJjqjWH9im4LDjnJUIUYbQZKLKFKnVHzIPmhRGt8QCLJoh1wLZNPJ_cHbW2pfOt2jlJFbFqD2Ejcvu2dJLNtQ2yz4cUVydvmVPej-fo8nHva0B7PeMQH-YRFO0ALHd5wwuIyvLiY3khhiOBP7hhxxVUHg"/>
+</div>
+<h1 class="font-headline-md text-headline-md font-bold text-on-surface dark:text-inverse-on-surface">Eldrin</h1>
+</div>
+<button class="text-secondary dark:text-on-secondary-fixed-variant hover:bg-surface-subtle dark:hover:bg-surface-variant p-sm rounded-full transition-colors duration-200">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+</header>
+<div class="flex-1 p-margin-mobile md:p-margin-desktop max-w-5xl mx-auto w-full">
+<div class="mb-lg">
+<h2 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface mb-xs">Biography &amp; Lore</h2>
+<p class="font-body-md text-body-md text-secondary">High Elf Wizard • Level 5 • Sage Background</p>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-md md:gap-lg">
+<!-- Physical Characteristics & Alignment -->
+<section class="lg:col-span-4 flex flex-col gap-md">
+<!-- Alignment Card -->
+<div class="bg-surface-container-lowest border border-border-low-contrast rounded-lg p-md flex flex-col items-center justify-center min-h-[120px]">
+<span class="font-label-bold text-label-bold text-secondary uppercase tracking-widest mb-xs">Alignment</span>
+<div class="font-headline-md text-headline-md text-primary-container text-center">Neutral Good</div>
+</div>
+<!-- Physical Specs -->
+<div class="bg-surface-container-lowest border border-border-low-contrast rounded-lg p-md flex-1">
+<h3 class="font-label-bold text-label-bold text-on-surface mb-md border-b border-border-low-contrast pb-sm">Physical Characteristics</h3>
+<div class="grid grid-cols-2 gap-y-md gap-x-sm">
+<div>
+<span class="block font-label-sm text-label-sm text-secondary uppercase">Age</span>
+<span class="font-body-md text-body-md text-on-surface font-medium">145 yrs</span>
+</div>
+<div>
+<span class="block font-label-sm text-label-sm text-secondary uppercase">Height</span>
+<span class="font-body-md text-body-md text-on-surface font-medium">6' 1"</span>
+</div>
+<div>
+<span class="block font-label-sm text-label-sm text-secondary uppercase">Weight</span>
+<span class="font-body-md text-body-md text-on-surface font-medium">155 lbs</span>
+</div>
+<div>
+<span class="block font-label-sm text-label-sm text-secondary uppercase">Eyes</span>
+<span class="font-body-md text-body-md text-on-surface font-medium">Piercing Blue</span>
+</div>
+<div>
+<span class="block font-label-sm text-label-sm text-secondary uppercase">Skin</span>
+<span class="font-body-md text-body-md text-on-surface font-medium">Fair / Pale</span>
+</div>
+<div>
+<span class="block font-label-sm text-label-sm text-secondary uppercase">Hair</span>
+<span class="font-body-md text-body-md text-on-surface font-medium">Silver, Long</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Personality Profile -->
+<section class="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-md">
+<div class="bg-surface-subtle border border-border-low-contrast rounded-lg p-md flex flex-col focus-within:border-primary-container focus-within:bg-surface-container-lowest transition-colors">
+<label class="font-label-bold text-label-bold text-on-surface mb-xs flex items-center gap-xs" for="traits">
+<span class="material-symbols-outlined text-secondary" data-icon="psychology" style="font-size: 18px;">psychology</span> Personality Traits
+                        </label>
+<textarea class="w-full flex-1 bg-transparent border-none resize-none font-body-md text-body-md text-on-surface focus:ring-0 p-0 placeholder-secondary/50 min-h-[100px]" id="traits" placeholder="I use polysyllabic words that convey the impression of great erudition. I've read every book in the world's greatest libraries.">I use polysyllabic words that convey the impression of great erudition. I've read every book in the world's greatest libraries.</textarea>
+</div>
+<div class="bg-surface-subtle border border-border-low-contrast rounded-lg p-md flex flex-col focus-within:border-primary-container focus-within:bg-surface-container-lowest transition-colors">
+<label class="font-label-bold text-label-bold text-on-surface mb-xs flex items-center gap-xs" for="ideals">
+<span class="material-symbols-outlined text-secondary" data-icon="wb_incandescent" style="font-size: 18px;">wb_incandescent</span> Ideals
+                        </label>
+<textarea class="w-full flex-1 bg-transparent border-none resize-none font-body-md text-body-md text-on-surface focus:ring-0 p-0 placeholder-secondary/50 min-h-[100px]" id="ideals" placeholder="Knowledge. The path to power and self-improvement is through knowledge.">Knowledge. The path to power and self-improvement is through knowledge.</textarea>
+</div>
+<div class="bg-surface-subtle border border-border-low-contrast rounded-lg p-md flex flex-col focus-within:border-primary-container focus-within:bg-surface-container-lowest transition-colors">
+<label class="font-label-bold text-label-bold text-on-surface mb-xs flex items-center gap-xs" for="bonds">
+<span class="material-symbols-outlined text-secondary" data-icon="link" style="font-size: 18px;">link</span> Bonds
+                        </label>
+<textarea class="w-full flex-1 bg-transparent border-none resize-none font-body-md text-body-md text-on-surface focus:ring-0 p-0 placeholder-secondary/50 min-h-[100px]" id="bonds" placeholder="I have an ancient text that holds terrible secrets that must not fall into the wrong hands.">I have an ancient text that holds terrible secrets that must not fall into the wrong hands.</textarea>
+</div>
+<div class="bg-surface-subtle border border-border-low-contrast rounded-lg p-md flex flex-col focus-within:border-primary-container focus-within:bg-surface-container-lowest transition-colors">
+<label class="font-label-bold text-label-bold text-on-surface mb-xs flex items-center gap-xs" for="flaws">
+<span class="material-symbols-outlined text-secondary" data-icon="broken_image" style="font-size: 18px;">broken_image</span> Flaws
+                        </label>
+<textarea class="w-full flex-1 bg-transparent border-none resize-none font-body-md text-body-md text-on-surface focus:ring-0 p-0 placeholder-secondary/50 min-h-[100px]" id="flaws" placeholder="I am easily distracted by the promise of information.">I am easily distracted by the promise of information.</textarea>
+</div>
+</section>
+<!-- Backstory & Notes -->
+<section class="lg:col-span-12 flex flex-col gap-md">
+<div class="bg-surface-container-lowest border border-border-low-contrast rounded-lg p-md focus-within:border-primary-container transition-colors">
+<label class="font-headline-md text-headline-md text-on-surface mb-sm block border-b border-border-low-contrast pb-sm" for="backstory">Backstory</label>
+<textarea class="w-full bg-transparent border-none resize-y font-body-lg text-body-lg text-on-surface focus:ring-0 p-0 min-h-[250px]" id="backstory" placeholder="Enter Eldrin's backstory...">Born in the shimmering city of Evermeet, Eldrin was always drawn to the dusty archives rather than the vibrant courts. His early years were spent translating forgotten Netherese scrolls under the tutelage of Archmage Vaelen. However, a mysterious fire in the grand library—which Eldrin suspects was no accident—destroyed decades of research and left him with a singed, incomplete grimoire containing a dangerous, half-translated ritual. Forced to leave Evermeet to uncover the remaining fragments, he now wanders the Sword Coast, seeking lost knowledge and the arsonist who ruined his mentor's life's work.</textarea>
+</div>
+<div class="bg-surface-subtle border border-border-low-contrast rounded-lg p-md focus-within:border-primary-container focus-within:bg-surface-container-lowest transition-colors">
+<label class="font-label-bold text-label-bold text-on-surface mb-sm block flex items-center gap-xs" for="notes">
+<span class="material-symbols-outlined text-secondary" data-icon="edit_note" style="font-size: 18px;">edit_note</span> Additional Notes &amp; Allies
+                        </label>
+<textarea class="w-full bg-transparent border-none resize-y font-body-md text-body-md text-on-surface focus:ring-0 p-0 min-h-[150px]" id="notes" placeholder="Campaign notes, allies, enemies...">- Met a dwarf named Thorgar in Neverwinter. Owes him 50gp.
+- The symbol on the cultist's robe matched the watermark on the burned scrolls.
+- Remember to buy more pearl dust for Identify.</textarea>
+</div>
+</section>
+</div>
+<!-- Action Area -->
+<div class="mt-lg flex items-center justify-between border-t border-border-low-contrast pt-md">
+<div class="flex items-center gap-xs text-secondary font-label-sm text-label-sm">
+<span class="material-symbols-outlined" data-icon="cloud_done" style="font-size: 16px;">cloud_done</span>
+<span>Last auto-saved 2 mins ago</span>
+</div>
+<button class="bg-primary-container text-on-primary hover:bg-surface-tint active:scale-95 transition-all px-xl py-sm rounded font-label-bold text-label-bold shadow-sm flex items-center gap-sm">
+<span class="material-symbols-outlined" data-icon="save">save</span>
+                    Guardar
+                </button>
+</div>
+</div>
+</main>
+<!-- BottomNavBar (Mobile) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full flex justify-around items-center h-16 px-4 pb-safe bg-surface dark:bg-on-background border-t border-border-low-contrast dark:border-outline-variant z-50">
+<a class="flex flex-col items-center justify-center text-secondary dark:text-on-secondary-fixed-variant scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="analytics">analytics</span>
+<span class="font-label-sm text-label-sm-mobile">Stats</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary dark:text-on-secondary-fixed-variant scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="auto_fix_high">auto_fix_high</span>
+<span class="font-label-sm text-label-sm-mobile">Spells</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary dark:text-on-secondary-fixed-variant scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="inventory_2">inventory_2</span>
+<span class="font-label-sm text-label-sm-mobile">Inventory</span>
+</a>
+<a class="flex flex-col items-center justify-center text-primary dark:text-inverse-primary font-bold scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="person_book" style="font-variation-settings: 'FILL' 1;">person_book</span>
+<span class="font-label-sm text-label-sm-mobile">Bio</span>
+</a>
+</nav>
+</body></html>
