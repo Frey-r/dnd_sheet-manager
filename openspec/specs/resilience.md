@@ -74,3 +74,25 @@ AND upon successful reconnection the client SHALL send its last-known timestamp 
   3. Flush pending Pub/Sub messages to Redis.
   4. Wait for in-flight HTTP requests to complete (with a timeout).
   5. Close database and Redis connections cleanly.
+
+## Foundry Sync Resilience
+
+- The backend **SHALL** treat the Foundry relay as an external, possibly-unavailable dependency.
+
+```gherkin
+GIVEN the Foundry relay or Foundry instance is unreachable
+WHEN a sync is triggered
+THEN the backend SHALL fail gracefully with a descriptive error
+AND SHALL NOT leave the mirror partially written (each entity type SHALL be committed atomically or rolled back)
+AND foundry_sync_state.status SHALL be set to "error" with the cause and timestamp
+```
+
+```gherkin
+GIVEN a sync imports journal entries as lore
+WHEN embeddings are required
+THEN the sync request SHALL NOT block on Ollama
+AND embedding jobs SHALL be queued on the RAG worker pool (respecting its queue depth limit)
+```
+
+- Relay calls **SHALL** use a configurable timeout and **SHOULD** retry transient failures with bounded backoff.
+- A failed sync **MUST NOT** affect availability of app-owned features (lore search, messaging, etc.) over the existing mirror.

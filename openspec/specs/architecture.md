@@ -8,7 +8,8 @@
 - Relational and vector persistence **SHALL** be consolidated in a single Dockerized PostgreSQL instance via the `pgvector` extension.
 
 ### Data Flow
-- The backend **SHALL** be the single source of truth for all game state.
+- **Foundry VTT SHALL** be the source of truth for live **game state** (actors/characters, NPCs, actor-embedded items/equipment, compendium monsters, scenes/maps, journal). The backend **SHALL** maintain a read-only mirror of this state synced one-way from Foundry (see `foundry-integration.md`).
+- The backend **SHALL** be the single source of truth for **campaign-companion features** that Foundry does not provide: lore/RAG, messaging, marketplace, trades, events calendar, and notes.
 - Redis **SHALL** serve as the Pub/Sub bus for real-time cross-instance message distribution.
 - Ollama **SHALL** run locally and be accessed exclusively through the Go worker pool.
 
@@ -34,3 +35,8 @@
 - `character_lore`: Personal backstory vectors — accessible only to the owning player and the GM.
 - `campaign_plot`: Shared chapter summaries and resolved events — accessible to all campaign members.
 - `gm_hidden_lore`: GM-only plot notes — accessible exclusively to the GM.
+
+### Foundry VTT Integration
+- Game-state entities **SHALL** be synced one-way from a self-hosted Foundry instance via the `foundryvtt-rest-api` module and a self-hosted relay; the backend consumes the relay's REST API only.
+- The in-app combat / live-play view **SHALL** embed the Foundry client in an iframe.
+- Full rules, scenarios, mapping, and the ownership boundary are defined in `foundry-integration.md`.

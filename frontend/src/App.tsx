@@ -13,6 +13,7 @@ import { BiographyTab } from './pages/BiographyTab';
 import { FeaturesTab } from './pages/FeaturesTab';
 import { GMConsole } from './pages/GMConsole';
 import { CombatTracker } from './pages/CombatTracker';
+import { FoundryCombat } from './pages/FoundryCombat';
 import { NPCManager } from './pages/NPCManager';
 import { PartyRoster } from './pages/PartyRoster';
 import { EventsCalendar } from './pages/EventsCalendar';
@@ -84,6 +85,7 @@ function App() {
           <Route path="campaign/:campaignId/gm/encounter-builder" element={<RoleGuard allowedRoles={['admin', 'dm']}><EncounterBuilder /></RoleGuard>} />
 
           {/* Player Pages */}
+          <Route path="campaign/:campaignId/combat" element={<FoundryCombat />} />
           <Route path="campaign/:campaignId/market" element={<Marketplace />} />
           <Route path="campaign/:campaignId/chat" element={<Messages />} />
           <Route path="campaign/:campaignId/lore" element={<LoreSearch />} />

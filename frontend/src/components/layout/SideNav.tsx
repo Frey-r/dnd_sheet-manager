@@ -17,7 +17,7 @@ function buildNavItems(campaignId?: string): NavItem[] {
   return [
     { to: '/campaigns', icon: 'groups', label: 'Campaigns' },
     { to: c || '/campaigns', icon: 'person', label: 'Character Hub', iconFilled: true, disabled: !hasCampaign },
-    { to: c ? `${c}/gm/combat` : '/campaigns', icon: 'swords', label: 'Combat', gmOnly: true, disabled: !hasCampaign },
+    { to: c ? `${c}/combat` : '/campaigns', icon: 'swords', label: 'Combat (Foundry)', disabled: !hasCampaign },
     { to: c ? `${c}/gm/npcs` : '/campaigns', icon: 'groups', label: 'NPCs', gmOnly: true, disabled: !hasCampaign },
     { to: c ? `${c}/gm/bestiary` : '/campaigns', icon: 'pets', label: 'Bestiary', gmOnly: true, disabled: !hasCampaign },
     { to: c ? `${c}/gm/maps` : '/campaigns', icon: 'map', label: 'Maps', gmOnly: true, disabled: !hasCampaign },

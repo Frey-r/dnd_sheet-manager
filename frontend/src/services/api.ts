@@ -216,6 +216,15 @@ export const itemApi = {
     api.put(`/characters/${characterId}/inventory/${itemId}/equip`),
 };
 
+// Foundry VTT integration (see openspec/specs/foundry-integration.md)
+export const foundryApi = {
+  sync: (campaignId: number | string) =>
+    api.post('/foundry/sync', { campaign_id: Number(campaignId) }),
+  status: (campaignId: number | string) =>
+    api.get('/foundry/status', { params: { campaign_id: campaignId } }),
+  health: () => api.get('/foundry/health'),
+};
+
 // Notes
 export const noteApi = {
   list: (campaignId: number | string) => api.get(`/campaigns/${campaignId}/notes`),

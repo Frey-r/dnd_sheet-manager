@@ -30,6 +30,7 @@ export function BottomNav() {
   const baseItems = [
     { to: `/campaign/${campaignId}`, icon: 'map', label: 'Plot' },
     { to: `/campaign/${campaignId}/character/${characterId}`, icon: 'person', label: 'Sheet', iconFilled: true },
+    { to: `/campaign/${campaignId}/combat`, icon: 'swords', label: 'Combat' },
     { to: `/campaign/${campaignId}/chat`, icon: 'forum', label: 'Chat' },
     { to: `/campaign/${campaignId}/market`, icon: 'storefront', label: 'Market' },
   ];

@@ -6,45 +6,47 @@ import (
 )
 
 type Character struct {
-	ID                  int64          `db:"id" json:"id"`
-	UserID              int64          `db:"user_id" json:"user_id"`
-	CampaignID          int64          `db:"campaign_id" json:"campaign_id"`
-	Name                string         `db:"name" json:"name"`
-	Race                string         `db:"race" json:"race"`
-	Class               string         `db:"class" json:"class"`
-	Level               int            `db:"level" json:"level"`
-	Background          string         `db:"background" json:"background"`
-	Alignment           string         `db:"alignment" json:"alignment"`
-	StrScore            int            `db:"str_score" json:"str_score"`
-	DexScore            int            `db:"dex_score" json:"dex_score"`
-	ConScore            int            `db:"con_score" json:"con_score"`
-	IntScore            int            `db:"int_score" json:"int_score"`
-	WisScore            int            `db:"wis_score" json:"wis_score"`
-	ChaScore            int            `db:"cha_score" json:"cha_score"`
-	MaxHP               int            `db:"max_hp" json:"max_hp"`
-	CurrentHP           int            `db:"current_hp" json:"current_hp"`
-	TempHP              int            `db:"temp_hp" json:"temp_hp"`
-	AC                  int            `db:"ac" json:"ac"`
-	Speed               int            `db:"speed" json:"speed"`
-	InitiativeBonus     int            `db:"initiative_bonus" json:"initiative_bonus"`
-	ProficiencyBonus    int            `db:"proficiency_bonus" json:"proficiency_bonus"`
-	Inspiration         bool           `db:"inspiration" json:"inspiration"`
-	PassivePerception   int            `db:"passive_perception" json:"passive_perception"`
-	DeathSaveSuccesses  int            `db:"death_save_successes" json:"death_save_successes"`
-	DeathSaveFailures   int            `db:"death_save_failures" json:"death_save_failures"`
-	XP                  int            `db:"xp" json:"xp"`
-	Gold                int            `db:"gold" json:"gold"`
-	CarryingCapacity    int            `db:"carrying_capacity" json:"carrying_capacity"`
-	PersonalityTraits   string         `db:"personality_traits" json:"personality_traits"`
-	Ideals              string         `db:"ideals" json:"ideals"`
-	Bonds               string         `db:"bonds" json:"bonds"`
-	Flaws               string         `db:"flaws" json:"flaws"`
-	PhysicalDescription string         `db:"physical_description" json:"physical_description"`
-	BackstoryText       string         `db:"backstory_text" json:"backstory_text"`
-	Notes               string         `db:"notes" json:"notes"`
-	SpellcastingAbility string         `db:"spellcasting_ability" json:"spellcasting_ability"`
-	CreatedAt           time.Time      `db:"created_at" json:"created_at"`
-	UpdatedAt           time.Time      `db:"updated_at" json:"updated_at"`
+	ID                  int64     `db:"id" json:"id"`
+	UserID              int64     `db:"user_id" json:"user_id"`
+	CampaignID          int64     `db:"campaign_id" json:"campaign_id"`
+	Name                string    `db:"name" json:"name"`
+	Race                string    `db:"race" json:"race"`
+	Class               string    `db:"class" json:"class"`
+	Level               int       `db:"level" json:"level"`
+	Background          string    `db:"background" json:"background"`
+	Alignment           string    `db:"alignment" json:"alignment"`
+	StrScore            int       `db:"str_score" json:"str_score"`
+	DexScore            int       `db:"dex_score" json:"dex_score"`
+	ConScore            int       `db:"con_score" json:"con_score"`
+	IntScore            int       `db:"int_score" json:"int_score"`
+	WisScore            int       `db:"wis_score" json:"wis_score"`
+	ChaScore            int       `db:"cha_score" json:"cha_score"`
+	MaxHP               int       `db:"max_hp" json:"max_hp"`
+	CurrentHP           int       `db:"current_hp" json:"current_hp"`
+	TempHP              int       `db:"temp_hp" json:"temp_hp"`
+	AC                  int       `db:"ac" json:"ac"`
+	Speed               int       `db:"speed" json:"speed"`
+	InitiativeBonus     int       `db:"initiative_bonus" json:"initiative_bonus"`
+	ProficiencyBonus    int       `db:"proficiency_bonus" json:"proficiency_bonus"`
+	Inspiration         bool      `db:"inspiration" json:"inspiration"`
+	PassivePerception   int       `db:"passive_perception" json:"passive_perception"`
+	DeathSaveSuccesses  int       `db:"death_save_successes" json:"death_save_successes"`
+	DeathSaveFailures   int       `db:"death_save_failures" json:"death_save_failures"`
+	XP                  int       `db:"xp" json:"xp"`
+	Gold                int       `db:"gold" json:"gold"`
+	CarryingCapacity    int       `db:"carrying_capacity" json:"carrying_capacity"`
+	PersonalityTraits   string    `db:"personality_traits" json:"personality_traits"`
+	Ideals              string    `db:"ideals" json:"ideals"`
+	Bonds               string    `db:"bonds" json:"bonds"`
+	Flaws               string    `db:"flaws" json:"flaws"`
+	PhysicalDescription string    `db:"physical_description" json:"physical_description"`
+	BackstoryText       string    `db:"backstory_text" json:"backstory_text"`
+	Notes               string    `db:"notes" json:"notes"`
+	SpellcastingAbility string    `db:"spellcasting_ability" json:"spellcasting_ability"`
+	FoundryUUID         *string   `db:"foundry_uuid" json:"foundry_uuid,omitempty"`
+	IsFoundryOrphan     bool      `db:"is_foundry_orphan" json:"is_foundry_orphan"`
+	CreatedAt           time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt           time.Time `db:"updated_at" json:"updated_at"`
 }
 
 type PhysicalDescription struct {
@@ -60,12 +62,12 @@ func (c *Character) GetModifier(score int) int {
 	return (score - 10) / 2
 }
 
-func (c *Character) StrModifier() int  { return c.GetModifier(c.StrScore) }
-func (c *Character) DexModifier() int  { return c.GetModifier(c.DexScore) }
-func (c *Character) ConModifier() int   { return c.GetModifier(c.ConScore) }
-func (c *Character) IntModifier() int   { return c.GetModifier(c.IntScore) }
-func (c *Character) WisModifier() int   { return c.GetModifier(c.WisScore) }
-func (c *Character) ChaModifier() int   { return c.GetModifier(c.ChaScore) }
+func (c *Character) StrModifier() int { return c.GetModifier(c.StrScore) }
+func (c *Character) DexModifier() int { return c.GetModifier(c.DexScore) }
+func (c *Character) ConModifier() int { return c.GetModifier(c.ConScore) }
+func (c *Character) IntModifier() int { return c.GetModifier(c.IntScore) }
+func (c *Character) WisModifier() int { return c.GetModifier(c.WisScore) }
+func (c *Character) ChaModifier() int { return c.GetModifier(c.ChaScore) }
 
 func (c *Character) SpellSaveDC() int {
 	abilityMod := 0
@@ -126,7 +128,7 @@ type CharacterWithOwner struct {
 
 type SpellSlot struct {
 	ID          int64 `db:"id"`
-	CharacterID  int64 `db:"character_id"`
+	CharacterID int64 `db:"character_id"`
 	Level       int   `db:"level"`
 	Total       int   `db:"total"`
 	Used        int   `db:"used"`

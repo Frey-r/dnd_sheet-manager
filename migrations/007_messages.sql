@@ -1,5 +1,5 @@
 -- +goose Up
-CREATE EXTENSION IF NOT EXISTS pgvector;
+CREATE EXTENSION IF NOT EXISTS vector;
 
 CREATE TABLE lore_entries (
     id BIGSERIAL PRIMARY KEY,
@@ -68,4 +68,4 @@ DROP TABLE IF EXISTS game_events;
 DROP TABLE IF EXISTS messages;
 DROP INDEX IF EXISTS idx_lore_entries_vector;
 DROP TABLE IF EXISTS lore_entries;
-DROP EXTENSION IF EXISTS pgvector;
+DROP EXTENSION IF EXISTS vector;

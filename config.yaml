@@ -31,3 +31,11 @@ rate_limit:
   requests_per_minute: 100
   ws_messages_per_second: 5
   ws_burst_seconds: 1
+
+foundry:
+  relay_base_url: "http://localhost:3010"   # self-hosted foundryvtt-rest-api-relay
+  api_key: ""                                # set via env FOUNDRY_API_KEY (do not commit)
+  client_id: ""                              # connected world id; set via env FOUNDRY_CLIENT_ID
+  default_lore_tier: "campaign_plot"
+  sync_compendium: true
+  timeout: 30

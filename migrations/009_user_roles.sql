@@ -1,6 +1,10 @@
 -- +goose Up
-ALTER TABLE users ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'player';
-ALTER TABLE users ADD CONSTRAINT chk_users_role CHECK (role IN ('admin', 'dm', 'player'));
+ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'player';
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_users_role') THEN
+        ALTER TABLE users ADD CONSTRAINT chk_users_role CHECK (role IN ('admin', 'dm', 'player'));
+    END IF;
+END $$;
 
 -- Set the first user as admin (change as needed)
 -- UPDATE users SET role = 'admin' WHERE id = 1;

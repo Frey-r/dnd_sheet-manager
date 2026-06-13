@@ -29,6 +29,21 @@ services:
       timeout: 5s
       retries: 5
 
+  # Foundry VTT REST API relay (https://github.com/ThreeHats/foundryvtt-rest-api-relay).
+  # The Foundry world's foundryvtt-rest-api module connects here over WebSocket;
+  # this backend reads it over REST. See openspec/specs/foundry-integration.md.
+  # NOTE: confirm the published image/tag for your relay version.
+  foundry-relay:
+    image: ghcr.io/threehats/foundryvtt-rest-api-relay:latest
+    container_name: dnd_foundry_relay
+    ports:
+      - "3010:3010"
+    environment:
+      PORT: "3010"
+      # API key the relay accepts; the Go backend sends it as x-api-key.
+      API_KEY: ${FOUNDRY_API_KEY:-change-me}
+    restart: unless-stopped
+
 volumes:
   pgdata:
   redisdata:

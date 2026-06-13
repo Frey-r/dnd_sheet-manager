@@ -62,3 +62,21 @@ AND the client IP SHALL be temporarily blacklisted from reconnecting for 30 seco
 - All authentication failures **MUST** be logged.
 - All RBAC rejections **MUST** be logged.
 - Log entries **SHALL** include: timestamp, user ID (if known), IP address, endpoint/action, and reason.
+
+## Foundry Integration Security
+
+### Relay Credentials
+- The Foundry relay API key **MUST** be supplied to the backend via environment variable / config and **MUST NOT** be committed to source control or exposed to the frontend.
+- The backend **MUST** send the relay key in the `x-api-key` header server-side only; the React client **MUST NOT** receive or proxy this key.
+- `POST /api/foundry/sync` **MUST** be restricted to role `gm`; player requests **SHALL** be rejected with HTTP 403 and logged.
+
+```gherkin
+GIVEN any frontend bundle or network response to the browser
+WHEN inspected
+THEN it MUST NOT contain the Foundry relay api_key
+```
+
+### iframe / Cross-Origin
+- The proxy in front of Foundry **MUST** restrict `Content-Security-Policy: frame-ancestors` to the app's origin(s) only — wildcard framing **MUST NOT** be used.
+- The Foundry session cookie set to `SameSite=None; Secure` **MUST** be served only over HTTPS.
+- CORS for relay/backend calls originating from the Foundry origin **MUST** be limited to known origins.
