@@ -29,7 +29,14 @@ func (h *CharacterHandler) Create(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	char, err := h.charSvc.Create(c.Request.Context(), userID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create character"})
+		switch err {
+		case service.ErrInvalidAbilityScore:
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		case service.ErrForbidden:
+			c.JSON(http.StatusForbidden, gin.H{"error": "campaign membership required"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create character"})
+		}
 		return
 	}
 
@@ -111,7 +118,7 @@ func (h *CharacterHandler) UpdateHP(c *gin.Context) {
 func (h *CharacterHandler) LongRest(c *gin.Context) {
 	charID := parseID(c.Param("id"))
 
-	if err := h.charSvc.LongRest(c.Request.Context(), charID); err != nil {
+	if err := h.charSvc.Rest(c.Request.Context(), charID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to perform long rest"})
 		return
 	}
@@ -157,16 +164,20 @@ func (h *CharacterHandler) GetSpellSlots(c *gin.Context) {
 
 func (h *CharacterHandler) CastSpell(c *gin.Context) {
 	charID := parseID(c.Param("id"))
-
-	char, err := h.charSvc.GetByID(c.Request.Context(), charID, 0, false)
+	spellID := parseID(c.Param("spellId"))
+	slots, err := h.charSvc.CastSpell(c.Request.Context(), charID, spellID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get character"})
+		switch err {
+		case service.ErrNoSpellSlots:
+			c.JSON(http.StatusConflict, gin.H{"error": "no quedan espacios de conjuro de ese nivel"})
+		case service.ErrNotFound:
+			c.JSON(http.StatusNotFound, gin.H{"error": "spell not found"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to cast spell"})
+		}
 		return
 	}
-
-	// Deduct spell slot — for now simplified, would need spell level from request
-	// This needs enhancement to get spell level from request
-	c.JSON(http.StatusOK, gin.H{"message": "spell cast", "remaining_slots": char.CurrentHP}) // placeholder
+	c.JSON(http.StatusOK, gin.H{"message": "spell cast", "spell_slots": slots})
 }
 
 func (h *CharacterHandler) GetFeatures(c *gin.Context) {
@@ -232,9 +243,23 @@ func (h *CharacterHandler) EquipItem(c *gin.Context) {
 	itemID := parseID(c.Param("itemId"))
 
 	if err := h.charSvc.EquipItem(c.Request.Context(), charID, itemID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to toggle equip status"})
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "equip status toggled"})
+}
+
+func (h *CharacterHandler) UpdateItem(c *gin.Context) {
+	var req domain.UpdateItemRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	item, err := h.charSvc.UpdateItem(c.Request.Context(), parseID(c.Param("id")), parseID(c.Param("itemId")), &req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, item)
 }

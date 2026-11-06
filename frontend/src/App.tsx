@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Layout } from './components/layout/Layout';
 import { LoginPage } from './pages/Login';
 import { RegisterPage } from './pages/Register';
@@ -33,77 +34,70 @@ import { PlayerEncounter } from './pages/PlayerEncounter';
 import { SettingsPage } from './pages/SettingsPage';
 import { SRDSpellBrowser } from './pages/SRDSpellBrowser';
 import { EncounterBuilder } from './pages/EncounterBuilder';
+import { ContentLibrary } from './pages/ContentLibrary';
+import { VirtualTable } from './pages/VirtualTable';
 import { useAuth } from './lib/hooks';
-import type { UserRole } from './types';
+import { campaignApi } from './services/api';
+import { RealtimeProvider } from './lib/RealtimeProvider';
 
-/** Protects a route: if the user's role is not in allowedRoles, redirect to /campaigns */
-function RoleGuard({ allowedRoles, children }: { allowedRoles: UserRole[]; children: React.ReactNode }) {
-  const { role, isAuthenticated } = useAuth();
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (!allowedRoles.includes(role)) return <Navigate to="/campaigns" replace />;
-  return <>{children}</>;
+function AuthGuard({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated } = useAuth();
+  return isAuthenticated ? children : <Navigate to="/login" replace />;
 }
 
-
-function App() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        {/* Auth */}
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-
-        {/* Main App with Layout */}
-        <Route path="/" element={<Layout />}>
-          <Route index element={<Navigate to="/campaigns" replace />} />
-
-          {/* Campaigns */}
-          <Route path="campaigns" element={<CampaignListPage />} />
-          <Route path="campaigns/new" element={<RoleGuard allowedRoles={['admin', 'dm']}><CreateCampaignPage /></RoleGuard>} />
-          <Route path="campaign/:campaignId" element={<CampaignHub />} />
-
-          {/* Character Sheet Tabs */}
-          <Route path="campaign/:campaignId/character/new" element={<CreateCharacterPage />} />
-          <Route path="campaign/:campaignId/character/:characterId" element={<CharacterSheet />} />
-          <Route path="campaign/:campaignId/character/:characterId/spells" element={<SpellsTab />} />
-          <Route path="campaign/:campaignId/character/:characterId/inventory" element={<InventoryTab />} />
-          <Route path="campaign/:campaignId/character/:characterId/bio" element={<BiographyTab />} />
-          <Route path="campaign/:campaignId/character/:characterId/features" element={<FeaturesTab />} />
-
-          {/* GM Console — admin & dm only */}
-          <Route path="campaign/:campaignId/gm" element={<RoleGuard allowedRoles={['admin', 'dm']}><GMConsole /></RoleGuard>} />
-          <Route path="campaign/:campaignId/gm/combat" element={<RoleGuard allowedRoles={['admin', 'dm']}><CombatTracker /></RoleGuard>} />
-          <Route path="campaign/:campaignId/gm/npcs" element={<RoleGuard allowedRoles={['admin', 'dm']}><NPCManager /></RoleGuard>} />
-          <Route path="campaign/:campaignId/gm/party" element={<RoleGuard allowedRoles={['admin', 'dm']}><PartyRoster /></RoleGuard>} />
-          <Route path="campaign/:campaignId/gm/events" element={<RoleGuard allowedRoles={['admin', 'dm']}><EventsCalendar /></RoleGuard>} />
-          <Route path="campaign/:campaignId/gm/maps" element={<RoleGuard allowedRoles={['admin', 'dm']}><MapGallery /></RoleGuard>} />
-          <Route path="campaign/:campaignId/gm/notes" element={<RoleGuard allowedRoles={['admin', 'dm']}><CampaignNotes /></RoleGuard>} />
-          <Route path="campaign/:campaignId/gm/bestiary" element={<RoleGuard allowedRoles={['admin', 'dm']}><Bestiary /></RoleGuard>} />
-          <Route path="campaign/:campaignId/gm/bot" element={<RoleGuard allowedRoles={['admin', 'dm']}><BotManager /></RoleGuard>} />
-          <Route path="campaign/:campaignId/gm/lore" element={<RoleGuard allowedRoles={['admin', 'dm']}><LoreEditor /></RoleGuard>} />
-          <Route path="campaign/:campaignId/gm/spells-srd" element={<RoleGuard allowedRoles={['admin', 'dm']}><SRDSpellBrowser /></RoleGuard>} />
-          <Route path="campaign/:campaignId/gm/encounter-builder" element={<RoleGuard allowedRoles={['admin', 'dm']}><EncounterBuilder /></RoleGuard>} />
-
-          {/* Player Pages */}
-          <Route path="campaign/:campaignId/combat" element={<FoundryCombat />} />
-          <Route path="campaign/:campaignId/market" element={<Marketplace />} />
-          <Route path="campaign/:campaignId/chat" element={<Messages />} />
-          <Route path="campaign/:campaignId/lore" element={<LoreSearch />} />
-          <Route path="campaign/:campaignId/trade" element={<Trade />} />
-          <Route path="campaign/:campaignId/encounter" element={<PlayerEncounter />} />
-
-          {/* Detail Views — GM only */}
-          <Route path="campaign/:campaignId/gm/bestiary/:creatureId" element={<RoleGuard allowedRoles={['admin', 'dm']}><CreatureDetail /></RoleGuard>} />
-          <Route path="campaign/:campaignId/gm/npcs/:npcId" element={<RoleGuard allowedRoles={['admin', 'dm']}><NPCDetail /></RoleGuard>} />
-          <Route path="campaign/:campaignId/gm/maps/:mapId" element={<RoleGuard allowedRoles={['admin', 'dm']}><MapDetail /></RoleGuard>} />
-
-
-          {/* Settings */}
-          <Route path="settings" element={<SettingsPage />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
-  );
+function GMGuard({ children }: { children: React.ReactNode }) {
+  const { campaignId = '' } = useParams();
+  const { user } = useAuth();
+  const query = useQuery({
+    queryKey: ['campaign-members', campaignId],
+    queryFn: () => campaignApi.members(campaignId).then((response) => response.data),
+    enabled: Boolean(campaignId && user),
+  });
+  if (query.isLoading) return <div className="p-8 text-on-surface">Comprobando permisos…</div>;
+  const members = Array.isArray(query.data) ? query.data : [];
+  const role = members.find((member: { user_id: number }) => member.user_id === user?.id)?.role;
+  return role === 'gm' ? children : <Navigate to={`/campaign/${campaignId}`} replace />;
 }
 
-export default App;
+export default function App() {
+  return <BrowserRouter><RealtimeProvider><Routes>
+    <Route path="/login" element={<LoginPage />} />
+    <Route path="/register" element={<RegisterPage />} />
+    <Route path="/" element={<AuthGuard><Layout /></AuthGuard>}>
+      <Route index element={<Navigate to="/campaigns" replace />} />
+      <Route path="campaigns" element={<CampaignListPage />} />
+      <Route path="campaigns/new" element={<CreateCampaignPage />} />
+      <Route path="campaign/:campaignId" element={<CampaignHub />} />
+      <Route path="campaign/:campaignId/reference" element={<ContentLibrary />} />
+      <Route path="campaign/:campaignId/character/new" element={<CreateCharacterPage />} />
+      <Route path="campaign/:campaignId/character/:characterId" element={<CharacterSheet />} />
+      <Route path="campaign/:campaignId/character/:characterId/spells" element={<SpellsTab />} />
+      <Route path="campaign/:campaignId/character/:characterId/inventory" element={<InventoryTab />} />
+      <Route path="campaign/:campaignId/character/:characterId/bio" element={<BiographyTab />} />
+      <Route path="campaign/:campaignId/character/:characterId/features" element={<FeaturesTab />} />
+      <Route path="campaign/:campaignId/gm" element={<GMGuard><GMConsole /></GMGuard>} />
+      <Route path="campaign/:campaignId/gm/combat" element={<GMGuard><CombatTracker /></GMGuard>} />
+      <Route path="campaign/:campaignId/gm/npcs" element={<GMGuard><NPCManager /></GMGuard>} />
+      <Route path="campaign/:campaignId/gm/party" element={<GMGuard><PartyRoster /></GMGuard>} />
+      <Route path="campaign/:campaignId/gm/events" element={<GMGuard><EventsCalendar /></GMGuard>} />
+      <Route path="campaign/:campaignId/gm/maps" element={<GMGuard><MapGallery /></GMGuard>} />
+      <Route path="campaign/:campaignId/gm/notes" element={<GMGuard><CampaignNotes /></GMGuard>} />
+      <Route path="campaign/:campaignId/gm/bestiary" element={<GMGuard><Bestiary /></GMGuard>} />
+      <Route path="campaign/:campaignId/gm/bot" element={<GMGuard><BotManager /></GMGuard>} />
+      <Route path="campaign/:campaignId/gm/lore" element={<GMGuard><LoreEditor /></GMGuard>} />
+      <Route path="campaign/:campaignId/gm/spells-srd" element={<GMGuard><SRDSpellBrowser /></GMGuard>} />
+      <Route path="campaign/:campaignId/gm/encounter-builder" element={<GMGuard><EncounterBuilder /></GMGuard>} />
+      <Route path="campaign/:campaignId/table" element={<VirtualTable />} />
+      <Route path="campaign/:campaignId/combat" element={<GMGuard><FoundryCombat /></GMGuard>} />
+      <Route path="campaign/:campaignId/market" element={<Marketplace />} />
+      <Route path="campaign/:campaignId/chat" element={<Messages />} />
+      <Route path="campaign/:campaignId/lore" element={<LoreSearch />} />
+      <Route path="campaign/:campaignId/trade" element={<Trade />} />
+      <Route path="campaign/:campaignId/encounter" element={<PlayerEncounter />} />
+      <Route path="campaign/:campaignId/gm/bestiary/:creatureId" element={<GMGuard><CreatureDetail /></GMGuard>} />
+      <Route path="campaign/:campaignId/gm/npcs/:npcId" element={<GMGuard><NPCDetail /></GMGuard>} />
+      <Route path="campaign/:campaignId/gm/maps/:mapId" element={<GMGuard><MapDetail /></GMGuard>} />
+      <Route path="settings" element={<SettingsPage />} />
+    </Route>
+  </Routes></RealtimeProvider></BrowserRouter>;
+}

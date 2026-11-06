@@ -12,7 +12,7 @@ import (
 )
 
 type MessageHandler struct {
-	msgSvc     *service.MessageService
+	msgSvc      *service.MessageService
 	campaignSvc *service.CampaignService
 }
 

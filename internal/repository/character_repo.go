@@ -20,13 +20,13 @@ func (r *CharacterRepository) Create(ctx context.Context, c *domain.Character) e
 	query := `
 		INSERT INTO characters (user_id, campaign_id, name, race, class, level, background, alignment,
 			str_score, dex_score, con_score, int_score, wis_score, cha_score,
-			max_hp, current_hp, ac, speed, proficiency_bonus, spellcasting_ability)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+			max_hp, current_hp, ac, speed, proficiency_bonus, spellcasting_ability, initiative_bonus, passive_perception)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
 		RETURNING id, created_at, updated_at`
 	return r.db.QueryRowxContext(ctx, query,
 		c.UserID, c.CampaignID, c.Name, c.Race, c.Class, c.Level, c.Background, c.Alignment,
 		c.StrScore, c.DexScore, c.ConScore, c.IntScore, c.WisScore, c.ChaScore,
-		c.MaxHP, c.CurrentHP, c.AC, c.Speed, c.ProficiencyBonus, c.SpellcastingAbility,
+		c.MaxHP, c.CurrentHP, c.AC, c.Speed, c.ProficiencyBonus, c.SpellcastingAbility, c.InitiativeBonus, c.PassivePerception,
 	).Scan(&c.ID, &c.CreatedAt, &c.UpdatedAt)
 }
 
@@ -51,7 +51,7 @@ func (r *CharacterRepository) GetByUserAndCampaign(ctx context.Context, userID, 
 }
 
 func (r *CharacterRepository) ListByCampaign(ctx context.Context, campaignID int64) ([]domain.CharacterWithOwner, error) {
-	var chars []domain.CharacterWithOwner
+	chars := []domain.CharacterWithOwner{}
 	query := `
 		SELECT c.*, u.username
 		FROM characters c
@@ -105,7 +105,7 @@ func (r *CharacterRepository) CreateFeature(ctx context.Context, f *domain.Chara
 }
 
 func (r *CharacterRepository) GetFeatures(ctx context.Context, characterID int64) ([]domain.CharacterFeature, error) {
-	var features []domain.CharacterFeature
+	features := []domain.CharacterFeature{}
 	query := `SELECT * FROM character_features WHERE character_id=$1`
 	err := r.db.SelectContext(ctx, &features, query, characterID)
 	return features, err
@@ -113,7 +113,7 @@ func (r *CharacterRepository) GetFeatures(ctx context.Context, characterID int64
 
 // Spell slot methods
 func (r *CharacterRepository) GetSpellSlots(ctx context.Context, characterID int64) ([]domain.SpellSlot, error) {
-	var slots []domain.SpellSlot
+	slots := []domain.SpellSlot{}
 	query := `SELECT * FROM spell_slots WHERE character_id=$1 ORDER BY level`
 	err := r.db.SelectContext(ctx, &slots, query, characterID)
 	return slots, err
@@ -138,4 +138,55 @@ func (r *CharacterRepository) RestoreAllSpellSlots(ctx context.Context, characte
 	query := `UPDATE spell_slots SET used=0 WHERE character_id=$1`
 	_, err := r.db.ExecContext(ctx, query, characterID)
 	return err
+}
+
+func (r *CharacterRepository) CastSpell(ctx context.Context, characterID, spellID int64) ([]domain.SpellSlot, error) {
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	var spell struct {
+		Level int `db:"level"`
+	}
+	if err := tx.GetContext(ctx, &spell, `SELECT level FROM spells WHERE id=$1 AND character_id=$2`, spellID, characterID); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ErrResourceNotFound
+		}
+		return nil, err
+	}
+	if spell.Level > 0 {
+		result, err := tx.ExecContext(ctx, `UPDATE spell_slots SET used=used+1 WHERE character_id=$1 AND level=$2 AND used<total`, characterID, spell.Level)
+		if err != nil {
+			return nil, err
+		}
+		changed, err := result.RowsAffected()
+		if err != nil || changed != 1 {
+			return nil, ErrSpellSlotUnavailable
+		}
+	}
+	slots := []domain.SpellSlot{}
+	if err := tx.SelectContext(ctx, &slots, `SELECT * FROM spell_slots WHERE character_id=$1 ORDER BY level`, characterID); err != nil {
+		return nil, err
+	}
+	return slots, tx.Commit()
+}
+
+func (r *CharacterRepository) LongRest(ctx context.Context, characterID int64) error {
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	result, err := tx.ExecContext(ctx, `UPDATE characters SET current_hp=max_hp, temp_hp=0, death_save_successes=0, death_save_failures=0, updated_at=NOW() WHERE id=$1`, characterID)
+	if err != nil {
+		return err
+	}
+	if changed, _ := result.RowsAffected(); changed != 1 {
+		return ErrResourceNotFound
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE spell_slots SET used=0 WHERE character_id=$1`, characterID); err != nil {
+		return err
+	}
+	return tx.Commit()
 }

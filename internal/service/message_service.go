@@ -8,9 +8,9 @@ import (
 )
 
 type MessageService struct {
-	msgRepo     *repository.MessageRepository
+	msgRepo      *repository.MessageRepository
 	campaignRepo *repository.CampaignRepository
-	userRepo    *repository.UserRepository
+	userRepo     *repository.UserRepository
 }
 
 func NewMessageService(msgRepo *repository.MessageRepository, campaignRepo *repository.CampaignRepository, userRepo *repository.UserRepository) *MessageService {
@@ -40,7 +40,13 @@ func (s *MessageService) SendMessage(ctx context.Context, senderID, campaignID i
 	}
 
 	if req.RecipientUserID != nil {
+		isMember, err := s.campaignRepo.IsMember(ctx, campaignID, *req.RecipientUserID)
+		if err != nil || !isMember || *req.RecipientUserID == senderID {
+			return nil, ErrForbidden
+		}
 		msg.RecipientUserID = req.RecipientUserID
+	} else if req.MessageType != domain.MessageTypeGMBroadcast {
+		return nil, ErrForbidden
 	}
 
 	if err := s.msgRepo.Create(ctx, msg); err != nil {

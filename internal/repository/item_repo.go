@@ -40,7 +40,7 @@ func (r *ItemRepository) GetByID(ctx context.Context, id int64) (*domain.Invento
 }
 
 func (r *ItemRepository) GetByCharacter(ctx context.Context, characterID int64) ([]domain.InventoryItem, error) {
-	var items []domain.InventoryItem
+	items := []domain.InventoryItem{}
 	query := `SELECT * FROM inventory_items WHERE character_id=$1 ORDER BY slot_type, name`
 	err := r.db.SelectContext(ctx, &items, query, characterID)
 	return items, err
@@ -62,6 +62,31 @@ func (r *ItemRepository) Delete(ctx context.Context, id int64) error {
 	return err
 }
 
+func (r *ItemRepository) DeleteForCharacter(ctx context.Context, characterID, id int64) error {
+	result, err := r.db.ExecContext(ctx, `DELETE FROM inventory_items WHERE id=$1 AND character_id=$2 AND trade_locked=false`, id, characterID)
+	if err != nil {
+		return err
+	}
+	if changed, _ := result.RowsAffected(); changed != 1 {
+		return ErrResourceNotFound
+	}
+	return nil
+}
+
+func (r *ItemRepository) UpdateForCharacter(ctx context.Context, characterID int64, item *domain.InventoryItem) error {
+	result, err := r.db.ExecContext(ctx, `UPDATE inventory_items SET name=$1, quantity=$2, is_equipped=$3, slot_type=$4,
+		is_attuned=$5, is_tradeable=$6, quest_bound=$7, updated_at=NOW()
+		WHERE id=$8 AND character_id=$9 AND trade_locked=false`, item.Name, item.Quantity, item.IsEquipped,
+		item.SlotType, item.IsAttuned, item.IsTradeable, item.QuestBound, item.ID, characterID)
+	if err != nil {
+		return err
+	}
+	if changed, _ := result.RowsAffected(); changed != 1 {
+		return ErrResourceConflict
+	}
+	return nil
+}
+
 func (r *ItemRepository) LockItemsForTrade(ctx context.Context, itemIDs []int64, lock bool) error {
 	if len(itemIDs) == 0 {
 		return nil
@@ -72,7 +97,7 @@ func (r *ItemRepository) LockItemsForTrade(ctx context.Context, itemIDs []int64,
 }
 
 func (r *ItemRepository) GetByIDs(ctx context.Context, ids []int64) ([]domain.InventoryItem, error) {
-	var items []domain.InventoryItem
+	items := []domain.InventoryItem{}
 	query := `SELECT * FROM inventory_items WHERE id = ANY($1)`
 	err := r.db.SelectContext(ctx, &items, query, ids)
 	return items, err
@@ -88,7 +113,7 @@ func (r *ItemRepository) TransferItems(ctx context.Context, itemIDs []int64, fro
 }
 
 func (r *ItemRepository) GetMarketplaceItems(ctx context.Context, campaignID int64) ([]domain.MarketplaceItem, error) {
-	var items []domain.MarketplaceItem
+	items := []domain.MarketplaceItem{}
 	query := `SELECT * FROM marketplace_items WHERE campaign_id=$1 ORDER BY rarity, name`
 	err := r.db.SelectContext(ctx, &items, query, campaignID)
 	return items, err
@@ -96,11 +121,11 @@ func (r *ItemRepository) GetMarketplaceItems(ctx context.Context, campaignID int
 
 func (r *ItemRepository) CreateMarketplaceItem(ctx context.Context, item *domain.MarketplaceItem) error {
 	query := `
-		INSERT INTO marketplace_items (campaign_id, name, item_type, rarity, price, weight, description, attunement_required, srd_ref_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, created_at`
+		INSERT INTO marketplace_items (campaign_id, name, item_type, rarity, price, weight, description, attunement_required, srd_ref_id, stock)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, created_at`
 	return r.db.QueryRowxContext(ctx, query,
 		item.CampaignID, item.Name, item.ItemType, item.Rarity, item.Price,
-		item.Weight, item.Description, item.AttunementRequired, item.SRDRefID,
+		item.Weight, item.Description, item.AttunementRequired, item.SRDRefID, item.Stock,
 	).Scan(&item.ID, &item.CreatedAt)
 }
 
@@ -127,14 +152,14 @@ func (r *ItemRepository) CreateSpell(ctx context.Context, s *domain.Spell) error
 }
 
 func (r *ItemRepository) GetSpellsByCharacter(ctx context.Context, characterID int64) ([]domain.Spell, error) {
-	var spells []domain.Spell
+	spells := []domain.Spell{}
 	query := `SELECT * FROM spells WHERE character_id=$1 ORDER BY level, name`
 	err := r.db.SelectContext(ctx, &spells, query, characterID)
 	return spells, err
 }
 
 func (r *ItemRepository) GetPreparedSpells(ctx context.Context, characterID int64) ([]domain.Spell, error) {
-	var spells []domain.Spell
+	spells := []domain.Spell{}
 	query := `SELECT * FROM spells WHERE character_id=$1 AND prepared=true ORDER BY level, name`
 	err := r.db.SelectContext(ctx, &spells, query, characterID)
 	return spells, err

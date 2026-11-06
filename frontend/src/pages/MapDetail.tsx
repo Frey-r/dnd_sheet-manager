@@ -1,149 +1,31 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { mapApi } from '../services/api';
+import { getApiError } from '../services/errors';
+import { ErrorState, LoadingState } from '../components/ui/Feedback';
+
+type Pin = { id: number; name: string; description: string; x: number; y: number };
+type MapEntry = { id: number; name: string; location: string; image_url: string; description: string; pins: Pin[] };
 
 export function MapDetail() {
-  const { campaignId } = useParams();
-  const [layersOpen, setLayersOpen] = useState(false);
-  const [sheetExpanded, setSheetExpanded] = useState(true);
-
-  return (
-    <div className="h-screen w-screen overflow-hidden flex flex-col">
-      <header className="bg-surface border-b border-border-low-contrast flex items-center justify-between px-4 md:px-10 w-full h-16 z-50 shrink-0">
-        <Link to={`/campaign/${campaignId}/gm/maps`} className="p-2 rounded-full hover:bg-surface-container-high transition-colors text-primary">
-          <span className="material-symbols-outlined">arrow_back</span>
-        </Link>
-        <h1 className="font-headline-lg text-primary font-bold text-center flex-1">Valle de Barovia</h1>
-        <div className="flex gap-2">
-          <button className="p-2 rounded-full hover:bg-surface-container-high transition-colors text-primary">
-            <span className="material-symbols-outlined">share</span>
-          </button>
-          <button className="p-2 rounded-full hover:bg-surface-container-high transition-colors text-primary">
-            <span className="material-symbols-outlined">settings</span>
-          </button>
-        </div>
-      </header>
-
-      <main className="flex-1 relative overflow-hidden bg-surface-subtle">
-        <div className="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing">
-          <img
-            className="w-full h-full object-cover origin-center"
-            src="https://picsum.photos/seed/barovia/1200/800"
-            alt="Valle de Barovia"
-            style={{ transform: 'scale(1.1)' }}
-          />
-
-          {/* Map Pins */}
-          <div className="absolute top-[40%] left-[60%] flex flex-col items-center cursor-pointer">
-            <div className="w-8 h-8 rounded-full bg-primary-container border-2 border-surface flex items-center justify-center shadow-md z-10 hover:scale-110 transition-transform">
-              <span className="material-symbols-outlined text-on-primary-container text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
-            </div>
-            <div className="mt-1 px-2 py-1 bg-surface/90 backdrop-blur-sm border border-border-low-contrast rounded font-label-sm text-on-surface whitespace-nowrap">
-              Castillo Ravenloft
-            </div>
-          </div>
-          <div className="absolute top-[60%] left-[30%] flex flex-col items-center cursor-pointer">
-            <div className="w-6 h-6 rounded-full bg-gm-amber border-2 border-surface flex items-center justify-center shadow-md z-10 hover:scale-110 transition-transform">
-              <span className="material-symbols-outlined text-on-surface text-xs" style={{ fontVariationSettings: "'FILL' 1" }}>home</span>
-            </div>
-            <div className="mt-1 px-2 py-1 bg-surface/90 backdrop-blur-sm border border-border-low-contrast rounded font-label-sm text-on-surface whitespace-nowrap">
-              Pueblo de Barovia
-            </div>
-          </div>
-        </div>
-
-        {/* Zoom Controls */}
-        <div className="absolute right-4 md:right-10 top-4 md:top-10 flex flex-col gap-sm bg-surface border border-border-low-contrast rounded-lg shadow-sm p-1 z-20">
-          <button className="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high rounded transition-colors">
-            <span className="material-symbols-outlined">add</span>
-          </button>
-          <div className="w-full h-px bg-border-low-contrast" />
-          <button className="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high rounded transition-colors">
-            <span className="material-symbols-outlined">remove</span>
-          </button>
-        </div>
-
-        {/* Layer Controls */}
-        <div className="absolute left-4 md:left-10 top-4 md:top-10 z-20">
-          <button
-            onClick={() => setLayersOpen(!layersOpen)}
-            className="bg-surface border border-border-low-contrast rounded-full shadow-sm px-4 py-2 flex items-center gap-sm font-label-bold text-on-surface hover:bg-surface-container-high transition-colors"
-          >
-            <span className="material-symbols-outlined">layers</span>
-            Capas
-          </button>
-          {layersOpen && (
-            <div className="absolute top-full left-0 mt-sm bg-surface border border-border-low-contrast rounded-lg shadow-md w-48 overflow-hidden">
-              <label className="flex items-center justify-between p-md hover:bg-surface-container-low cursor-pointer border-b border-border-low-contrast">
-                <span className="font-body-md text-on-surface flex items-center gap-2">
-                  <span className="material-symbols-outlined text-secondary text-sm">grid_on</span>
-                  Cuadrícula
-                </span>
-                <input type="checkbox" className="h-4 w-4 rounded border-outline-variant text-primary" />
-              </label>
-              <label className="flex items-center justify-between p-md hover:bg-surface-container-low cursor-pointer border-b border-border-low-contrast">
-                <span className="font-body-md text-on-surface flex items-center gap-2">
-                  <span className="material-symbols-outlined text-secondary text-sm">cloud</span>
-                  Niebla
-                </span>
-                <input type="checkbox" defaultChecked className="h-4 w-4 rounded border-outline-variant text-primary" />
-              </label>
-              <label className="flex items-center justify-between p-md hover:bg-surface-container-low cursor-pointer">
-                <span className="font-body-md text-on-surface flex items-center gap-2">
-                  <span className="material-symbols-outlined text-secondary text-sm">location_on</span>
-                  Marcadores
-                </span>
-                <input type="checkbox" defaultChecked className="h-4 w-4 rounded border-outline-variant text-primary" />
-              </label>
-            </div>
-          )}
-        </div>
-
-        {/* Bottom Sheet */}
-        <div
-          className={`absolute bottom-0 left-0 w-full bg-surface border-t border-border-low-contrast shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] rounded-t-xl z-30 transition-transform duration-300 ${sheetExpanded ? 'translate-y-0' : 'translate-y-[85%]'}`}
-        >
-          <div className="w-full flex justify-center py-sm cursor-pointer" onClick={() => setSheetExpanded(!sheetExpanded)}>
-            <div className="w-12 h-1 bg-outline-variant rounded-full" />
-          </div>
-          <div className="px-4 md:px-10 pb-10">
-            <div className="flex justify-between items-start mb-sm">
-              <div>
-                <div className="font-label-bold text-secondary uppercase tracking-wider mb-xs">Ubicación Actual</div>
-                <h2 className="font-headline-md font-bold text-on-surface">Pueblo de Barovia</h2>
-              </div>
-              <button className="bg-primary-container text-on-primary-container px-4 py-2 rounded font-label-bold hover:bg-primary transition-colors">
-                Editar
-              </button>
-            </div>
-            <p className="font-body-md text-on-surface-variant mb-lg max-w-3xl">
-              Un lugar sombrío bajo la sombra del Castillo Ravenloft. Las calles están embarradas y los rostros de los habitantes reflejan una desesperanza perpetua.
-            </p>
-            <div className="border-t border-border-low-contrast pt-md">
-              <h3 className="font-label-bold text-on-surface mb-md">Puntos de Interés</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-sm">
-                <div className="flex items-start gap-md p-md bg-surface-subtle border border-border-low-contrast rounded-lg hover:border-primary-container transition-colors cursor-pointer">
-                  <div className="w-10 h-10 rounded bg-surface border border-border-low-contrast flex items-center justify-center flex-shrink-0">
-                    <span className="material-symbols-outlined">storefront</span>
-                  </div>
-                  <div>
-                    <div className="font-label-bold text-on-surface">Taberna Sangre de Vida</div>
-                    <div className="font-label-sm text-on-surface-variant mt-xs">El único lugar con calor en el pueblo.</div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-md p-md bg-surface-subtle border border-border-low-contrast rounded-lg hover:border-primary-container transition-colors cursor-pointer">
-                  <div className="w-10 h-10 rounded bg-surface border border-border-low-contrast flex items-center justify-center flex-shrink-0">
-                    <span className="material-symbols-outlined">church</span>
-                  </div>
-                  <div>
-                    <div className="font-label-bold text-on-surface">Iglesia de Barovia</div>
-                    <div className="font-label-sm text-on-surface-variant mt-xs">Hogar del Padre Donavich.</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
-  );
+  const { campaignId = '', mapId = '' } = useParams();
+  const [zoom, setZoom] = useState(1);
+  const [showPins, setShowPins] = useState(true);
+  const [grid, setGrid] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [pinName, setPinName] = useState('');
+  const [error, setError] = useState('');
+  const map = useQuery({ queryKey: ['maps', campaignId, mapId], queryFn: () => mapApi.get(campaignId, mapId).then((response) => response.data as MapEntry) });
+  const mutation = useMutation({ mutationFn: (pins: Pin[]) => mapApi.update(campaignId, mapId, { pins }), onSuccess: () => { void map.refetch(); setAdding(false); setPinName(''); setError(''); }, onError: (reason) => setError(getApiError(reason)) });
+  const addPin = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!adding || !map.data || !pinName.trim()) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const pin: Pin = { id: Date.now(), name: pinName.trim(), description: '', x: Math.round((event.clientX - rect.left) / rect.width * 1000) / 10, y: Math.round((event.clientY - rect.top) / rect.height * 1000) / 10 };
+    mutation.mutate([...(map.data.pins || []), pin]);
+  };
+  if (map.isLoading) return <LoadingState />;
+  if (map.error || !map.data) return <ErrorState message="Mapa no encontrado" />;
+  const data = map.data;
+  return <div className="min-h-screen flex flex-col"><header className="h-16 border-b border-border-low-contrast px-4 flex items-center justify-between gap-3"><Link to={`/campaign/${campaignId}/gm/maps`} aria-label="Volver"><span className="material-symbols-outlined">arrow_back</span></Link><h1 className="font-headline-md font-bold flex-1">{data.name}</h1><button type="button" onClick={() => setGrid(!grid)} className="px-3 py-2 border rounded">{grid ? 'Ocultar' : 'Mostrar'} cuadrícula</button><button type="button" onClick={() => setShowPins(!showPins)} className="px-3 py-2 border rounded">Marcadores</button></header><main className="flex-1 relative overflow-hidden min-h-[70vh] bg-surface-subtle"><div onClick={addPin} className={`absolute inset-0 ${adding ? 'cursor-crosshair' : ''}`}>{data.image_url ? <img src={data.image_url} alt={data.name} className="w-full h-full object-contain transition-transform" style={{ transform: `scale(${zoom})` }} /> : <div className="h-full flex items-center justify-center text-secondary">Este mapa no tiene imagen.</div>}{grid && <div className="absolute inset-0 pointer-events-none opacity-30" style={{ backgroundImage: 'linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px)', backgroundSize: '40px 40px' }} />}{showPins && (data.pins || []).map((pin) => <button type="button" key={pin.id} onClick={(event) => { event.stopPropagation(); if (adding) mutation.mutate(data.pins.filter((item) => item.id !== pin.id)); }} title={adding ? 'Eliminar marcador' : pin.name} className="absolute -translate-x-1/2 -translate-y-full bg-primary text-on-primary rounded-full px-2 py-1 text-xs shadow-md" style={{ left: `${pin.x}%`, top: `${pin.y}%` }}>◆ {pin.name}</button>)}</div><div className="absolute top-4 right-4 flex flex-col bg-surface border rounded-lg"><button type="button" aria-label="Acercar" onClick={() => setZoom(Math.min(3, zoom + 0.2))} className="px-3 py-2 text-xl">+</button><button type="button" aria-label="Alejar" onClick={() => setZoom(Math.max(0.5, zoom - 0.2))} className="px-3 py-2 text-xl">−</button></div>{error && <div className="absolute top-4 left-4"><ErrorState message={error} /></div>}</main><section className="p-4 md:p-6 border-t border-border-low-contrast space-y-3"><p className="text-secondary">{data.location}</p><p className="whitespace-pre-wrap">{data.description}</p><div className="flex gap-2 items-end"><input aria-label="Nombre del marcador" value={pinName} onChange={(event) => setPinName(event.target.value)} placeholder="Nombre del lugar" className="rounded bg-surface-subtle border-border-low-contrast" /><button type="button" onClick={() => setAdding(!adding)} disabled={!pinName.trim() && !adding} className="px-4 py-2 bg-primary-container rounded-lg">{adding ? 'Terminar marcadores' : 'Añadir marcadores'}</button></div>{adding && <p className="text-sm text-secondary">Haz clic en el mapa para añadir; haz clic en un marcador para eliminarlo.</p>}</section></div>;
 }

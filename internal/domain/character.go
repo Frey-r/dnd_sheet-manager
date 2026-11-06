@@ -34,6 +34,8 @@ type Character struct {
 	DeathSaveFailures   int       `db:"death_save_failures" json:"death_save_failures"`
 	XP                  int       `db:"xp" json:"xp"`
 	Gold                int       `db:"gold" json:"gold"`
+	Silver              int       `db:"silver" json:"silver"`
+	Copper              int       `db:"copper" json:"copper"`
 	CarryingCapacity    int       `db:"carrying_capacity" json:"carrying_capacity"`
 	PersonalityTraits   string    `db:"personality_traits" json:"personality_traits"`
 	Ideals              string    `db:"ideals" json:"ideals"`
@@ -153,4 +155,13 @@ type CreateCharacterRequest struct {
 	Race       string `json:"race" binding:"required"`
 	Class      string `json:"class" binding:"required"`
 	CampaignID int64  `json:"campaign_id" binding:"required"`
+	Background string `json:"background"`
+	Alignment  string `json:"alignment"`
+	// Optional ability scores (3–20); 0 means "use 10".
+	StrScore int `json:"str_score"`
+	DexScore int `json:"dex_score"`
+	ConScore int `json:"con_score"`
+	IntScore int `json:"int_score"`
+	WisScore int `json:"wis_score"`
+	ChaScore int `json:"cha_score"`
 }

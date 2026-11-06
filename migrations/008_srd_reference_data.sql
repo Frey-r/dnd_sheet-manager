@@ -1,3 +1,4 @@
+-- +goose Up
 -- 008_srd_reference_data.sql
 -- D&D 5e SRD Ground-Truth Reference Tables
 -- Source: SRD 5.1 (CC-BY-4.0) via dnd-oracle / 5e-bits/5e-database
@@ -53,12 +54,14 @@ CREATE INDEX IF NOT EXISTS idx_srd_monsters_is_srd ON srd_monsters(is_srd);
 CREATE INDEX IF NOT EXISTS idx_srd_monsters_fts ON srd_monsters USING GIN(search_vector);
 
 -- Auto-update search_vector on insert/update
+-- +goose StatementBegin
 CREATE OR REPLACE FUNCTION srd_monsters_search_trigger() RETURNS trigger AS $$
 BEGIN
     NEW.search_vector := to_tsvector('english', COALESCE(NEW.name, '') || ' ' || COALESCE(NEW.type, '') || ' ' || COALESCE(NEW.subtype, ''));
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+-- +goose StatementEnd
 
 DROP TRIGGER IF EXISTS trg_srd_monsters_search ON srd_monsters;
 CREATE TRIGGER trg_srd_monsters_search
@@ -102,12 +105,14 @@ CREATE INDEX IF NOT EXISTS idx_srd_spells_ritual ON srd_spells(ritual);
 CREATE INDEX IF NOT EXISTS idx_srd_spells_is_srd ON srd_spells(is_srd);
 CREATE INDEX IF NOT EXISTS idx_srd_spells_fts ON srd_spells USING GIN(search_vector);
 
+-- +goose StatementBegin
 CREATE OR REPLACE FUNCTION srd_spells_search_trigger() RETURNS trigger AS $$
 BEGIN
     NEW.search_vector := to_tsvector('english', COALESCE(NEW.name, '') || ' ' || COALESCE(NEW.school, '') || ' ' || COALESCE(NEW.description, ''));
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+-- +goose StatementEnd
 
 DROP TRIGGER IF EXISTS trg_srd_spells_search ON srd_spells;
 CREATE TRIGGER trg_srd_spells_search
@@ -152,12 +157,14 @@ CREATE INDEX IF NOT EXISTS idx_srd_equipment_category ON srd_equipment(category)
 CREATE INDEX IF NOT EXISTS idx_srd_equipment_is_srd ON srd_equipment(is_srd);
 CREATE INDEX IF NOT EXISTS idx_srd_equipment_fts ON srd_equipment USING GIN(search_vector);
 
+-- +goose StatementBegin
 CREATE OR REPLACE FUNCTION srd_equipment_search_trigger() RETURNS trigger AS $$
 BEGIN
     NEW.search_vector := to_tsvector('english', COALESCE(NEW.name, '') || ' ' || COALESCE(NEW.category, '') || ' ' || COALESCE(NEW.description, ''));
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+-- +goose StatementEnd
 
 DROP TRIGGER IF EXISTS trg_srd_equipment_search ON srd_equipment;
 CREATE TRIGGER trg_srd_equipment_search
@@ -187,12 +194,14 @@ CREATE INDEX IF NOT EXISTS idx_srd_magic_items_rarity ON srd_magic_items(rarity)
 CREATE INDEX IF NOT EXISTS idx_srd_magic_items_is_srd ON srd_magic_items(is_srd);
 CREATE INDEX IF NOT EXISTS idx_srd_magic_items_fts ON srd_magic_items USING GIN(search_vector);
 
+-- +goose StatementBegin
 CREATE OR REPLACE FUNCTION srd_magic_items_search_trigger() RETURNS trigger AS $$
 BEGIN
     NEW.search_vector := to_tsvector('english', COALESCE(NEW.name, '') || ' ' || COALESCE(NEW.rarity, '') || ' ' || COALESCE(NEW.description, ''));
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+-- +goose StatementEnd
 
 DROP TRIGGER IF EXISTS trg_srd_magic_items_search ON srd_magic_items;
 CREATE TRIGGER trg_srd_magic_items_search
@@ -300,12 +309,14 @@ CREATE INDEX IF NOT EXISTS idx_srd_rules_name ON srd_rules(name);
 CREATE INDEX IF NOT EXISTS idx_srd_rules_category ON srd_rules(category);
 CREATE INDEX IF NOT EXISTS idx_srd_rules_fts ON srd_rules USING GIN(search_vector);
 
+-- +goose StatementBegin
 CREATE OR REPLACE FUNCTION srd_rules_search_trigger() RETURNS trigger AS $$
 BEGIN
     NEW.search_vector := to_tsvector('english', COALESCE(NEW.name, '') || ' ' || COALESCE(NEW.category, '') || ' ' || COALESCE(NEW.content, ''));
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+-- +goose StatementEnd
 
 DROP TRIGGER IF EXISTS trg_srd_rules_search ON srd_rules;
 CREATE TRIGGER trg_srd_rules_search

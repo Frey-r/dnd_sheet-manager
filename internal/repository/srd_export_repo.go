@@ -12,7 +12,7 @@ import (
 // scan into the domain structs.
 
 func (r *FoundryRepository) AllSpells(ctx context.Context) ([]domain.SRDSpell, error) {
-	var out []domain.SRDSpell
+	out := []domain.SRDSpell{}
 	q := `SELECT id,name,level,school,casting_time,range,duration,concentration,ritual,
 		components_v,components_s,components_m,material_desc,description,higher_levels,
 		classes::text AS classes,damage_type,area_type,is_srd,created_at
@@ -21,7 +21,7 @@ func (r *FoundryRepository) AllSpells(ctx context.Context) ([]domain.SRDSpell, e
 }
 
 func (r *FoundryRepository) AllMonsters(ctx context.Context) ([]domain.SRDMonster, error) {
-	var out []domain.SRDMonster
+	out := []domain.SRDMonster{}
 	q := `SELECT id,name,size,type,subtype,alignment,ac,ac_type,hp,hit_dice,
 		speed::text AS speed,str,dex,con,"int",wis,cha,cr,xp,senses,languages,
 		traits::text AS traits,actions::text AS actions,legendary_actions::text AS legendary_actions,
@@ -33,7 +33,7 @@ func (r *FoundryRepository) AllMonsters(ctx context.Context) ([]domain.SRDMonste
 }
 
 func (r *FoundryRepository) AllEquipment(ctx context.Context) ([]domain.SRDEquipment, error) {
-	var out []domain.SRDEquipment
+	out := []domain.SRDEquipment{}
 	q := `SELECT id,name,category,cost_gp,cost_unit,weight,description,damage_dice,damage_type,
 		weapon_category,weapon_range,range_normal,range_long,properties::text AS properties,
 		ac_base,ac_dex_bonus,ac_max_bonus,str_minimum,stealth_disadvantage,armor_category,is_srd,created_at
@@ -42,14 +42,14 @@ func (r *FoundryRepository) AllEquipment(ctx context.Context) ([]domain.SRDEquip
 }
 
 func (r *FoundryRepository) AllMagicItems(ctx context.Context) ([]domain.SRDMagicItem, error) {
-	var out []domain.SRDMagicItem
+	out := []domain.SRDMagicItem{}
 	q := `SELECT id,name,rarity,requires_attunement,attunement_desc,description,category,is_srd,created_at
 		FROM srd_magic_items ORDER BY id`
 	return out, r.db.SelectContext(ctx, &out, q)
 }
 
 func (r *FoundryRepository) AllClasses(ctx context.Context) ([]domain.SRDClass, error) {
-	var out []domain.SRDClass
+	out := []domain.SRDClass{}
 	q := `SELECT id,name,hit_die,primary_ability,
 		saving_throws::text AS saving_throws,armor_proficiencies::text AS armor_proficiencies,
 		weapon_proficiencies::text AS weapon_proficiencies,tool_proficiencies::text AS tool_proficiencies,
@@ -59,7 +59,7 @@ func (r *FoundryRepository) AllClasses(ctx context.Context) ([]domain.SRDClass, 
 }
 
 func (r *FoundryRepository) AllRaces(ctx context.Context) ([]domain.SRDRace, error) {
-	var out []domain.SRDRace
+	out := []domain.SRDRace{}
 	q := `SELECT id,name,speed,size,ability_bonuses::text AS ability_bonuses,traits::text AS traits,
 		languages::text AS languages,subraces::text AS subraces,description,is_srd,created_at
 		FROM srd_races ORDER BY id`
@@ -67,7 +67,7 @@ func (r *FoundryRepository) AllRaces(ctx context.Context) ([]domain.SRDRace, err
 }
 
 func (r *FoundryRepository) AllSubclasses(ctx context.Context) ([]domain.SRDSubclass, error) {
-	var out []domain.SRDSubclass
+	out := []domain.SRDSubclass{}
 	q := `SELECT id,class_name,name,description,foundry_uuid,is_srd,created_at
 		FROM srd_subclasses ORDER BY id`
 	return out, r.db.SelectContext(ctx, &out, q)

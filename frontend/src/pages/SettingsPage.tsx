@@ -1,155 +1,128 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { authApi } from '../services/api';
+import { getApiError } from '../services/errors';
+import { useAuth } from '../lib/hooks';
+import { applyTheme, currentTheme, type Theme } from '../lib/theme';
+
+const ROLE: Record<string, string> = { admin: 'Administrador', dm: 'Dungeon Master', player: 'Jugador' };
+const input = 'h-10 w-full px-3';
+
+function Section({ title, desc, children }: { title: string; desc: string; children: React.ReactNode }) {
+  return (
+    <section className="grid gap-4 border-b border-line py-6 last:border-b-0 md:grid-cols-[240px_minmax(0,1fr)] md:gap-8">
+      <div><h2 className="text-[15px] font-semibold">{title}</h2><p className="mt-1 text-[13px] text-muted">{desc}</p></div>
+      <div className="min-w-0">{children}</div>
+    </section>
+  );
+}
 
 export function SettingsPage() {
+  const { user, setUser, logout } = useAuth();
+  const navigate = useNavigate();
+  const [username, setUsername] = useState(user?.username ?? '');
+  const [pw, setPw] = useState({ current: '', next: '', confirm: '' });
+  const [totp, setTotp] = useState<{ secret: string; url: string } | null>(null);
+  const [code, setCode] = useState('');
+  const [theme, setTheme] = useState<Theme>(currentTheme);
+  const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
+  const say = (text: string, bad = false) => { setMsg({ text, bad }); setTimeout(() => setMsg(null), 4000); };
+
+  const saveProfile = async () => {
+    try {
+      await authApi.updateProfile({ username: username.trim() });
+      if (user) setUser({ ...user, username: username.trim() });
+      say('Perfil guardado.');
+    } catch (e) { say(getApiError(e), true); }
+  };
+  const changePassword = async () => {
+    if (pw.next.length < 8) return say('La nueva contraseña debe tener al menos 8 caracteres.', true);
+    if (pw.next !== pw.confirm) return say('Las contraseñas no coinciden.', true);
+    try {
+      await authApi.changePassword({ current_password: pw.current, new_password: pw.next });
+      setPw({ current: '', next: '', confirm: '' });
+      say('Contraseña actualizada.');
+    } catch (e) { say(getApiError(e), true); }
+  };
+  const setup2FA = async () => {
+    try { const r = await authApi.setup2FA(); setTotp({ secret: r.data.secret, url: r.data.otpauth_url }); } catch (e) { say(getApiError(e), true); }
+  };
+  const toggle2FA = async (enable: boolean) => {
+    try {
+      await (enable ? authApi.enable2FA(code) : authApi.disable2FA(code));
+      if (user) setUser({ ...user, totp_enabled: enable });
+      setTotp(null); setCode('');
+      say(enable ? 'Verificación en dos pasos activada.' : 'Verificación en dos pasos desactivada.');
+    } catch (e) { say(getApiError(e), true); }
+  };
+  const pickTheme = (t: Theme) => { applyTheme(t); setTheme(t); };
+
+  const themes: [Theme, string, string, string, string][] = [
+    ['dark', 'Oscuro', '#0c0d10', '#1d2026', '#ff6a3d'],
+    ['light', 'Claro', '#f4f2ee', '#e7e3db', '#d6421a'],
+    ['contrast', 'Alto contraste', '#000000', '#2a2a2a', '#ffb000'],
+  ];
+
   return (
-    <div className="min-h-screen flex flex-col pt-16">
-      <header className="bg-surface-container-lowest border-b border-border-low-contrast fixed top-0 w-full z-50 flex justify-between items-center px-4 h-16">
-        <div className="flex items-center gap-3">
-          <button className="text-on-surface-variant hover:bg-surface-container p-2 rounded-full">
-            <span className="material-symbols-outlined">arrow_back</span>
-          </button>
-          <h1 className="font-headline-md text-headline-md font-extrabold text-primary">Settings</h1>
+    <div className="mx-auto max-w-4xl">
+      <h1 className="font-headline-lg">Ajustes</h1>
+      <p className="mt-1 text-muted">Tu identidad en la mesa, la seguridad de tu cuenta y las preferencias de este dispositivo.</p>
+      {msg && <div role="status" className={`mt-4 rounded-lg border px-4 py-2.5 text-[13.5px] ${msg.bad ? 'border-[color:var(--bad)] bg-bad-soft text-bad' : 'border-line-strong bg-card'}`}>{msg.text}</div>}
+
+      <Section title="Perfil" desc="Así te ven el DM y el resto de jugadores.">
+        <div className="flex items-center gap-4">
+          <span className="grid h-16 w-16 place-items-center rounded-2xl bg-accent-soft font-display text-2xl font-semibold text-accent">{(user?.username ?? '?').slice(0, 2).toUpperCase()}</span>
+          <div className="grid grow gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1 text-[12.5px] font-medium text-ink-2">Nombre de usuario<input className={input} value={username} onChange={(e) => setUsername(e.target.value)} /></label>
+            <label className="flex flex-col gap-1 text-[12.5px] font-medium text-ink-2">Correo (solo lectura)<input className={`${input} text-muted`} value={user?.email ?? ''} readOnly /></label>
+          </div>
         </div>
-        <div className="w-8 h-8 rounded-full overflow-hidden bg-surface-container">
-          <span className="material-symbols-outlined text-secondary">person</span>
+        <div className="mt-3 flex items-center gap-3"><span className="mc-badge">{ROLE[user?.role ?? 'player']}</span>
+          <button type="button" className="mc-btn mc-btn-primary ml-auto" onClick={saveProfile} disabled={!username.trim() || username.trim() === user?.username}>Guardar cambios</button></div>
+      </Section>
+
+      <Section title="Contraseña" desc="Mínimo 8 caracteres. Cerrará tus otras sesiones.">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <input className={input} type="password" placeholder="Actual" aria-label="Contraseña actual" value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} autoComplete="current-password" />
+          <input className={input} type="password" placeholder="Nueva" aria-label="Nueva contraseña" value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} autoComplete="new-password" />
+          <input className={input} type="password" placeholder="Repetir nueva" aria-label="Repetir nueva contraseña" value={pw.confirm} onChange={(e) => setPw({ ...pw, confirm: e.target.value })} autoComplete="new-password" />
         </div>
-      </header>
+        <button type="button" className="mc-btn mt-3" onClick={changePassword} disabled={!pw.current || !pw.next}>Cambiar contraseña</button>
+      </Section>
 
-      <main className="flex-1 pt-20 pb-20 px-4 md:px-10 md:max-w-4xl md:mx-auto w-full flex flex-col gap-8">
-        {/* Profile Overview */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Avatar & Identity */}
-          <div className="md:col-span-1 bg-surface-container-lowest rounded-xl border border-border-low-contrast p-6 flex flex-col items-center justify-center text-center gap-4">
-            <div className="relative group">
-              <div className="w-24 h-24 rounded-full overflow-hidden bg-surface-container border-2 border-primary-container flex items-center justify-center">
-                <span className="material-symbols-outlined text-4xl text-on-surface-variant">person</span>
-              </div>
-              <button className="absolute bottom-0 right-0 bg-primary-container text-on-primary rounded-full w-8 h-8 flex items-center justify-center shadow-md hover:bg-surface-tint transition-colors">
-                <span className="material-symbols-outlined text-[16px]">edit</span>
-              </button>
-            </div>
-            <div>
-              <h2 className="font-headline-md text-headline-md text-on-surface">Alex Mercer</h2>
-              <p className="font-body-md text-body-md text-on-surface-variant">Level 12 Dungeon Master</p>
-            </div>
+      <Section title="Verificación en dos pasos" desc="Un código de tu app de autenticación al iniciar sesión.">
+        {user?.totp_enabled ? (
+          <div className="flex flex-wrap items-center gap-2"><span className="mc-badge !bg-ok-soft !text-ok">Activada</span>
+            <input className="h-9 w-32 px-3 font-mono" placeholder="Código" value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" aria-label="Código de verificación" />
+            <button type="button" className="mc-btn mc-btn-danger" onClick={() => toggle2FA(false)} disabled={code.length < 6}>Desactivar</button></div>
+        ) : totp ? (
+          <div className="flex flex-col gap-2 text-[13.5px]">
+            <p>Añade esta clave en tu app (Google Authenticator, Aegis, 1Password…):</p>
+            <code className="break-all rounded-md border border-line bg-card-2 p-2 font-mono">{totp.secret}</code>
+            <div className="flex flex-wrap gap-2"><input className="h-9 w-32 px-3 font-mono" placeholder="Código" value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" aria-label="Código de verificación" />
+              <button type="button" className="mc-btn mc-btn-primary" onClick={() => toggle2FA(true)} disabled={code.length < 6}>Activar</button></div>
           </div>
+        ) : <button type="button" className="mc-btn" onClick={setup2FA}>Configurar</button>}
+      </Section>
 
-          {/* Core Details */}
-          <div className="md:col-span-2 bg-surface-container-lowest rounded-xl border border-border-low-contrast p-6 flex flex-col gap-4 justify-center">
-            <div className="flex flex-col gap-1">
-              <label className="font-label-bold text-label-bold text-on-surface-variant">Display Name</label>
-              <input
-                className="w-full bg-surface-subtle border-0 border-b border-border-low-contrast focus:border-primary focus:ring-0 px-4 py-2 font-body-md text-body-md text-on-surface rounded-t"
-                type="text"
-                defaultValue="Alex Mercer"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="font-label-bold text-label-bold text-on-surface-variant">Email Address (Read Only)</label>
-              <div className="w-full bg-surface-subtle border-0 border-b border-border-low-contrast px-4 py-2 font-body-md text-body-md text-on-surface-variant rounded-t cursor-not-allowed flex justify-between items-center">
-                <span>alex.mercer@campaignmaster.app</span>
-                <span className="material-symbols-outlined text-[18px]">lock</span>
+      <Section title="Apariencia" desc="Alto contraste para mesas con poca luz o proyector. Se guarda en este dispositivo.">
+        <div className="grid grid-cols-3 gap-3">
+          {themes.map(([id, name, bg, sb, ac]) => (
+            <button key={id} type="button" onClick={() => pickTheme(id)} aria-pressed={theme === id}
+              className={`rounded-xl border p-2 text-left transition-transform hover:-translate-y-0.5 ${theme === id ? 'border-accent shadow-[0_0_0_1px_var(--accent)]' : 'border-line'}`}>
+              <div className="mb-2 grid h-16 grid-cols-[26%_1fr] gap-1 rounded-lg p-1.5" style={{ background: bg }}>
+                <i className="rounded" style={{ background: sb }} />
+                <span className="flex flex-col gap-1"><i className="h-2.5 w-2/5 rounded" style={{ background: ac }} /><i className="h-2 rounded" style={{ background: sb }} /><i className="h-2 w-3/4 rounded" style={{ background: sb }} /></span>
               </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Security */}
-        <section className="bg-surface-container-lowest rounded-xl border border-border-low-contrast overflow-hidden">
-          <div className="p-4 border-b border-border-low-contrast bg-surface-subtle">
-            <h3 className="font-headline-md text-headline-md text-on-surface flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary">shield</span>
-              Security
-            </h3>
-          </div>
-          <div className="p-4 flex flex-col gap-4">
-            <button className="w-full text-left py-4 flex justify-between items-center group border-b border-border-low-contrast last:border-0">
-              <div>
-                <div className="font-body-lg text-body-lg text-on-surface">Change Password</div>
-                <div className="font-body-md text-body-md text-on-surface-variant">Last changed 3 months ago</div>
-              </div>
-              <span className="material-symbols-outlined text-on-surface-variant group-hover:text-primary">chevron_right</span>
+              <b className="px-0.5 text-[13px]">{name}</b>
             </button>
-            <div className="w-full text-left py-4 flex justify-between items-center">
-              <div>
-                <div className="font-body-lg text-body-lg text-on-surface">Two-Factor Authentication</div>
-                <div className="font-body-md text-success-active">Enabled</div>
-              </div>
-              <span className="material-symbols-outlined text-on-surface-variant">chevron_right</span>
-            </div>
-          </div>
-        </section>
-
-        {/* Preferences */}
-        <section className="bg-surface-container-lowest rounded-xl border border-border-low-contrast overflow-hidden">
-          <div className="p-4 border-b border-border-low-contrast bg-surface-subtle">
-            <h3 className="font-headline-md text-headline-md text-on-surface flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary">tune</span>
-              Preferences
-            </h3>
-          </div>
-          <div className="flex flex-col">
-            {/* Theme Selector */}
-            <div className="p-4 flex justify-between items-center border-b border-border-low-contrast">
-              <div>
-                <div className="font-body-lg text-body-lg text-on-surface">App Theme</div>
-                <div className="font-body-md text-body-md text-on-surface-variant">Choose your visual aesthetic</div>
-              </div>
-              <div className="flex bg-surface-container rounded-lg p-1">
-                <button className="px-4 py-2 rounded-md bg-surface-container-lowest shadow-sm font-label-bold text-label-bold text-primary flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[18px]">light_mode</span>
-                  Light
-                </button>
-                <button className="px-4 py-2 rounded-md text-on-surface-variant hover:text-on-surface font-label-bold text-label-bold flex items-center gap-1 transition-colors">
-                  <span className="material-symbols-outlined text-[18px]">dark_mode</span>
-                  Dark
-                </button>
-              </div>
-            </div>
-
-            {/* Notifications */}
-            <div className="p-4 flex justify-between items-center border-b border-border-low-contrast">
-              <div>
-                <div className="font-body-lg text-body-lg text-on-surface">Push Notifications</div>
-                <div className="font-body-md text-body-md text-on-surface-variant">Session reminders and chat alerts</div>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" className="sr-only peer" defaultChecked />
-                <div className="w-11 h-6 bg-surface-variant rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border-low-contrast after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-success-active" />
-              </label>
-            </div>
-
-            {/* Email Newsletter */}
-            <div className="p-4 flex justify-between items-center border-b border-border-low-contrast">
-              <div>
-                <div className="font-body-lg text-body-lg text-on-surface">Email Newsletter</div>
-                <div className="font-body-md text-body-md text-on-surface-variant">Weekly campaign stats and updates</div>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" className="sr-only peer" />
-                <div className="w-11 h-6 bg-surface-variant rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border-low-contrast after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-success-active" />
-              </label>
-            </div>
-
-            {/* Danger Zone */}
-            <div className="p-4 flex justify-between items-center">
-              <div>
-                <div className="font-body-lg text-body-lg text-hp-danger">Danger Zone</div>
-                <div className="font-body-md text-body-md text-on-surface-variant">Delete account and all campaign data</div>
-              </div>
-              <button className="px-4 py-2 border border-hp-danger text-hp-danger font-label-bold text-label-bold rounded-lg hover:bg-error-container hover:text-on-error-container transition-colors">
-                Delete Account
-              </button>
-            </div>
-          </div>
-        </section>
-
-        {/* Save Action */}
-        <div className="flex justify-end pt-4">
-          <button className="w-full md:w-auto bg-primary-container text-on-primary font-label-bold text-label-bold px-8 py-4 rounded-lg hover:bg-surface-tint transition-colors shadow-sm">
-            Save Changes
-          </button>
+          ))}
         </div>
-      </main>
+      </Section>
+
+      <Section title="Sesión" desc="Cierra la sesión en este dispositivo y la conexión en tiempo real.">
+        <button type="button" className="mc-btn" onClick={() => { logout(); navigate('/login'); }}><span className="material-symbols-outlined text-[18px]">logout</span>Cerrar sesión</button>
+      </Section>
     </div>
   );
 }

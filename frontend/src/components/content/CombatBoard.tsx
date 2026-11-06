@@ -1,0 +1,36 @@
+import { useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { characterApi, combatApi } from '../../services/api';
+import { useAuth } from '../../lib/hooks';
+import { getApiError } from '../../services/errors';
+import { ErrorState, LoadingState, EmptyState } from '../ui/Feedback';
+import type { Character } from '../../types';
+
+type Combatant = { id: number; character_id?: number; name: string; initiative: number; hp: number; max_hp: number; is_player: boolean };
+type CombatState = { round: number; turn: number; combatants: Combatant[]; log: { id: number; body: string; created_at: string }[] };
+
+export function CombatBoard({ canManage }: { canManage: boolean }) {
+  const { campaignId = '' } = useParams();
+  const { user } = useAuth();
+  const [formOpen, setFormOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [initiative, setInitiative] = useState(10);
+  const [maxHP, setMaxHP] = useState(10);
+  const [error, setError] = useState('');
+  const combat = useQuery({ queryKey: ['combat', campaignId], queryFn: () => combatApi.getState(campaignId).then((response) => response.data as CombatState) });
+  const characters = useQuery({ queryKey: ['characters', campaignId], queryFn: () => characterApi.listByCampaign(campaignId).then((response) => response.data as Character[]) });
+  const mutation = useMutation({ mutationFn: (operation: () => Promise<unknown>) => operation(), onSuccess: () => { setError(''); void combat.refetch(); void characters.refetch(); }, onError: (reason) => setError(getApiError(reason)) });
+  const combatants = combat.data?.combatants || [];
+  const activeIndex = combatants.length ? (combat.data?.turn || 0) % combatants.length : -1;
+  const canEdit = (combatant: Combatant) => canManage || characters.data?.some((character) => character.id === combatant.character_id && character.user_id === user?.id);
+  const addPlayer = (character: Character) => mutation.mutate(() => combatApi.addCombatant(campaignId, { name: character.name, character_id: character.id, initiative: character.initiative_bonus + 10, hp: character.current_hp, max_hp: character.max_hp, is_player: true }));
+  return <main className="p-4 md:p-8 max-w-7xl mx-auto space-y-5">{error && <ErrorState message={error} />}
+    <div className="flex justify-between items-center gap-3"><div><h1 className="font-headline-lg">Combate</h1><p className="text-secondary">Ronda {combat.data?.round || 0} · {combatants[activeIndex] ? `Turno de ${combatants[activeIndex].name}` : 'Sin turno activo'}</p></div>{canManage && <div className="flex gap-2"><button type="button" onClick={() => mutation.mutate(() => combatApi.nextTurn(campaignId))} disabled={!combatants.length || mutation.isPending} className="bg-primary-container text-on-primary-container rounded-lg px-4 py-2 disabled:opacity-50">Siguiente turno</button><button type="button" onClick={() => mutation.mutate(() => combatApi.reset(campaignId))} className="border rounded-lg px-3 py-2">Reiniciar</button></div>}</div>
+    {combat.isLoading ? <LoadingState /> : combat.error ? <ErrorState message="No se pudo cargar el combate" onRetry={() => void combat.refetch()} /> : <div className="grid lg:grid-cols-3 gap-6"><section className="lg:col-span-2"><div className="space-y-2">{combatants.map((combatant, index) => <article key={combatant.id} className={`p-4 border rounded-lg ${index === activeIndex ? 'border-primary bg-surface-subtle' : 'border-border-low-contrast'}`}><div className="flex items-center gap-4"><span className="font-stat-number text-2xl w-10 text-center">{combatant.initiative}</span><div className="flex-1"><h2 className="font-label-bold">{combatant.name}{index === activeIndex && <span className="ml-2 text-xs text-primary">Turno actual</span>}</h2><p className="text-sm text-secondary">{combatant.is_player ? 'Jugador' : 'Enemigo'} · {combatant.hp}/{combatant.max_hp} PV</p></div>{canEdit(combatant) && <input aria-label={`PV de ${combatant.name}`} type="number" min={0} max={combatant.max_hp} defaultValue={combatant.hp} key={`${combatant.id}-${combatant.hp}`} onBlur={(event) => { const hp = Number(event.target.value); if (hp !== combatant.hp) mutation.mutate(() => combatApi.updateHP(campaignId, combatant.id, { hp })); }} className="w-20 rounded bg-surface-subtle border-border-low-contrast" />}{canManage && <button type="button" aria-label={`Eliminar a ${combatant.name}`} onClick={() => mutation.mutate(() => combatApi.removeCombatant(campaignId, combatant.id))} className="text-hp-danger">×</button>}</div><div className="h-2 rounded-full bg-surface-container mt-3"><div className="h-full rounded-full bg-success-active" style={{ width: `${Math.max(0, Math.min(100, combatant.hp / combatant.max_hp * 100))}%` }} /></div></article>)}</div>{!combatants.length && <EmptyState title="No hay combatientes" />}</section>
+      <aside className="space-y-4">{canManage && <section className="border border-border-low-contrast rounded-lg p-4"><button type="button" onClick={() => setFormOpen(!formOpen)} className="w-full text-left font-label-bold text-primary">+ Añadir combatiente</button>{formOpen && <form onSubmit={(event) => { event.preventDefault(); mutation.mutate(() => combatApi.addCombatant(campaignId, { name, initiative, hp: maxHP, max_hp: maxHP, is_player: false })); setFormOpen(false); }} className="space-y-3 mt-3"><input aria-label="Nombre" required value={name} onChange={(event) => setName(event.target.value)} placeholder="Nombre" className="w-full rounded bg-surface-subtle border-border-low-contrast" /><div className="grid grid-cols-2 gap-2"><label className="text-sm">Iniciativa<input type="number" value={initiative} onChange={(event) => setInitiative(Number(event.target.value))} className="w-full rounded bg-surface-subtle border-border-low-contrast" /></label><label className="text-sm">PV máximos<input type="number" min={1} value={maxHP} onChange={(event) => setMaxHP(Number(event.target.value))} className="w-full rounded bg-surface-subtle border-border-low-contrast" /></label></div><button type="submit" className="w-full bg-primary-container rounded py-2">Añadir</button></form>}</section>}
+      {canManage && <section className="border border-border-low-contrast rounded-lg p-4"><h2 className="font-label-bold mb-2">Grupo</h2>{characters.data?.filter((character) => !combatants.some((combatant) => combatant.character_id === character.id)).map((character) => <button type="button" key={character.id} onClick={() => addPlayer(character)} className="w-full text-left py-2 border-b border-border-low-contrast">{character.name}<span className="text-secondary text-sm"> · {character.current_hp}/{character.max_hp} PV</span></button>)}</section>}
+      <section className="border border-border-low-contrast rounded-lg p-4"><h2 className="font-label-bold mb-2">Registro</h2><div className="space-y-2 max-h-72 overflow-y-auto">{combat.data?.log.map((entry) => <p key={entry.id} className="text-sm text-secondary">{entry.body} · {new Date(entry.created_at).toLocaleTimeString()}</p>)}</div></section></aside></div>}
+    <Link to={`/campaign/${campaignId}`} className="text-primary font-label-bold">Volver a campaña</Link>
+  </main>;
+}

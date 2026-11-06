@@ -24,12 +24,16 @@ func NewCampaignService(campaignRepo *repository.CampaignRepository, userRepo *r
 }
 
 func (s *CampaignService) Create(ctx context.Context, userID int64, req *domain.CreateCampaignRequest) (*domain.Campaign, error) {
+	if req.GameMode == "" {
+		req.GameMode = "local"
+	}
 	campaign := &domain.Campaign{
 		Name:        req.Name,
 		Description: req.Description,
 		JoinCode:    repository.GenerateJoinCode(),
 		GMUserID:    userID,
 		Status:      domain.CampaignActive,
+		GameMode:    req.GameMode,
 	}
 
 	if err := s.campaignRepo.Create(ctx, campaign); err != nil {

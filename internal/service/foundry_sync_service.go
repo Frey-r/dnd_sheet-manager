@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"strings"
-	"time"
 
 	"dnd-campaign-manager/internal/config"
 	"dnd-campaign-manager/internal/domain"
@@ -19,12 +18,12 @@ import (
 type FoundrySyncService struct {
 	cfg    config.FoundryConfig
 	client *foundry.Client
-	repo   *repository.FoundryRepository
-	ragSvc *RAGService // optional; used to enqueue lore embeddings
+	repo      *repository.FoundryRepository
+	embeddings interface{ Vectorize(int64) error }
 }
 
-func NewFoundrySyncService(cfg config.FoundryConfig, client *foundry.Client, repo *repository.FoundryRepository, ragSvc *RAGService) *FoundrySyncService {
-	return &FoundrySyncService{cfg: cfg, client: client, repo: repo, ragSvc: ragSvc}
+func NewFoundrySyncService(cfg config.FoundryConfig, client *foundry.Client, repo *repository.FoundryRepository, embeddings interface{ Vectorize(int64) error }) *FoundrySyncService {
+	return &FoundrySyncService{cfg: cfg, client: client, repo: repo, embeddings: embeddings}
 }
 
 // Status returns the last recorded sync state for a campaign.
@@ -241,16 +240,12 @@ func (s *FoundrySyncService) SyncReference(ctx context.Context) (map[string]int,
 // enqueueEmbedding vectorizes a freshly-imported lore entry without blocking the
 // sync request (best-effort; failures are logged). See resilience.md.
 func (s *FoundrySyncService) enqueueEmbedding(loreID int64) {
-	if s.ragSvc == nil {
+	if s.embeddings == nil {
 		return
 	}
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer cancel()
-		if err := s.ragSvc.VectorizeLoreEntry(ctx, loreID); err != nil {
-			log.Printf("foundry sync: embedding lore %d failed: %v", loreID, err)
-		}
-	}()
+	if err := s.embeddings.Vectorize(loreID); err != nil {
+		log.Printf("foundry sync: embedding lore %d failed: %v", loreID, err)
+	}
 }
 
 func (s *FoundrySyncService) fail(ctx context.Context, campaignID int64, counts domain.SyncCounts, err error) {

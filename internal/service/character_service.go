@@ -35,13 +35,16 @@ func (s *CharacterService) Create(ctx context.Context, userID int64, req *domain
 	}
 
 	char := &domain.Character{
-		UserID:     userID,
-		CampaignID: req.CampaignID,
-		Name:       req.Name,
-		Race:       req.Race,
-		Class:      req.Class,
-		Level:      1,
-		SpellcastingAbility: "INT",
+		UserID:              userID,
+		CampaignID:          req.CampaignID,
+		Name:                req.Name,
+		Race:                req.Race,
+		Class:               req.Class,
+		Background:          req.Background,
+		Alignment:           req.Alignment,
+	}
+	if err := ApplyStartingStats(char, [6]int{req.StrScore, req.DexScore, req.ConScore, req.IntScore, req.WisScore, req.ChaScore}); err != nil {
+		return nil, err
 	}
 
 	if err := s.charRepo.Create(ctx, char); err != nil {
@@ -55,31 +58,39 @@ func (s *CharacterService) Create(ctx context.Context, userID int64, req *domain
 }
 
 func (s *CharacterService) initializeSpellSlots(ctx context.Context, charID int64, class string) {
-	// Only initialize for known spellcaster classes
-	spellcasterClasses := map[string]bool{
-		"wizard": true, "sorcerer": true, "cleric": true,
-		"druid": true, "paladin": true, "ranger": true,
-		"warlock": true, "artificer": true,
-	}
-
-	if !spellcasterClasses[class] {
+	// Level-1 slots by class (full casters 2, warlock 1, half casters 0).
+	_, casting, level1 := ClassRule(class)
+	if casting == "" {
 		return
 	}
-
-	// Initialize level 1 with 2 slots, level 2+ with 0
 	for level := 1; level <= 9; level++ {
 		total := 0
 		if level == 1 {
-			total = 2
+			total = level1
 		}
 		slot := &domain.SpellSlot{
 			CharacterID: charID,
-			Level:      level,
-			Total:      total,
-			Used:       0,
+			Level:       level,
+			Total:       total,
+			Used:        0,
 		}
 		s.charRepo.UpsertSpellSlot(ctx, slot)
 	}
+}
+
+func (s *CharacterService) Authorize(ctx context.Context, charID, userID int64) (bool, error) {
+	char, err := s.charRepo.GetByID(ctx, charID)
+	if err != nil || char == nil {
+		return false, ErrNotFound
+	}
+	role, err := s.campaignRepo.GetMemberRole(ctx, char.CampaignID, userID)
+	if err != nil || role == "" {
+		return false, ErrForbidden
+	}
+	if role != domain.RoleGM && char.UserID != userID {
+		return false, ErrForbidden
+	}
+	return role == domain.RoleGM, nil
 }
 
 func (s *CharacterService) GetByID(ctx context.Context, charID, userID int64, isGM bool) (*domain.Character, error) {
@@ -124,33 +135,87 @@ func (s *CharacterService) Update(ctx context.Context, charID, userID int64, isG
 }
 
 func applyCharacterUpdates(c *domain.Character, req *domain.UpdateCharacterRequest) {
-	if req.Name != nil           { c.Name = *req.Name }
-	if req.Race != nil           { c.Race = *req.Race }
-	if req.Class != nil          { c.Class = *req.Class }
-	if req.Level != nil          { c.Level = *req.Level }
-	if req.Background != nil     { c.Background = *req.Background }
-	if req.Alignment != nil     { c.Alignment = *req.Alignment }
-	if req.StrScore != nil       { c.StrScore = *req.StrScore }
-	if req.DexScore != nil       { c.DexScore = *req.DexScore }
-	if req.ConScore != nil       { c.ConScore = *req.ConScore }
-	if req.IntScore != nil       { c.IntScore = *req.IntScore }
-	if req.WisScore != nil       { c.WisScore = *req.WisScore }
-	if req.ChaScore != nil       { c.ChaScore = *req.ChaScore }
-	if req.MaxHP != nil          { c.MaxHP = *req.MaxHP }
-	if req.CurrentHP != nil      { c.CurrentHP = *req.CurrentHP }
-	if req.TempHP != nil         { c.TempHP = *req.TempHP }
-	if req.AC != nil             { c.AC = *req.AC }
-	if req.Speed != nil          { c.Speed = *req.Speed }
-	if req.Inspiration != nil    { c.Inspiration = *req.Inspiration }
-	if req.XP != nil            { c.XP = *req.XP }
-	if req.Gold != nil           { c.Gold = *req.Gold }
-	if req.PersonalityTraits != nil { c.PersonalityTraits = *req.PersonalityTraits }
-	if req.Ideals != nil        { c.Ideals = *req.Ideals }
-	if req.Bonds != nil          { c.Bonds = *req.Bonds }
-	if req.Flaws != nil          { c.Flaws = *req.Flaws }
-	if req.BackstoryText != nil  { c.BackstoryText = *req.BackstoryText }
-	if req.Notes != nil          { c.Notes = *req.Notes }
-	if req.SpellcastingAbility != nil { c.SpellcastingAbility = *req.SpellcastingAbility }
+	if req.Name != nil {
+		c.Name = *req.Name
+	}
+	if req.Race != nil {
+		c.Race = *req.Race
+	}
+	if req.Class != nil {
+		c.Class = *req.Class
+	}
+	if req.Level != nil {
+		c.Level = *req.Level
+	}
+	if req.Background != nil {
+		c.Background = *req.Background
+	}
+	if req.Alignment != nil {
+		c.Alignment = *req.Alignment
+	}
+	if req.StrScore != nil {
+		c.StrScore = *req.StrScore
+	}
+	if req.DexScore != nil {
+		c.DexScore = *req.DexScore
+	}
+	if req.ConScore != nil {
+		c.ConScore = *req.ConScore
+	}
+	if req.IntScore != nil {
+		c.IntScore = *req.IntScore
+	}
+	if req.WisScore != nil {
+		c.WisScore = *req.WisScore
+	}
+	if req.ChaScore != nil {
+		c.ChaScore = *req.ChaScore
+	}
+	if req.MaxHP != nil {
+		c.MaxHP = *req.MaxHP
+	}
+	if req.CurrentHP != nil {
+		c.CurrentHP = *req.CurrentHP
+	}
+	if req.TempHP != nil {
+		c.TempHP = *req.TempHP
+	}
+	if req.AC != nil {
+		c.AC = *req.AC
+	}
+	if req.Speed != nil {
+		c.Speed = *req.Speed
+	}
+	if req.Inspiration != nil {
+		c.Inspiration = *req.Inspiration
+	}
+	if req.XP != nil {
+		c.XP = *req.XP
+	}
+	if req.Gold != nil {
+		c.Gold = *req.Gold
+	}
+	if req.PersonalityTraits != nil {
+		c.PersonalityTraits = *req.PersonalityTraits
+	}
+	if req.Ideals != nil {
+		c.Ideals = *req.Ideals
+	}
+	if req.Bonds != nil {
+		c.Bonds = *req.Bonds
+	}
+	if req.Flaws != nil {
+		c.Flaws = *req.Flaws
+	}
+	if req.BackstoryText != nil {
+		c.BackstoryText = *req.BackstoryText
+	}
+	if req.Notes != nil {
+		c.Notes = *req.Notes
+	}
+	if req.SpellcastingAbility != nil {
+		c.SpellcastingAbility = *req.SpellcastingAbility
+	}
 }
 
 func (s *CharacterService) UpdateHP(ctx context.Context, charID, userID int64, isGM bool, currentHP, tempHP int) error {
@@ -247,6 +312,7 @@ func (s *CharacterService) AddItem(ctx context.Context, charID int64, req *domai
 	if item.Quantity <= 0 {
 		item.Quantity = 1
 	}
+	item.IsTradeable = req.IsTradeable
 	if err := s.itemRepo.Create(ctx, item); err != nil {
 		return nil, err
 	}
@@ -254,14 +320,78 @@ func (s *CharacterService) AddItem(ctx context.Context, charID int64, req *domai
 }
 
 func (s *CharacterService) RemoveItem(ctx context.Context, charID, itemID int64) error {
-	return s.itemRepo.Delete(ctx, itemID)
+	if err := s.itemRepo.DeleteForCharacter(ctx, charID, itemID); err == repository.ErrResourceNotFound {
+		return ErrNotFound
+	} else {
+		return err
+	}
 }
 
 func (s *CharacterService) EquipItem(ctx context.Context, charID, itemID int64) error {
 	item, err := s.itemRepo.GetByID(ctx, itemID)
-	if err != nil || item == nil {
+	if err != nil || item == nil || item.CharacterID != charID {
 		return ErrNotFound
 	}
+	if item.TradeLocked {
+		return ErrTradeConflict
+	}
 	item.IsEquipped = !item.IsEquipped
-	return s.itemRepo.Update(ctx, item)
+	return s.itemRepo.UpdateForCharacter(ctx, charID, item)
+}
+
+func (s *CharacterService) UpdateItem(ctx context.Context, charID, itemID int64, req *domain.UpdateItemRequest) (*domain.InventoryItem, error) {
+	if req.Quantity != nil && *req.Quantity < 0 {
+		return nil, errors.New("quantity cannot be negative")
+	}
+	item, err := s.itemRepo.GetByID(ctx, itemID)
+	if err != nil || item == nil || item.CharacterID != charID {
+		return nil, ErrNotFound
+	}
+	if item.TradeLocked {
+		return nil, ErrTradeConflict
+	}
+	if req.Name != nil && *req.Name != "" {
+		item.Name = *req.Name
+	}
+	if req.Quantity != nil {
+		item.Quantity = *req.Quantity
+	}
+	if req.IsEquipped != nil {
+		item.IsEquipped = *req.IsEquipped
+	}
+	if req.SlotType != nil {
+		item.SlotType = *req.SlotType
+	}
+	if req.IsAttuned != nil {
+		item.IsAttuned = *req.IsAttuned
+	}
+	if req.IsTradeable != nil {
+		item.IsTradeable = *req.IsTradeable
+	}
+	if req.QuestBound != nil {
+		item.QuestBound = *req.QuestBound
+	}
+	return item, s.itemRepo.UpdateForCharacter(ctx, charID, item)
+}
+
+func (s *CharacterService) CastSpell(ctx context.Context, charID, spellID int64) ([]domain.SpellSlot, error) {
+	slots, err := s.charRepo.CastSpell(ctx, charID, spellID)
+	switch err {
+	case nil:
+		return slots, nil
+	case repository.ErrSpellSlotUnavailable:
+		return nil, ErrNoSpellSlots
+	case repository.ErrResourceNotFound:
+		return nil, ErrNotFound
+	default:
+		return nil, err
+	}
+}
+
+func (s *CharacterService) Rest(ctx context.Context, charID int64) error {
+	if err := s.charRepo.LongRest(ctx, charID); err == repository.ErrResourceNotFound {
+		return ErrNotFound
+	} else {
+		return err
+	}
 }

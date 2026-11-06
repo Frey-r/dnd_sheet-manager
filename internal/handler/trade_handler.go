@@ -11,8 +11,8 @@ import (
 )
 
 type TradeHandler struct {
-	tradeSvc   *service.TradeService
-	charSvc    *service.CharacterService
+	tradeSvc *service.TradeService
+	charSvc  *service.CharacterService
 }
 
 func NewTradeHandler(tradeSvc *service.TradeService, charSvc *service.CharacterService) *TradeHandler {
@@ -88,9 +88,32 @@ func (h *TradeHandler) CancelTrade(c *gin.Context) {
 	tradeID := parseID(c.Param("id"))
 
 	if err := h.tradeSvc.CancelTrade(c.Request.Context(), tradeID, userID, isGM); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to cancel trade"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "trade cancelled"})
+}
+
+func (h *TradeHandler) List(c *gin.Context) {
+	offers, err := h.tradeSvc.List(c.Request.Context(), middleware.GetUserID(c))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list trades"})
+		return
+	}
+	c.JSON(http.StatusOK, offers)
+}
+
+func (h *TradeHandler) CounterOffer(c *gin.Context) {
+	var req domain.CreateTradeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	offer, err := h.tradeSvc.CounterOffer(c.Request.Context(), parseID(c.Param("id")), middleware.GetUserID(c), &req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, offer)
 }

@@ -16,7 +16,7 @@ type TradeOffer struct {
 	ID                   int64       `db:"id" json:"id"`
 	CampaignID           int64       `db:"campaign_id" json:"campaign_id"`
 	OfferorCharacterID   int64       `db:"offeror_character_id" json:"offeror_character_id"`
-	RecipientCharacterID  int64       `db:"recipient_character_id" json:"recipient_character_id"`
+	RecipientCharacterID int64       `db:"recipient_character_id" json:"recipient_character_id"`
 	OfferedItemIDs       string      `db:"offered_item_ids" json:"offered_item_ids"` // JSON array
 	OfferedGold          int         `db:"offered_gold" json:"offered_gold"`
 	RequestedItemIDs     string      `db:"requested_item_ids" json:"requested_item_ids"` // JSON array

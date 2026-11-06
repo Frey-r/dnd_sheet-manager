@@ -10,14 +10,16 @@ const (
 )
 
 type Campaign struct {
-	ID          int64          `db:"id" json:"id"`
-	Name        string         `db:"name" json:"name"`
-	Description string         `db:"description" json:"description"`
-	JoinCode    string         `db:"join_code" json:"join_code"`
-	GMUserID    int64          `db:"gm_user_id" json:"gm_user_id"`
-	Status      CampaignStatus `db:"status" json:"status"`
-	CreatedAt   time.Time      `db:"created_at" json:"created_at"`
-	UpdatedAt   time.Time      `db:"updated_at" json:"updated_at"`
+	ID             int64          `db:"id" json:"id"`
+	Name           string         `db:"name" json:"name"`
+	Description    string         `db:"description" json:"description"`
+	JoinCode       string         `db:"join_code" json:"join_code"`
+	GMUserID       int64          `db:"gm_user_id" json:"gm_user_id"`
+	Status         CampaignStatus `db:"status" json:"status"`
+	GameMode       string         `db:"game_mode" json:"game_mode"`
+	BastionSalePct int            `db:"bastion_sale_pct" json:"bastion_sale_pct"`
+	CreatedAt      time.Time      `db:"created_at" json:"created_at"`
+	UpdatedAt      time.Time      `db:"updated_at" json:"updated_at"`
 }
 
 type CampaignMember struct {
@@ -25,11 +27,13 @@ type CampaignMember struct {
 	UserID     int64     `db:"user_id" json:"user_id"`
 	Role       string    `db:"role" json:"role"` // "gm" or "player"
 	JoinedAt   time.Time `db:"joined_at" json:"joined_at"`
+	Username   string    `db:"username" json:"username"`
 }
 
 type CreateCampaignRequest struct {
 	Name        string `json:"name" binding:"required,min=1,max=100"`
-	Description string `json:"description"`
+	Description string `json:"description" binding:"max=10000"`
+	GameMode    string `json:"game_mode" binding:"omitempty,oneof=local foundry"`
 }
 
 type JoinCampaignRequest struct {

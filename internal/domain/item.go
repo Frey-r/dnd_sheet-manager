@@ -42,12 +42,14 @@ type InventoryItem struct {
 	SRDRefID           *int64    `db:"srd_ref_id" json:"srd_ref_id,omitempty"`
 	FoundryUUID        *string   `db:"foundry_uuid" json:"foundry_uuid,omitempty"`
 	IsFoundryOrphan    bool      `db:"is_foundry_orphan" json:"is_foundry_orphan"`
+	ValueCP            *int64    `db:"value_cp" json:"value_cp"`
 	CreatedAt          time.Time `db:"created_at" json:"created_at"`
 	UpdatedAt          time.Time `db:"updated_at" json:"updated_at"`
 }
 
 type MarketplaceItem struct {
 	ID                 int64     `db:"id" json:"id"`
+	Stock              int       `db:"stock" json:"stock"`
 	CampaignID         int64     `db:"campaign_id" json:"campaign_id"`
 	Name               string    `db:"name" json:"name"`
 	ItemType           ItemType  `db:"item_type" json:"item_type"`

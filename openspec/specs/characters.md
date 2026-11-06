@@ -59,3 +59,22 @@ THEN the worker SHALL abort the goroutine
 AND a descriptive error payload SHALL be sent to the requesting user
 AND other WebSocket connections SHALL remain unaffected
 ```
+
+## Character Creation (starting statistics)
+
+- A new character **SHALL** start at level 1 with ability scores provided by the player (standard array or point buy; default 10 when omitted) and **MUST** reject scores outside 3–20.
+- The server **SHALL** derive the starting statistics from 5e rules:
+  - Max HP = maximum of the class hit die + CON modifier (minimum 1). Current HP = Max HP.
+  - AC = 10 + DEX modifier (unarmoured; equipment adjusts it later).
+  - Speed = 25 ft for dwarves, halflings and gnomes; 30 ft otherwise.
+  - Proficiency bonus = +2; spellcasting ability by class (INT, WIS or CHA; none for martial classes).
+  - Level-1 spell slots: 2 for full casters (bard, cleric, druid, sorcerer, wizard), 1 for warlocks, 0 for half casters (paladin, ranger) and martial classes.
+- Class and race names **SHALL** be matched in English and Spanish; unknown (homebrew) classes **SHALL** use a d8 hit die.
+
+```gherkin
+GIVEN a player creating a "Mago" with CON 14 and DEX 16
+WHEN the character is created
+THEN max HP SHALL be 8 (d6 = 6, +2 CON)
+AND AC SHALL be 13
+AND the character SHALL have 2 level-1 spell slots and INT as spellcasting ability
+```

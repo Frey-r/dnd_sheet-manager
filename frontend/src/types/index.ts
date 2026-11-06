@@ -7,6 +7,7 @@ export interface User {
   email: string;
   avatar_url?: string;
   role: UserRole;
+  totp_enabled: boolean;
 }
 
 
@@ -25,6 +26,14 @@ export interface AuthResponse {
   token: string;
   refresh_token: string;
   user: User;
+  requires_totp?: boolean;
+}
+
+export interface AuthChallenge {
+  token?: string;
+  refresh_token?: string;
+  user: User;
+  requires_totp?: boolean;
 }
 
 // Campaign
@@ -35,6 +44,7 @@ export interface Campaign {
   join_code: string;
   gm_user_id: number;
   status: 'active' | 'paused';
+  game_mode: 'local' | 'foundry';
   created_at: string;
   updated_at: string;
 }

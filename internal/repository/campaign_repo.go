@@ -18,9 +18,10 @@ func NewUserRepository(db *sqlx.DB) *UserRepository {
 }
 
 func (r *UserRepository) Create(ctx context.Context, user *domain.User) error {
+	// The first account of an empty installation becomes admin (openspec/specs/lan-deployment.md §5).
 	query := `
 		INSERT INTO users (username, email, password_hash, avatar_url, role)
-		VALUES ($1, $2, $3, $4, $5)
+		VALUES ($1, $2, $3, $4, CASE WHEN $5 = 'player' AND NOT EXISTS (SELECT 1 FROM users) THEN 'admin' ELSE $5 END)
 		RETURNING id, role, created_at, updated_at`
 	return r.db.QueryRowxContext(ctx, query, user.Username, user.Email, user.PasswordHash, user.AvatarURL, user.Role).
 		Scan(&user.ID, &user.Role, &user.CreatedAt, &user.UpdatedAt)
@@ -28,7 +29,7 @@ func (r *UserRepository) Create(ctx context.Context, user *domain.User) error {
 
 func (r *UserRepository) GetByID(ctx context.Context, id int64) (*domain.User, error) {
 	var user domain.User
-	query := `SELECT id, username, email, password_hash, avatar_url, role, created_at, updated_at FROM users WHERE id = $1`
+	query := `SELECT id, username, email, password_hash, avatar_url, role, totp_enabled, created_at, updated_at FROM users WHERE id = $1`
 	err := r.db.GetContext(ctx, &user, query, id)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -38,7 +39,7 @@ func (r *UserRepository) GetByID(ctx context.Context, id int64) (*domain.User, e
 
 func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
 	var user domain.User
-	query := `SELECT id, username, email, password_hash, avatar_url, role, created_at, updated_at FROM users WHERE email = $1`
+	query := `SELECT id, username, email, password_hash, avatar_url, role, totp_enabled, created_at, updated_at FROM users WHERE email = $1`
 	err := r.db.GetContext(ctx, &user, query, email)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -48,7 +49,7 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*domain.
 
 func (r *UserRepository) GetByUsername(ctx context.Context, username string) (*domain.User, error) {
 	var user domain.User
-	query := `SELECT id, username, email, password_hash, avatar_url, role, created_at, updated_at FROM users WHERE username = $1`
+	query := `SELECT id, username, email, password_hash, avatar_url, role, totp_enabled, created_at, updated_at FROM users WHERE username = $1`
 	err := r.db.GetContext(ctx, &user, query, username)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -72,16 +73,16 @@ func NewCampaignRepository(db *sqlx.DB) *CampaignRepository {
 
 func (r *CampaignRepository) Create(ctx context.Context, c *domain.Campaign) error {
 	query := `
-		INSERT INTO campaigns (name, description, join_code, gm_user_id, status)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO campaigns (name, description, join_code, gm_user_id, status, game_mode)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id, created_at, updated_at`
-	return r.db.QueryRowxContext(ctx, query, c.Name, c.Description, c.JoinCode, c.GMUserID, c.Status).
+	return r.db.QueryRowxContext(ctx, query, c.Name, c.Description, c.JoinCode, c.GMUserID, c.Status, c.GameMode).
 		Scan(&c.ID, &c.CreatedAt, &c.UpdatedAt)
 }
 
 func (r *CampaignRepository) GetByID(ctx context.Context, id int64) (*domain.Campaign, error) {
 	var c domain.Campaign
-	query := `SELECT id, name, description, join_code, gm_user_id, status, created_at, updated_at FROM campaigns WHERE id = $1`
+	query := `SELECT id, name, description, join_code, gm_user_id, status, game_mode, created_at, updated_at FROM campaigns WHERE id = $1`
 	err := r.db.GetContext(ctx, &c, query, id)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -91,7 +92,7 @@ func (r *CampaignRepository) GetByID(ctx context.Context, id int64) (*domain.Cam
 
 func (r *CampaignRepository) GetByJoinCode(ctx context.Context, code string) (*domain.Campaign, error) {
 	var c domain.Campaign
-	query := `SELECT id, name, description, join_code, gm_user_id, status, created_at, updated_at FROM campaigns WHERE join_code = $1`
+	query := `SELECT id, name, description, join_code, gm_user_id, status, game_mode, created_at, updated_at FROM campaigns WHERE join_code = $1`
 	err := r.db.GetContext(ctx, &c, query, code)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -100,9 +101,9 @@ func (r *CampaignRepository) GetByJoinCode(ctx context.Context, code string) (*d
 }
 
 func (r *CampaignRepository) ListByUser(ctx context.Context, userID int64) ([]domain.Campaign, error) {
-	var campaigns []domain.Campaign
+	campaigns := []domain.Campaign{}
 	query := `
-		SELECT c.id, c.name, c.description, c.join_code, c.gm_user_id, c.status, c.created_at, c.updated_at
+		SELECT c.id, c.name, c.description, c.join_code, c.gm_user_id, c.status, c.game_mode, c.created_at, c.updated_at
 		FROM campaigns c
 		JOIN campaign_members cm ON c.id = cm.campaign_id
 		WHERE cm.user_id = $1
@@ -136,8 +137,8 @@ func (r *CampaignRepository) RemoveMember(ctx context.Context, campaignID, userI
 }
 
 func (r *CampaignRepository) GetMembers(ctx context.Context, campaignID int64) ([]domain.CampaignMember, error) {
-	var members []domain.CampaignMember
-	query := `SELECT campaign_id, user_id, role, joined_at FROM campaign_members WHERE campaign_id=$1`
+	members := []domain.CampaignMember{}
+	query := `SELECT cm.campaign_id, cm.user_id, cm.role, cm.joined_at, u.username FROM campaign_members cm JOIN users u ON u.id=cm.user_id WHERE cm.campaign_id=$1 ORDER BY cm.role, u.username`
 	err := r.db.SelectContext(ctx, &members, query, campaignID)
 	return members, err
 }

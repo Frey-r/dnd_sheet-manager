@@ -10,26 +10,21 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// FoundryHandler exposes the Foundry integration endpoints.
-// See openspec/specs/foundry-integration.md.
 type FoundryHandler struct {
-	svc *service.FoundrySyncService
+	svc       *service.FoundrySyncService
+	campaigns *service.CampaignService
 }
 
-func NewFoundryHandler(svc *service.FoundrySyncService) *FoundryHandler {
-	return &FoundryHandler{svc: svc}
+func NewFoundryHandler(svc *service.FoundrySyncService, campaigns *service.CampaignService) *FoundryHandler {
+	return &FoundryHandler{svc: svc, campaigns: campaigns}
 }
 
 func (h *FoundryHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	f := rg.Group("/foundry")
-	{
-		f.GET("/health", h.Health)
-		f.GET("/status", h.Status)
-		// Sync mutates the mirror and is GM-only (see security.md → RBAC).
-		f.POST("/sync", middleware.RequireRole("dm", "admin"), h.Sync)
-		// Reference-data import from Foundry compendiums → srd_* (global, GM-only).
-		f.POST("/sync/reference", middleware.RequireRole("dm", "admin"), h.SyncReference)
-	}
+	f.GET("/health", h.Health)
+	f.GET("/status", h.Status)
+	f.POST("/sync", h.Sync)
+	f.POST("/sync/reference", middleware.RequireRole("dm", "admin"), h.SyncReference)
 }
 
 type syncRequest struct {
@@ -38,19 +33,18 @@ type syncRequest struct {
 
 func (h *FoundryHandler) Sync(c *gin.Context) {
 	var req syncRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if err := c.ShouldBindJSON(&req); err != nil || req.CampaignID < 1 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "valid campaign_id is required"})
 		return
 	}
 	userID := middleware.GetUserID(c)
+	if !h.campaigns.IsGM(c.Request.Context(), req.CampaignID, userID) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "gm membership required"})
+		return
+	}
 	counts, err := h.svc.Sync(c.Request.Context(), req.CampaignID, userID)
 	if err != nil {
-		// Partial/failed sync: surface counts achieved plus the error (resilience.md).
-		c.JSON(http.StatusBadGateway, gin.H{
-			"status": "error",
-			"counts": counts,
-			"error":  err.Error(),
-		})
+		c.JSON(http.StatusBadGateway, gin.H{"status": "error", "counts": counts, "error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "ok", "counts": counts})
@@ -67,8 +61,13 @@ func (h *FoundryHandler) SyncReference(c *gin.Context) {
 
 func (h *FoundryHandler) Status(c *gin.Context) {
 	campaignID, err := strconv.ParseInt(c.Query("campaign_id"), 10, 64)
-	if err != nil {
+	if err != nil || campaignID < 1 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid campaign_id"})
+		return
+	}
+	member, err := h.campaigns.IsMember(c.Request.Context(), campaignID, middleware.GetUserID(c))
+	if err != nil || !member {
+		c.JSON(http.StatusForbidden, gin.H{"error": "campaign membership required"})
 		return
 	}
 	state, err := h.svc.Status(c.Request.Context(), campaignID)

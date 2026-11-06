@@ -1,0 +1,365 @@
+package content
+
+import (
+	"context"
+	"crypto/sha256"
+	"database/sql"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"sort"
+	"strconv"
+	"strings"
+)
+
+type ImportSummary struct {
+	Inserted  int            `json:"inserted"`
+	Updated   int            `json:"updated"`
+	Unchanged int            `json:"unchanged"`
+	Counts    map[string]int `json:"counts"`
+	Sources   map[string]int `json:"sources"`
+	Warnings  []string       `json:"warnings"`
+}
+
+func Import(ctx context.Context, db *sql.DB, root string, loaded *LoadResult) (*ImportSummary, error) {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	rootHash := sha256.Sum256([]byte(root))
+	var importID int64
+	if err := tx.QueryRowContext(ctx, `INSERT INTO content_imports(root_path_hash, status) VALUES($1, 'running') RETURNING id`, hex.EncodeToString(rootHash[:])).Scan(&importID); err != nil {
+		return nil, fmt.Errorf("create import record: %w", err)
+	}
+	summary := &ImportSummary{Counts: loaded.Counts, Sources: loaded.Sources, Warnings: loaded.Warnings}
+	ids := map[string]int64{}
+	stmt, err := tx.PrepareContext(ctx, `INSERT INTO content_entities
+		(entity_type, name, normalized_name, source, page, is_srd, origin, data, search_text, source_file, content_hash, updated_at)
+		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW())
+		ON CONFLICT(entity_type, normalized_name, source) DO UPDATE SET
+			name=EXCLUDED.name, page=EXCLUDED.page, is_srd=EXCLUDED.is_srd, data=EXCLUDED.data,
+			search_text=EXCLUDED.search_text, source_file=EXCLUDED.source_file, content_hash=EXCLUDED.content_hash,
+			updated_at=NOW()
+		WHERE content_entities.origin='official'
+		RETURNING id`)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+	for _, entity := range loaded.Entities {
+		key := identity(entity.Type, entity.Name, entity.Source)
+		var existingID int64
+		var existingHash string
+		err := tx.QueryRowContext(ctx, `SELECT id, content_hash FROM content_entities WHERE entity_type=$1 AND normalized_name=$2 AND source=$3`, entity.Type, normalize(entity.Name), entity.Source).Scan(&existingID, &existingHash)
+		if err != nil && err != sql.ErrNoRows {
+			return nil, fmt.Errorf("read %s: %w", key, err)
+		}
+		encoded, err := json.Marshal(entity.Data)
+		if err != nil {
+			return nil, err
+		}
+		if err == sql.ErrNoRows {
+			summary.Inserted++
+		} else if existingHash == entity.Hash {
+			summary.Unchanged++
+		} else {
+			summary.Updated++
+		}
+		var id int64
+		err = stmt.QueryRowContext(ctx, entity.Type, entity.Name, normalize(entity.Name), entity.Source, entity.Page, entity.IsSRD, entity.Origin, encoded, searchText(entity.Data), entity.SourceFile, entity.Hash).Scan(&id)
+		if err == sql.ErrNoRows {
+			id = existingID
+		} else if err != nil {
+			return nil, fmt.Errorf("store %s: %w", key, err)
+		}
+		ids[key] = id
+		if _, err := tx.ExecContext(ctx, `DELETE FROM content_references WHERE entity_id=$1`, id); err != nil {
+			return nil, err
+		}
+		if err := projectLegacy(ctx, tx, id, entity); err != nil {
+			return nil, fmt.Errorf("project %s: %w", key, err)
+		}
+	}
+	for _, entity := range loaded.Entities {
+		id := ids[identity(entity.Type, entity.Name, entity.Source)]
+		for _, ref := range entity.References {
+			var targetID any
+			var candidates []int64
+			rows, err := tx.QueryContext(ctx, `SELECT id FROM content_entities WHERE entity_type=$1 AND normalized_name=$2 LIMIT 2`, ref.Type, normalize(ref.Name))
+			if err != nil {
+				return nil, err
+			}
+			for rows.Next() {
+				var candidate int64
+				if err := rows.Scan(&candidate); err != nil {
+					rows.Close()
+					return nil, err
+				}
+				candidates = append(candidates, candidate)
+			}
+			rows.Close()
+			if len(candidates) == 1 {
+				targetID = candidates[0]
+			}
+			if _, err := tx.ExecContext(ctx, `INSERT INTO content_references(entity_id, reference_text, reference_type, target_id) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING`, id, ref.Text, ref.Type, targetID); err != nil {
+				return nil, err
+			}
+		}
+	}
+	counts, _ := json.Marshal(summary)
+	if _, err := tx.ExecContext(ctx, `UPDATE content_imports SET status='completed', counts=$1, completed_at=NOW() WHERE id=$2`, counts, importID); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit import: %w", err)
+	}
+	return summary, nil
+}
+
+func projectLegacy(ctx context.Context, tx *sql.Tx, contentID int64, entity Entity) error {
+	data := entity.Data
+	jsonValue := func(value any) string { encoded, _ := json.Marshal(value); return string(encoded) }
+	switch entity.Type {
+	case "spell":
+		components, _ := data["components"].(map[string]any)
+		_, err := tx.ExecContext(ctx, `INSERT INTO srd_spells(name,level,school,casting_time,range,duration,concentration,ritual,components_v,components_s,components_m,material_desc,description,higher_levels,classes,damage_type,area_type,is_srd,source,content_entity_id)
+			VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+			ON CONFLICT(name,source) DO UPDATE SET level=EXCLUDED.level,school=EXCLUDED.school,casting_time=EXCLUDED.casting_time,range=EXCLUDED.range,duration=EXCLUDED.duration,concentration=EXCLUDED.concentration,ritual=EXCLUDED.ritual,components_v=EXCLUDED.components_v,components_s=EXCLUDED.components_s,components_m=EXCLUDED.components_m,material_desc=EXCLUDED.material_desc,description=EXCLUDED.description,higher_levels=EXCLUDED.higher_levels,classes=EXCLUDED.classes,damage_type=EXCLUDED.damage_type,area_type=EXCLUDED.area_type,is_srd=EXCLUDED.is_srd,content_entity_id=EXCLUDED.content_entity_id`,
+			entity.Name, intValue(data["level"]), stringValue(data["school"]), flatText(data["time"]), flatText(data["range"]), flatText(data["duration"]), nestedBool(data, "duration", "concentration"), nestedBool(data, "meta", "ritual"), components["v"] == true, components["s"] == true, components["m"] != nil && components["m"] != false, flatText(components["m"]), flatText(data["entries"]), flatText(data["entriesHigherLevel"]), jsonValue(classNames(data["classes"])), flatText(data["damageInflict"]), flatText(data["areaTags"]), entity.IsSRD, entity.Source, contentID)
+		return err
+	case "monster":
+		ac := firstNumber(data["ac"], 10)
+		hp := 1
+		if hpData, ok := data["hp"].(map[string]any); ok {
+			hp = intValue(hpData["average"])
+		}
+		monsterType := flatText(data["type"])
+		cr := flatText(data["cr"])
+		if crData, ok := data["cr"].(map[string]any); ok {
+			cr = flatText(crData["cr"])
+		}
+		_, err := tx.ExecContext(ctx, `INSERT INTO srd_monsters(name,size,type,subtype,alignment,ac,ac_type,hp,hit_dice,speed,str,dex,con,"int",wis,cha,cr,xp,senses,languages,traits,actions,legendary_actions,reactions,resistances,immunities,vulnerabilities,condition_immunities,saving_throws,skills,proficiency_bonus,is_srd,source,content_entity_id)
+			VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34)
+			ON CONFLICT(name,source) DO UPDATE SET size=EXCLUDED.size,type=EXCLUDED.type,alignment=EXCLUDED.alignment,ac=EXCLUDED.ac,hp=EXCLUDED.hp,hit_dice=EXCLUDED.hit_dice,speed=EXCLUDED.speed,str=EXCLUDED.str,dex=EXCLUDED.dex,con=EXCLUDED.con,"int"=EXCLUDED.int,wis=EXCLUDED.wis,cha=EXCLUDED.cha,cr=EXCLUDED.cr,xp=EXCLUDED.xp,senses=EXCLUDED.senses,languages=EXCLUDED.languages,traits=EXCLUDED.traits,actions=EXCLUDED.actions,legendary_actions=EXCLUDED.legendary_actions,reactions=EXCLUDED.reactions,is_srd=EXCLUDED.is_srd,content_entity_id=EXCLUDED.content_entity_id`,
+			entity.Name, firstString(data["size"], "M"), monsterType, "", flatText(data["alignment"]), ac, flatText(data["ac"]), hp, nestedString(data, "hp", "formula"), jsonValue(data["speed"]), intValue(data["str"]), intValue(data["dex"]), intValue(data["con"]), intValue(data["int"]), intValue(data["wis"]), intValue(data["cha"]), cr, crXP(cr), flatText(data["senses"]), flatText(data["languages"]), jsonValue(data["trait"]), jsonValue(data["action"]), jsonValue(data["legendary"]), jsonValue(data["reaction"]), flatText(data["resist"]), flatText(data["immune"]), flatText(data["vulnerable"]), flatText(data["conditionImmune"]), jsonValue(data["save"]), jsonValue(data["skill"]), proficiency(cr), entity.IsSRD, entity.Source, contentID)
+		return err
+	case "class":
+		hitDie := 8
+		if hd, ok := data["hd"].(map[string]any); ok {
+			hitDie = intValue(hd["faces"])
+		}
+		_, err := tx.ExecContext(ctx, `INSERT INTO srd_classes(name,hit_die,primary_ability,saving_throws,armor_proficiencies,weapon_proficiencies,tool_proficiencies,skill_choices,starting_equipment,spellcasting_ability,description,is_srd,source,content_entity_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) ON CONFLICT(name,source) DO UPDATE SET hit_die=EXCLUDED.hit_die,description=EXCLUDED.description,is_srd=EXCLUDED.is_srd,content_entity_id=EXCLUDED.content_entity_id`, entity.Name, hitDie, jsonValue(data["primaryAbility"]), jsonValue(data["proficiency"]), jsonValue(data["startingProficiencies"]), jsonValue(data["startingProficiencies"]), jsonValue(data["startingProficiencies"]), jsonValue(data["startingProficiencies"]), flatText(data["startingEquipment"]), flatText(data["spellcastingAbility"]), flatText(data["entries"]), entity.IsSRD, entity.Source, contentID)
+		return err
+	case "race":
+		_, err := tx.ExecContext(ctx, `INSERT INTO srd_races(name,speed,size,ability_bonuses,traits,languages,subraces,description,is_srd,source,content_entity_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT(name,source) DO UPDATE SET speed=EXCLUDED.speed,size=EXCLUDED.size,ability_bonuses=EXCLUDED.ability_bonuses,traits=EXCLUDED.traits,languages=EXCLUDED.languages,description=EXCLUDED.description,is_srd=EXCLUDED.is_srd,content_entity_id=EXCLUDED.content_entity_id`, entity.Name, firstNumber(data["speed"], 30), firstString(data["size"], "M"), jsonValue(data["ability"]), jsonValue(data["entries"]), jsonValue(data["languageProficiencies"]), jsonValue(data["subraces"]), flatText(data["entries"]), entity.IsSRD, entity.Source, contentID)
+		return err
+	case "subclass":
+		_, err := tx.ExecContext(ctx, `INSERT INTO srd_subclasses(class_name,name,description,is_srd,source,content_entity_id) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(class_name,name,source) DO UPDATE SET description=EXCLUDED.description,is_srd=EXCLUDED.is_srd,content_entity_id=EXCLUDED.content_entity_id`, flatText(data["className"]), entity.Name, flatText(data["entries"]), entity.IsSRD, entity.Source, contentID)
+		return err
+	case "condition", "status", "disease":
+		_, err := tx.ExecContext(ctx, `INSERT INTO srd_conditions(name,description,effects,is_srd) VALUES($1,$2,$3,$4) ON CONFLICT(name) DO UPDATE SET description=EXCLUDED.description,effects=EXCLUDED.effects,is_srd=EXCLUDED.is_srd`, entity.Name, flatText(data["entries"]), jsonValue(data["entries"]), entity.IsSRD)
+		return err
+	case "variantrule", "action", "skill", "sense":
+		_, err := tx.ExecContext(ctx, `INSERT INTO srd_rules(name,category,content,is_srd) VALUES($1,$2,$3,$4) ON CONFLICT(name,category) DO UPDATE SET content=EXCLUDED.content,is_srd=EXCLUDED.is_srd`, entity.Name, entity.Type, flatText(data["entries"]), entity.IsSRD)
+		return err
+	case "item", "baseitem", "magicvariant":
+		cost := 0.0
+		unit := "gp"
+		if value := numberFloat(data["value"]); value > 0 {
+			cost = value
+			unit = "cp"
+		}
+		rarity := flatText(data["rarity"])
+		if rarity == "" || rarity == "none" {
+			rarity = "common"
+		}
+		category := flatText(data["type"])
+		if category == "" {
+			category = entity.Type
+		}
+		_, err := tx.ExecContext(ctx, `INSERT INTO srd_equipment(name,category,cost_gp,cost_unit,weight,description,damage_dice,damage_type,weapon_category,weapon_range,range_normal,range_long,properties,ac_base,ac_dex_bonus,ac_max_bonus,str_minimum,stealth_disadvantage,armor_category,is_srd,source,content_entity_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22) ON CONFLICT(name,source) DO UPDATE SET category=EXCLUDED.category,cost_gp=EXCLUDED.cost_gp,weight=EXCLUDED.weight,description=EXCLUDED.description,is_srd=EXCLUDED.is_srd,content_entity_id=EXCLUDED.content_entity_id`, entity.Name, category, cost, unit, numberFloat(data["weight"]), flatText(data["entries"]), flatText(data["dmg1"]), flatText(data["dmgType"]), flatText(data["weaponCategory"]), flatText(data["range"]), 0, 0, jsonValue(data["property"]), nullableInt(data["ac"]), boolValue(data["dexBonus"]), nullableInt(data["maxDexBonus"]), nullableInt(data["strengthRequirement"]), boolValue(data["stealth"]), category, entity.IsSRD, entity.Source, contentID)
+		if err != nil {
+			return err
+		}
+		if data["rarity"] != nil {
+			_, err = tx.ExecContext(ctx, `INSERT INTO srd_magic_items(name,rarity,requires_attunement,attunement_desc,description,category,is_srd,source,content_entity_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(name,source) DO UPDATE SET rarity=EXCLUDED.rarity,requires_attunement=EXCLUDED.requires_attunement,description=EXCLUDED.description,is_srd=EXCLUDED.is_srd,content_entity_id=EXCLUDED.content_entity_id`, entity.Name, rarity, data["reqAttune"] != nil && data["reqAttune"] != false, flatText(data["reqAttune"]), flatText(data["entries"]), category, entity.IsSRD, entity.Source, contentID)
+		}
+		return err
+	}
+	return nil
+}
+
+func searchText(value any) string {
+	text := flatText(value)
+	if len(text) > 1000000 {
+		return text[:1000000]
+	}
+	return text
+}
+func flatText(value any) string {
+	switch typed := value.(type) {
+	case nil:
+		return ""
+	case string:
+		return typed
+	case bool:
+		return strconv.FormatBool(typed)
+	case float64:
+		return strconv.FormatFloat(typed, 'f', -1, 64)
+	case []any:
+		parts := make([]string, 0, len(typed))
+		for _, item := range typed {
+			if text := flatText(item); text != "" {
+				parts = append(parts, text)
+			}
+		}
+		return strings.Join(parts, " ")
+	case map[string]any:
+		keys := make([]string, 0, len(typed))
+		for key := range typed {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		parts := []string{}
+		for _, key := range keys {
+			if text := flatText(typed[key]); text != "" {
+				parts = append(parts, text)
+			}
+		}
+		return strings.Join(parts, " ")
+	default:
+		return fmt.Sprint(typed)
+	}
+}
+func intValue(value any) int {
+	if number := numberValue(value); number != nil {
+		return *number
+	}
+	return 0
+}
+func numberFloat(value any) float64 {
+	switch typed := value.(type) {
+	case float64:
+		return typed
+	case string:
+		parsed, _ := strconv.ParseFloat(typed, 64)
+		return parsed
+	default:
+		return 0
+	}
+}
+func firstString(value any, fallback string) string {
+	if list, ok := value.([]any); ok && len(list) > 0 {
+		return flatText(list[0])
+	}
+	if text := flatText(value); text != "" {
+		return text
+	}
+	return fallback
+}
+func firstNumber(value any, fallback int) int {
+	if list, ok := value.([]any); ok && len(list) > 0 {
+		if object, ok := list[0].(map[string]any); ok {
+			return intValue(object["number"])
+		}
+		return intValue(list[0])
+	}
+	if number := numberValue(value); number != nil {
+		return *number
+	}
+	return fallback
+}
+func nestedString(data map[string]any, key, child string) string {
+	if object, ok := data[key].(map[string]any); ok {
+		return flatText(object[child])
+	}
+	return ""
+}
+func nestedBool(data map[string]any, key, child string) bool {
+	if list, ok := data[key].([]any); ok {
+		for _, item := range list {
+			if object, ok := item.(map[string]any); ok && boolValue(object[child]) {
+				return true
+			}
+		}
+	}
+	if object, ok := data[key].(map[string]any); ok {
+		return boolValue(object[child])
+	}
+	return false
+}
+func nullableInt(value any) any {
+	if number := numberValue(value); number != nil {
+		return *number
+	}
+	return nil
+}
+func classNames(value any) []string {
+	names := []string{}
+	var visit func(any)
+	visit = func(current any) {
+		switch typed := current.(type) {
+		case []any:
+			for _, child := range typed {
+				visit(child)
+			}
+		case map[string]any:
+			if name := stringValue(typed["name"]); name != "" {
+				names = append(names, name)
+			} else {
+				for _, child := range typed {
+					visit(child)
+				}
+			}
+		}
+	}
+	visit(value)
+	return names
+}
+func proficiency(cr string) int {
+	value := crValue(cr)
+	if value >= 17 {
+		return 6
+	}
+	if value >= 13 {
+		return 5
+	}
+	if value >= 9 {
+		return 4
+	}
+	if value >= 5 {
+		return 3
+	}
+	return 2
+}
+func crXP(cr string) int {
+	values := []int{0, 10, 25, 50, 100, 200, 450, 700, 1100, 1800, 2300, 2900, 3900, 5000, 5900, 7200, 8400, 10000, 11500, 13000, 15000, 18000, 20000, 22000, 25000, 33000, 41000, 50000, 62000, 75000, 90000, 105000, 120000, 135000, 155000}
+	value := crValue(cr)
+	if value == 0.125 {
+		return 25
+	}
+	if value == 0.25 {
+		return 50
+	}
+	if value == 0.5 {
+		return 100
+	}
+	index := int(value)
+	if index >= 0 && index < len(values) {
+		return values[index]
+	}
+	return 0
+}
+func crValue(cr string) float64 {
+	if strings.Contains(cr, "/") {
+		parts := strings.SplitN(cr, "/", 2)
+		a, _ := strconv.ParseFloat(parts[0], 64)
+		b, _ := strconv.ParseFloat(parts[1], 64)
+		if b != 0 {
+			return a / b
+		}
+	}
+	value, _ := strconv.ParseFloat(cr, 64)
+	return value
+}

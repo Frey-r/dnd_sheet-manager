@@ -1,21 +1,13 @@
-import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { characterApi } from '../services/api';
 import type { Character } from '../types';
 
 export function CharacterSheet() {
-  const { campaignId, characterId } = useParams<{ campaignId: string; characterId: string }>();
-  const [character, setCharacter] = useState<Character | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!characterId) return;
-    setLoading(true);
-    characterApi.get(characterId)
-      .then(r => setCharacter(r.data))
-      .catch(() => setCharacter(null))
-      .finally(() => setLoading(false));
-  }, [characterId]);
+  const { campaignId, characterId = '' } = useParams<{ campaignId: string; characterId: string }>();
+  const client = useQueryClient();
+  const { data: character, isLoading: loading } = useQuery({ queryKey: ['character', characterId], queryFn: () => characterApi.get(characterId).then((response) => response.data as Character) });
+  const hp = useMutation({ mutationFn: (currentHP: number) => characterApi.updateHP(characterId, { current_hp: currentHP, temp_hp: character?.temp_hp || 0 }), onSuccess: () => client.invalidateQueries({ queryKey: ['character', characterId] }) });
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center"><div className="font-body-lg text-secondary">Cargando personaje...</div></div>;
@@ -98,6 +90,10 @@ export function CharacterSheet() {
               <div className="flex items-baseline gap-1">
                 <span className="font-stat-number text-on-surface">{character.current_hp}</span>
                 <span className="font-body-lg text-secondary">/ {character.max_hp}</span>
+              </div>
+              <div className="flex gap-2 mt-2">
+                <button type="button" aria-label="Restar un punto de golpe" disabled={hp.isPending || character.current_hp <= 0} onClick={() => hp.mutate(character.current_hp - 1)} className="px-3 rounded bg-surface-container">−</button>
+                <button type="button" aria-label="Curar un punto de golpe" disabled={hp.isPending || character.current_hp >= character.max_hp} onClick={() => hp.mutate(character.current_hp + 1)} className="px-3 rounded bg-primary-container text-on-primary-container">+</button>
               </div>
             </div>
           </div>

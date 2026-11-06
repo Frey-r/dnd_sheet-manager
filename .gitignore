@@ -7,8 +7,9 @@
 
 # Local build / main executables
 main
-server
-import_srd
+/server
+/import_srd
+/content-import
 
 # Logs
 *.log

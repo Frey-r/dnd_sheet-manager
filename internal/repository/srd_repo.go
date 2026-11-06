@@ -183,7 +183,7 @@ func (r *SRDRepository) GetMonstersByCRRange(crMin, crMax float64, monsterType s
 		strings.Join(conditions, " AND "),
 	)
 
-	var monsters []domain.SRDMonster
+	monsters := []domain.SRDMonster{}
 	if err := r.db.Select(&monsters, query, args...); err != nil {
 		return nil, fmt.Errorf("get monsters by CR range: %w", err)
 	}
@@ -466,7 +466,7 @@ func (r *SRDRepository) GetMagicItem(id int64) (*domain.SRDMagicItem, error) {
 
 // ListClasses returns all SRD classes.
 func (r *SRDRepository) ListClasses() ([]domain.SRDClass, error) {
-	var classes []domain.SRDClass
+	classes := []domain.SRDClass{}
 	err := r.db.Select(&classes, `SELECT id, name, hit_die, primary_ability, saving_throws::text,
 		armor_proficiencies::text, weapon_proficiencies::text, tool_proficiencies::text,
 		skill_choices::text, starting_equipment, spellcasting_ability, description, is_srd, created_at
@@ -510,7 +510,7 @@ func (r *SRDRepository) GetClassByName(name string) (*domain.SRDClass, error) {
 
 // ListRaces returns all SRD races.
 func (r *SRDRepository) ListRaces() ([]domain.SRDRace, error) {
-	var races []domain.SRDRace
+	races := []domain.SRDRace{}
 	err := r.db.Select(&races, `SELECT id, name, speed, size, ability_bonuses::text, traits::text,
 		languages::text, subraces::text, description, is_srd, created_at
 		FROM srd_races ORDER BY name ASC`)
@@ -536,7 +536,7 @@ func (r *SRDRepository) GetRaceByName(name string) (*domain.SRDRace, error) {
 
 // ListConditions returns all SRD conditions.
 func (r *SRDRepository) ListConditions() ([]domain.SRDCondition, error) {
-	var conditions []domain.SRDCondition
+	conditions := []domain.SRDCondition{}
 	err := r.db.Select(&conditions, `SELECT id, name, description, effects::text, is_srd, created_at
 		FROM srd_conditions ORDER BY name ASC`)
 	if err != nil {

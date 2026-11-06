@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"dnd-campaign-manager/internal/domain"
 	"encoding/json"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -39,7 +41,7 @@ func (r *MessageRepository) GetByID(ctx context.Context, id int64) (*domain.Mess
 }
 
 func (r *MessageRepository) GetConversation(ctx context.Context, campaignID, userID, otherUserID int64, limit, offset int) ([]domain.Message, error) {
-	var messages []domain.Message
+	messages := []domain.Message{}
 	query := `
 		SELECT * FROM messages
 		WHERE campaign_id=$1
@@ -51,7 +53,7 @@ func (r *MessageRepository) GetConversation(ctx context.Context, campaignID, use
 }
 
 func (r *MessageRepository) GetGMDirectMessages(ctx context.Context, campaignID, userID int64, limit, offset int) ([]domain.Message, error) {
-	var messages []domain.Message
+	messages := []domain.Message{}
 	query := `
 		SELECT * FROM messages
 		WHERE campaign_id=$1
@@ -77,7 +79,7 @@ func (r *MessageRepository) MarkAsRead(ctx context.Context, userID int64) error 
 }
 
 func (r *MessageRepository) GetConversationsList(ctx context.Context, campaignID, userID int64) ([]domain.Conversation, error) {
-	var conversations []domain.Conversation
+	conversations := []domain.Conversation{}
 	query := `
 		WITH latest AS (
 			SELECT
@@ -152,14 +154,14 @@ func (r *TradeRepository) UpdateStatus(ctx context.Context, id int64, status dom
 }
 
 func (r *TradeRepository) GetPendingByRecipient(ctx context.Context, recipientCharID int64) ([]domain.TradeOffer, error) {
-	var offers []domain.TradeOffer
+	offers := []domain.TradeOffer{}
 	query := `SELECT * FROM trade_offers WHERE recipient_character_id=$1 AND status='pending' AND expires_at > $2`
 	err := r.db.SelectContext(ctx, &offers, query, recipientCharID, time.Now())
 	return offers, err
 }
 
 func (r *TradeRepository) GetExpiredPending(ctx context.Context) ([]domain.TradeOffer, error) {
-	var offers []domain.TradeOffer
+	offers := []domain.TradeOffer{}
 	query := `SELECT * FROM trade_offers WHERE status='pending' AND expires_at < $1`
 	err := r.db.SelectContext(ctx, &offers, query, time.Now())
 	return offers, err
@@ -192,7 +194,7 @@ func (r *LoreRepository) Update(ctx context.Context, l *domain.LoreEntry) error 
 
 func (r *LoreRepository) GetByID(ctx context.Context, id int64) (*domain.LoreEntry, error) {
 	var l domain.LoreEntry
-	query := `SELECT * FROM lore_entries WHERE id=$1`
+	query := `SELECT ` + loreCols + ` FROM lore_entries WHERE id=$1`
 	err := r.db.GetContext(ctx, &l, query, id)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -200,34 +202,75 @@ func (r *LoreRepository) GetByID(ctx context.Context, id int64) (*domain.LoreEnt
 	return &l, err
 }
 
+// loreCols lists every lore_entries column except the pgvector embedding.
+const loreCols = `id, campaign_id, character_id, content_text, lore_tier, chapter_order, title, foundry_uuid, is_foundry_orphan, created_at, updated_at`
+
 func (r *LoreRepository) GetByCampaign(ctx context.Context, campaignID int64) ([]domain.LoreEntry, error) {
-	var entries []domain.LoreEntry
-	query := `SELECT * FROM lore_entries WHERE campaign_id=$1 ORDER BY chapter_order, title`
+	entries := []domain.LoreEntry{}
+	query := `SELECT ` + loreCols + ` FROM lore_entries WHERE campaign_id=$1 ORDER BY chapter_order, title`
 	err := r.db.SelectContext(ctx, &entries, query, campaignID)
 	return entries, err
 }
 
 func (r *LoreRepository) GetByCharacter(ctx context.Context, characterID int64) ([]domain.LoreEntry, error) {
-	var entries []domain.LoreEntry
-	query := `SELECT * FROM lore_entries WHERE character_id=$1 ORDER BY created_at`
+	entries := []domain.LoreEntry{}
+	query := `SELECT ` + loreCols + ` FROM lore_entries WHERE character_id=$1 ORDER BY created_at`
 	err := r.db.SelectContext(ctx, &entries, query, characterID)
 	return entries, err
 }
 
+func vectorLiteral(vector []float32) string {
+	result := "["
+	for i, value := range vector {
+		if i > 0 {
+			result += ","
+		}
+		result += fmt.Sprintf("%g", value)
+	}
+	return result + "]"
+}
+
+func (r *LoreRepository) ListVisible(ctx context.Context, campaignID, userID int64, isGM bool) ([]domain.LoreEntry, error) {
+	entries := []domain.LoreEntry{}
+	query := `SELECT ` + loreCols + ` FROM lore_entries WHERE campaign_id=$1 AND ($2 OR lore_tier='campaign_plot' OR character_id IN (SELECT id FROM characters WHERE user_id=$3 AND campaign_id=$1)) ORDER BY chapter_order,title`
+	err := r.db.SelectContext(ctx, &entries, query, campaignID, isGM, userID)
+	return entries, err
+}
+
 func (r *LoreRepository) SearchByTier(ctx context.Context, campaignID int64, tier domain.LoreTier, query []float32, limit int) ([]domain.LoreEntry, error) {
-	var entries []domain.LoreEntry
+	entries := []domain.LoreEntry{}
 	sqlQuery := `
-		SELECT * FROM lore_entries
+		SELECT ` + loreCols + ` FROM lore_entries
 		WHERE campaign_id=$1 AND lore_tier=$2 AND content_vector IS NOT NULL
 		ORDER BY content_vector <=> $3::vector
 		LIMIT $4`
-	err := r.db.SelectContext(ctx, &entries, sqlQuery, campaignID, tier, query, limit)
+	err := r.db.SelectContext(ctx, &entries, sqlQuery, campaignID, tier, vectorLiteral(query), limit)
+	return entries, err
+}
+
+// SearchTextByTier is the no-AI fallback: Spanish full-text search over title and content,
+// matching any of the given words (already sanitized), best rank first.
+func (r *LoreRepository) SearchTextByTier(ctx context.Context, campaignID int64, tier domain.LoreTier, words []string, limit int) ([]domain.LoreEntry, error) {
+	entries := []domain.LoreEntry{}
+	if len(words) == 0 {
+		return entries, nil
+	}
+	sqlQuery := `
+		SELECT id, campaign_id, character_id, content_text, lore_tier, chapter_order, title,
+		       foundry_uuid, is_foundry_orphan, created_at, updated_at
+		FROM lore_entries,
+		     to_tsquery('spanish', $3) AS q
+		WHERE campaign_id=$1 AND lore_tier=$2
+		  AND to_tsvector('spanish', coalesce(title, '') || ' ' || content_text) @@ q
+		ORDER BY ts_rank(to_tsvector('spanish', coalesce(title, '') || ' ' || content_text), q) DESC, chapter_order
+		LIMIT $4`
+	err := r.db.SelectContext(ctx, &entries, sqlQuery, campaignID, tier, strings.Join(words, " | "), limit)
 	return entries, err
 }
 
 func (r *LoreRepository) UpdateVector(ctx context.Context, id int64, vector []float32) error {
 	query := `UPDATE lore_entries SET content_vector=$1::vector, updated_at=NOW() WHERE id=$2`
-	_, err := r.db.ExecContext(ctx, query, vector, id)
+	_, err := r.db.ExecContext(ctx, query, vectorLiteral(vector), id)
 	return err
 }
 

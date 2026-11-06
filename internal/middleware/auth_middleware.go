@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 
 	"dnd-campaign-manager/internal/service"
@@ -58,24 +59,26 @@ func RBACMiddleware(campaignSvc *service.CampaignService) gin.HandlerFunc {
 		if campaignIDStr == "" {
 			campaignIDStr = c.Param("campaign_id")
 		}
-
-		if campaignIDStr != "" {
-			// Try to parse campaign ID
-			campID := int64(0)
-			for _, ch := range campaignIDStr {
-				if ch >= '0' && ch <= '9' {
-					campID = campID*10 + int64(ch-'0')
-				} else {
-					break
-				}
+		if campaignIDStr != "" && strings.HasPrefix(c.Request.URL.Path, "/api/campaigns/") {
+			campaignID, err := strconv.ParseInt(campaignIDStr, 10, 64)
+			if err != nil || campaignID < 1 {
+				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid campaign id"})
+				return
 			}
-			if campID > 0 {
-				role, _ := campaignSvc.GetMemberRole(c.Request.Context(), campID, userID.(int64))
+			if !strings.HasSuffix(c.Request.URL.Path, "/join") {
+				role, err := campaignSvc.GetMemberRole(c.Request.Context(), campaignID, userID.(int64))
+				if err != nil {
+					c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "could not verify membership"})
+					return
+				}
+				if role == "" {
+					c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "campaign membership required"})
+					return
+				}
 				c.Set("campaign_role", role)
 				c.Set("is_gm", role == "gm")
 			}
 		}
-
 		c.Next()
 	}
 }

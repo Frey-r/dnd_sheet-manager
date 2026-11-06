@@ -15,7 +15,7 @@ type LoreEntry struct {
 	CampaignID      int64     `db:"campaign_id" json:"campaign_id"`
 	CharacterID     *int64    `db:"character_id" json:"character_id"` // null for campaign-level
 	ContentText     string    `db:"content_text" json:"content_text"`
-	ContentVector   []float32 `db:"content_vector" json:"content_vector"` // pgvector, not serialized to JSON
+	ContentVector   []float32 `db:"-" json:"-"` // pgvector column, written via UpdateVector; never scanned
 	LoreTier        LoreTier  `db:"lore_tier" json:"lore_tier"`
 	ChapterOrder    int       `db:"chapter_order" json:"chapter_order"`
 	Title           string    `db:"title" json:"title"`
