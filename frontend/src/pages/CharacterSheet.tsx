@@ -2,6 +2,8 @@ import { useParams, Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { characterApi } from '../services/api';
 import type { Character } from '../types';
+import { PixelAvatar } from '../components/avatar/PixelAvatar';
+import { splitSource } from '../lib/avatar';
 
 export function CharacterSheet() {
   const { campaignId, characterId = '' } = useParams<{ campaignId: string; characterId: string }>();
@@ -39,8 +41,8 @@ export function CharacterSheet() {
           <Link to={`/campaign/${campaignId}`} className="p-2 rounded-full hover:bg-surface-container">
             <span className="material-symbols-outlined text-primary">arrow_back</span>
           </Link>
-          <div className="w-8 h-8 rounded-full overflow-hidden bg-primary-container flex items-center justify-center">
-            <span className="material-symbols-outlined text-on-primary-container text-sm">person</span>
+          <div className="w-8 h-8 rounded-full overflow-hidden bg-surface-container flex items-center justify-center">
+            <PixelAvatar appearance={character.appearance} race={character.race} klass={character.class} aura={false} crop="bust" scale={1.34} />
           </div>
           <h1 className="font-headline-md text-on-surface font-bold">{character.name}</h1>
         </div>
@@ -58,13 +60,14 @@ export function CharacterSheet() {
 
       <main className="flex-1 overflow-y-auto pb-24 px-4 pt-4 flex flex-col gap-4 max-w-2xl mx-auto w-full">
         <section className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-xl bg-primary-container flex items-center justify-center border border-border-low-contrast shrink-0 relative">
-            <span className="material-symbols-outlined text-on-primary-container text-3xl">person</span>
+          <div className="avatar-stage relative flex shrink-0 items-end justify-center rounded-xl border border-border-low-contrast px-2 pt-2">
+            <PixelAvatar appearance={character.appearance} race={character.race} klass={character.class} pulse scale={3} />
             <div className="absolute bottom-0 right-0 bg-primary text-on-primary font-label-bold px-1 rounded-tl">L{character.level}</div>
           </div>
-          <div>
+          <div className="flex flex-col gap-1">
             <h2 className="font-headline-lg text-on-surface leading-tight">{character.name}</h2>
-            <p className="font-body-md text-on-surface-variant">{character.race} {character.class}</p>
+            <p className="font-body-md text-on-surface-variant">{splitSource(character.race).base} · {splitSource(character.class).base}</p>
+            <Link to={`/campaign/${campaignId}/character/${characterId}/appearance`} className="mc-btn h-8 w-fit px-3 text-[12.5px]">Editar apariencia</Link>
           </div>
         </section>
 

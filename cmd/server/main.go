@@ -66,7 +66,8 @@ func main() {
 
 	authSvc := service.NewAuthService(userRepo, cfg.JWT)
 	campaignSvc := service.NewCampaignService(campaignRepo, userRepo)
-	charSvc := service.NewCharacterService(charRepo, campaignRepo, itemRepo)
+	statRollRepo := repository.NewStatRollRepository(db)
+	charSvc := service.NewCharacterService(charRepo, campaignRepo, itemRepo).WithStatRolls(statRollRepo)
 	msgSvc := service.NewMessageService(msgRepo, campaignRepo, userRepo)
 	tradeSvc := service.NewTradeService(tradeRepo, charRepo, itemRepo, campaignRepo)
 	srdSvc := service.NewSRDService(srdRepo)
@@ -146,6 +147,7 @@ func main() {
 		auth.GET("/characters/:id", charHandler.Get)
 		auth.PUT("/characters/:id", charHandler.Update)
 		auth.PUT("/characters/:id/hp", charHandler.UpdateHP)
+		auth.PUT("/characters/:id/appearance", charHandler.UpdateAppearance)
 		auth.POST("/characters/:id/long-rest", charHandler.LongRest)
 		auth.GET("/characters/:id/inventory", charHandler.GetInventory)
 		auth.POST("/characters/:id/inventory", charHandler.AddItem)
@@ -177,6 +179,7 @@ func main() {
 		vttHandler.RegisterRoutes(auth)
 		uploadHandler.RegisterRoutes(auth)
 		marketHandler.RegisterRoutes(auth)
+		handler.NewStatRollHandler(statRollRepo).RegisterRoutes(auth)
 	}
 
 	r.Static("/uploads", cfg.Server.UploadDir)

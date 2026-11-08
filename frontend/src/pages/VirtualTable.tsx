@@ -247,7 +247,7 @@ export function VirtualTable() {
           <TableCanvas scene={scene} tokens={tokens} isGM={isGM} userId={user?.id ?? 0} viewers={viewers} tool={tool}
             selectedId={selectedId} onSelect={setSelectedId} onMove={onMove} onWalls={onWalls} onLights={onLights}
             objects={scene.mode === 'narrative' ? [] : objects} combats={combats} selectedObjectId={selectedObjectId} onSelectObject={setSelectedObjectId}
-            onPlaceObject={placeObject} onZones={onZones} />
+            onPlaceObject={placeObject} onZones={onZones} characters={characters} />
         ) : (
           <div className="grid h-full place-items-center p-6 text-center">
             <div className="mc-card max-w-md p-8">

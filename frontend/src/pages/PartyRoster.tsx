@@ -1,24 +1,23 @@
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useParams, Link } from 'react-router-dom';
 import { campaignApi, characterApi } from '../services/api';
 import type { CampaignMember, Character } from '../types';
+import { PixelAvatar } from '../components/avatar/PixelAvatar';
 
 export function PartyRoster() {
   const { campaignId } = useParams<{ campaignId: string }>();
-  const [members, setMembers] = useState<(CampaignMember & { character?: Character })[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!campaignId) return;
-    setLoading(true);
-    campaignApi.members(campaignId).then(r => {
-      const mems = r.data as CampaignMember[];
-      setMembers(mems);
-      return Promise.allSettled(mems.map(() =>
-        characterApi.listByCampaign(campaignId).catch(() => ({ data: [] }))
-      ));
-    }).catch(() => {}).finally(() => setLoading(false));
-  }, [campaignId]);
+  const { data: members = [], isLoading: loading } = useQuery({
+    queryKey: ['party-roster', campaignId],
+    enabled: Boolean(campaignId),
+    queryFn: async () => {
+      const [m, c] = await Promise.all([
+        campaignApi.members(campaignId!),
+        characterApi.listByCampaign(campaignId!).catch(() => ({ data: [] })),
+      ]);
+      const chars = (c.data ?? []) as Character[];
+      return (m.data as CampaignMember[]).map((member) => ({ ...member, character: chars.find((ch) => ch.user_id === member.user_id) }));
+    },
+  });
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="font-body-lg text-secondary">Cargando...</div></div>;
 
@@ -38,8 +37,10 @@ export function PartyRoster() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {members.map((m) => (
             <div key={m.user_id} className="bg-surface-container-lowest border border-border-low-contrast rounded-lg p-4 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-secondary-container flex items-center justify-center">
-                <span className="material-symbols-outlined text-on-secondary-container">person</span>
+              <div className="w-12 h-12 rounded-full overflow-hidden bg-secondary-container flex items-center justify-center">
+                {m.character
+                  ? <PixelAvatar appearance={m.character.appearance} race={m.character.race} klass={m.character.class} aura={false} crop="bust" scale={2} />
+                  : <span className="material-symbols-outlined text-on-secondary-container">person</span>}
               </div>
               <div className="flex-1">
                 <div className="font-label-bold text-on-surface">{m.username || `Player ${m.user_id}`}</div>

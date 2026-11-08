@@ -342,3 +342,16 @@ main header.sticky, main header.fixed {
   margin-bottom: 8px;
 }
 main .min-h-screen { min-height: 0; }
+
+/* Pixel-art avatars (character-appearance.md): hard pixels, class aura glow. */
+.avatar-pixel { image-rendering: pixelated; }
+.avatar-pulse { animation: avatar-aura 2.6s ease-in-out infinite; }
+@keyframes avatar-aura {
+  0%, 100% { filter: drop-shadow(0 0 2px var(--aura, transparent)); }
+  50% { filter: drop-shadow(0 0 10px var(--aura, transparent)); }
+}
+.avatar-stage {
+  background:
+    radial-gradient(ellipse 55% 12% at 50% 88%, rgba(0, 0, 0, .45), transparent 70%),
+    radial-gradient(ellipse 70% 60% at 50% 45%, var(--surface-3), var(--surface) 75%);
+}

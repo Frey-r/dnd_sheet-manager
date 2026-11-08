@@ -17,6 +17,13 @@ type CharacterService struct {
 	charRepo     *repository.CharacterRepository
 	campaignRepo *repository.CampaignRepository
 	itemRepo     *repository.ItemRepository
+	statRolls    *repository.StatRollRepository
+}
+
+// WithStatRolls enables verification of rolled ability scores.
+func (s *CharacterService) WithStatRolls(r *repository.StatRollRepository) *CharacterService {
+	s.statRolls = r
+	return s
 }
 
 func NewCharacterService(charRepo *repository.CharacterRepository, campaignRepo *repository.CampaignRepository, itemRepo *repository.ItemRepository) *CharacterService {
@@ -34,21 +41,53 @@ func (s *CharacterService) Create(ctx context.Context, userID int64, req *domain
 		return existing, nil // return existing character if already has one in this campaign
 	}
 
-	char := &domain.Character{
-		UserID:              userID,
-		CampaignID:          req.CampaignID,
-		Name:                req.Name,
-		Race:                req.Race,
-		Class:               req.Class,
-		Background:          req.Background,
-		Alignment:           req.Alignment,
-	}
-	if err := ApplyStartingStats(char, [6]int{req.StrScore, req.DexScore, req.ConScore, req.IntScore, req.WisScore, req.ChaScore}); err != nil {
+	appearance, err := ValidateAppearance(req.Appearance)
+	if err != nil {
 		return nil, err
+	}
+
+	char := &domain.Character{
+		Appearance: appearance,
+		UserID:     userID,
+		CampaignID: req.CampaignID,
+		Name:       req.Name,
+		Race:       req.Race,
+		Class:      req.Class,
+		Background: req.Background,
+		Alignment:  req.Alignment,
+	}
+	final := [6]int{req.StrScore, req.DexScore, req.ConScore, req.IntScore, req.WisScore, req.ChaScore}
+	if req.StatRollID != nil {
+		if s.statRolls == nil || req.BaseScores == nil {
+			return nil, ErrRolledScoresMismatch
+		}
+		roll, err := s.statRolls.Get(ctx, *req.StatRollID)
+		if err != nil || roll.CampaignID != req.CampaignID || roll.UserID != userID || roll.Status != "available" {
+			return nil, ErrRolledScoresMismatch
+		}
+		totals := make([]int, len(roll.Totals))
+		for i, v := range roll.Totals {
+			totals[i] = int(v)
+		}
+		if !IsPermutation(totals, *req.BaseScores) {
+			return nil, ErrRolledScoresMismatch
+		}
+		if !ValidBonuses(*req.BaseScores, final) {
+			return nil, ErrInvalidBonuses
+		}
+	}
+	if err := ApplyStartingStats(char, final); err != nil {
+		return nil, err
+	}
+	if req.Speed >= 5 && req.Speed <= 120 {
+		char.Speed = req.Speed
 	}
 
 	if err := s.charRepo.Create(ctx, char); err != nil {
 		return nil, err
+	}
+	if req.StatRollID != nil {
+		_ = s.statRolls.MarkUsed(ctx, *req.StatRollID, char.ID)
 	}
 
 	// Initialize spell slots for spellcasters
@@ -91,6 +130,21 @@ func (s *CharacterService) Authorize(ctx context.Context, charID, userID int64) 
 		return false, ErrForbidden
 	}
 	return role == domain.RoleGM, nil
+}
+
+// UpdateAppearance changes the avatar; only the owner or the campaign GM may do it.
+func (s *CharacterService) UpdateAppearance(ctx context.Context, charID, userID int64, raw []byte) (*domain.Character, error) {
+	if _, err := s.Authorize(ctx, charID, userID); err != nil {
+		return nil, err
+	}
+	appearance, err := ValidateAppearance(raw)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.charRepo.UpdateAppearance(ctx, charID, appearance); err != nil {
+		return nil, err
+	}
+	return s.charRepo.GetByID(ctx, charID)
 }
 
 func (s *CharacterService) GetByID(ctx context.Context, charID, userID int64, isGM bool) (*domain.Character, error) {

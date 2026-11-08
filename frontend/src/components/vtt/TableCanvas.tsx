@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Pt as ZPt, SceneLight, VTTCombat, VTTObject, VTTScene, VTTToken, Wall, Zone } from '../../services/vttApi';
 import { gridDistanceFt, newExploredCanvas, renderFog, type FogResult, type Pt } from '../../lib/vision';
+import { auraForClass, drawAvatarInto, normalizeAppearance, parseStoredAppearance, resolveRaceVisual } from '../../lib/avatar';
 
 export type Tool = 'select' | 'ruler' | 'wall' | 'door' | 'light' | 'erase' | 'zone' | 'object';
 
@@ -23,6 +24,8 @@ interface Props {
   onSelectObject?: (id: number | null) => void;
   onPlaceObject?: (x: number, y: number) => void;
   onZones?: (zones: Zone[]) => void;
+  /** Campaign characters: tokens linked to one are drawn with its pixel-art avatar. */
+  characters?: { id: number; race: string; class: string; appearance?: unknown }[];
 }
 
 function inPolygon(p: Pt, poly: ZPt[]) {
@@ -69,6 +72,15 @@ export function TableCanvas(props: Props) {
   const [size, setSize] = useState({ w: 800, h: 600 });
   const [tick, setTick] = useState(0);
   const redraw = useCallback(() => setTick((t) => t + 1), []);
+  const avatarFor = useMemo(() => {
+    const byId = new Map((props.characters ?? []).map((c) => [c.id, c]));
+    return (id: number) => {
+      const c = byId.get(id);
+      if (!c) return null;
+      const visual = resolveRaceVisual(c.race);
+      return { visual, appearance: normalizeAppearance(parseStoredAppearance(c.appearance), visual), aura: auraForClass(c.class) };
+    };
+  }, [props.characters]);
   const drag = useRef<{ kind: 'pan'; sx: number; sy: number; vx: number; vy: number } | { kind: 'token'; token: VTTToken; ox: number; oy: number } | null>(null);
   const [ghost, setGhost] = useState<{ id: number; x: number; y: number } | null>(null);
   const [ruler, setRuler] = useState<{ a: Pt; b: Pt } | null>(null);
@@ -184,18 +196,23 @@ export function TableCanvas(props: Props) {
       ctx.save();
       ctx.globalAlpha = t.hidden ? 0.45 : 1;
       ctx.beginPath(); ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
-      ctx.fillStyle = t.color || '#c0392b';
+      const linked = !t.image_url && t.character_id ? avatarFor(t.character_id) : null;
+      ctx.fillStyle = linked?.aura ? `${linked.aura}55` : t.color || '#c0392b';
       ctx.fill();
       const img = loadImage(t.image_url, redraw);
       if (img) { ctx.save(); ctx.clip(); ctx.drawImage(img, pos.x - r, pos.y - r, r * 2, r * 2); ctx.restore(); }
-      else {
+      else if (linked) {
+        ctx.save(); ctx.clip();
+        drawAvatarInto(ctx, linked.appearance, linked.visual, null, 'bust', pos.x - r, pos.y - r, r * 2, r * 2);
+        ctx.restore();
+      } else {
         ctx.fillStyle = '#fff';
         ctx.font = `600 ${Math.max(10, r * 0.62)}px Geist, sans-serif`;
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillText(t.name.split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase(), pos.x, pos.y + 1);
       }
       ctx.lineWidth = Math.max(2, 3 / view.z);
-      ctx.strokeStyle = t.id === selectedId ? '#ffffff' : t.owner_user_id === userId ? (css('--accent') || '#ff6a3d') : 'rgba(0,0,0,.55)';
+      ctx.strokeStyle = t.id === selectedId ? '#ffffff' : t.owner_user_id === userId ? (css('--accent') || '#ff6a3d') : linked?.aura ?? 'rgba(0,0,0,.55)';
       if (t.hidden) ctx.setLineDash([6, 4]);
       ctx.beginPath(); ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2); ctx.stroke();
       ctx.setLineDash([]);
@@ -286,7 +303,7 @@ export function TableCanvas(props: Props) {
       ctx.fillText(label, ruler.b.x + 17 / view.z, ruler.b.y - 11 / view.z);
     }
     ctx.restore();
-  }, [scene, visibleTokens, fog, view, size, ghost, ruler, chain, hover, tool, isGM, selectedId, userId, tick, cell, redraw, tokens, objects, combats, zoneDraft, selectedObjectId, activeTokenIds]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [scene, visibleTokens, fog, view, size, ghost, ruler, chain, hover, tool, isGM, selectedId, userId, tick, cell, redraw, tokens, objects, combats, zoneDraft, selectedObjectId, activeTokenIds, avatarFor]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------- Interaction ----------
   const zoomAt = (factor: number, cx: number, cy: number) => {

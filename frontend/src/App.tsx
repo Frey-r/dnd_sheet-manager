@@ -8,6 +8,7 @@ import { CreateCampaignPage } from './pages/CreateCampaign';
 import { CampaignHub } from './pages/CampaignHub';
 import { CharacterSheet } from './pages/CharacterSheet';
 import { CreateCharacterPage } from './pages/CreateCharacter';
+import { EditAppearancePage } from './pages/EditAppearance';
 import { SpellsTab } from './pages/SpellsTab';
 import { InventoryTab } from './pages/InventoryTab';
 import { BiographyTab } from './pages/BiographyTab';
@@ -71,6 +72,7 @@ export default function App() {
       <Route path="campaign/:campaignId/reference" element={<ContentLibrary />} />
       <Route path="campaign/:campaignId/character/new" element={<CreateCharacterPage />} />
       <Route path="campaign/:campaignId/character/:characterId" element={<CharacterSheet />} />
+      <Route path="campaign/:campaignId/character/:characterId/appearance" element={<EditAppearancePage />} />
       <Route path="campaign/:campaignId/character/:characterId/spells" element={<SpellsTab />} />
       <Route path="campaign/:campaignId/character/:characterId/inventory" element={<InventoryTab />} />
       <Route path="campaign/:campaignId/character/:characterId/bio" element={<BiographyTab />} />

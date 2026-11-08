@@ -95,6 +95,8 @@ export interface Character {
   backstory_text: string;
   notes: string;
   spellcasting_ability: string;
+  /** Pixel-art avatar (character-appearance.md); null → race default. */
+  appearance?: unknown;
   created_at: string;
   updated_at: string;
 }

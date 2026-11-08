@@ -45,6 +45,7 @@ type Character struct {
 	BackstoryText       string    `db:"backstory_text" json:"backstory_text"`
 	Notes               string    `db:"notes" json:"notes"`
 	SpellcastingAbility string    `db:"spellcasting_ability" json:"spellcasting_ability"`
+	Appearance          RawJSON   `db:"appearance" json:"appearance"`
 	FoundryUUID         *string   `db:"foundry_uuid" json:"foundry_uuid,omitempty"`
 	IsFoundryOrphan     bool      `db:"is_foundry_orphan" json:"is_foundry_orphan"`
 	CreatedAt           time.Time `db:"created_at" json:"created_at"`
@@ -164,4 +165,12 @@ type CreateCharacterRequest struct {
 	IntScore int `json:"int_score"`
 	WisScore int `json:"wis_score"`
 	ChaScore int `json:"cha_score"`
+	// Rolled characters: the server-made roll set and the scores before increases, so the
+	// assignment and the +2/+1 or +1/+1/+1 increases can be verified.
+	StatRollID *int64  `json:"stat_roll_id"`
+	BaseScores *[6]int `json:"base_scores"`
+	// Walking speed from the chosen race (ft); 0 = derive from the race name.
+	Speed int `json:"speed"`
+	// Pixel-art avatar (character-appearance.md); optional.
+	Appearance RawJSON `json:"appearance"`
 }

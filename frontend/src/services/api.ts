@@ -63,7 +63,8 @@ export const campaignApi = {
 };
 export const characterApi = {
   listByCampaign: (campaignId: number | string) => api.get(`/campaigns/${campaignId}/characters`),
-  create: (data: { name: string; race: string; class: string; campaign_id: number; background?: string; alignment?: string; str_score?: number; dex_score?: number; con_score?: number; int_score?: number; wis_score?: number; cha_score?: number }) => api.post('/characters', data),
+  create: (data: { name: string; race: string; class: string; campaign_id: number; background?: string; alignment?: string; str_score?: number; dex_score?: number; con_score?: number; int_score?: number; wis_score?: number; cha_score?: number; stat_roll_id?: number; base_scores?: number[]; speed?: number; appearance?: unknown }) => api.post('/characters', data),
+  updateAppearance: (id: number | string, appearance: unknown) => api.put(`/characters/${id}/appearance`, appearance),
   get: (id: number | string) => api.get(`/characters/${id}`),
   update: (id: number | string, data: Record<string, unknown>) => api.put(`/characters/${id}`, data),
   updateHP: (id: number | string, data: { current_hp: number; temp_hp: number }) => api.put(`/characters/${id}/hp`, data),

@@ -4,6 +4,7 @@ import { combatApi } from '../services/api';
 import { vttApi } from '../services/vttApi';
 import { useCampaign } from '../lib/useCampaign';
 import { requestRoll } from '../lib/dice';
+import { StatRollsPanel } from '../components/character/StatRollsPanel';
 
 interface Combatant { id: number; name: string; initiative: number; hp: number; max_hp: number; is_player: boolean }
 interface CombatState { round: number; turn: number; combatants: Combatant[] }
@@ -135,6 +136,7 @@ export function GMConsole() {
             <p className="text-[12.5px] text-muted">Se introduce en «Mis campañas → Unirse con código».</p>
             <button type="button" className="mc-btn mt-3 w-full" onClick={() => campaign && navigator.clipboard?.writeText(campaign.join_code)}><span className="material-symbols-outlined text-[18px]">content_copy</span>Copiar código</button>
           </section>
+          <StatRollsPanel campaignId={campaignId} />
           <section className="mc-card p-4">
             <div className="mc-eyebrow">Modo de juego</div>
             <p className="mt-1 text-[13.5px]">{campaign?.game_mode === 'foundry' ? 'Foundry VTT (espejo sincronizado)' : 'Mesa local: la app es la fuente de verdad.'}</p>

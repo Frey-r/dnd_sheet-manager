@@ -30,7 +30,7 @@ func (h *CharacterHandler) Create(c *gin.Context) {
 	char, err := h.charSvc.Create(c.Request.Context(), userID, &req)
 	if err != nil {
 		switch err {
-		case service.ErrInvalidAbilityScore:
+		case service.ErrInvalidAbilityScore, service.ErrRolledScoresMismatch, service.ErrInvalidBonuses, service.ErrInvalidAppearance:
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		case service.ErrForbidden:
 			c.JSON(http.StatusForbidden, gin.H{"error": "campaign membership required"})
@@ -87,6 +87,28 @@ func (h *CharacterHandler) Update(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, char)
+}
+
+// UpdateAppearance replaces the pixel-art avatar (owner or campaign GM).
+func (h *CharacterHandler) UpdateAppearance(c *gin.Context) {
+	raw, err := c.GetRawData()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body"})
+		return
+	}
+	char, err := h.charSvc.UpdateAppearance(c.Request.Context(), parseID(c.Param("id")), middleware.GetUserID(c), raw)
+	switch err {
+	case nil:
+		c.JSON(http.StatusOK, char)
+	case service.ErrInvalidAppearance:
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	case service.ErrNotFound:
+		c.JSON(http.StatusNotFound, gin.H{"error": "character not found"})
+	case service.ErrForbidden:
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update appearance"})
+	}
 }
 
 func (h *CharacterHandler) UpdateHP(c *gin.Context) {

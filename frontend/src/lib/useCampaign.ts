@@ -23,6 +23,8 @@ export interface CharacterSummary {
   max_hp: number;
   temp_hp: number;
   ac: number;
+  /** Pixel-art avatar (character-appearance.md). */
+  appearance?: unknown;
 }
 
 /** Shared campaign context for the shell and pages: campaign, my role, my character. */

@@ -20,13 +20,13 @@ func (r *CharacterRepository) Create(ctx context.Context, c *domain.Character) e
 	query := `
 		INSERT INTO characters (user_id, campaign_id, name, race, class, level, background, alignment,
 			str_score, dex_score, con_score, int_score, wis_score, cha_score,
-			max_hp, current_hp, ac, speed, proficiency_bonus, spellcasting_ability, initiative_bonus, passive_perception)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+			max_hp, current_hp, ac, speed, proficiency_bonus, spellcasting_ability, initiative_bonus, passive_perception, appearance)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
 		RETURNING id, created_at, updated_at`
 	return r.db.QueryRowxContext(ctx, query,
 		c.UserID, c.CampaignID, c.Name, c.Race, c.Class, c.Level, c.Background, c.Alignment,
 		c.StrScore, c.DexScore, c.ConScore, c.IntScore, c.WisScore, c.ChaScore,
-		c.MaxHP, c.CurrentHP, c.AC, c.Speed, c.ProficiencyBonus, c.SpellcastingAbility, c.InitiativeBonus, c.PassivePerception,
+		c.MaxHP, c.CurrentHP, c.AC, c.Speed, c.ProficiencyBonus, c.SpellcastingAbility, c.InitiativeBonus, c.PassivePerception, c.Appearance,
 	).Scan(&c.ID, &c.CreatedAt, &c.UpdatedAt)
 }
 
@@ -75,6 +75,12 @@ func (r *CharacterRepository) Update(ctx context.Context, c *domain.Character) e
 		c.Inspiration, c.XP, c.Gold, c.PersonalityTraits, c.Ideals, c.Bonds,
 		c.Flaws, c.BackstoryText, c.Notes, c.SpellcastingAbility, c.ID,
 	)
+	return err
+}
+
+// UpdateAppearance stores the avatar (nil clears it).
+func (r *CharacterRepository) UpdateAppearance(ctx context.Context, characterID int64, appearance domain.RawJSON) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE characters SET appearance=$1, updated_at=NOW() WHERE id=$2`, appearance, characterID)
 	return err
 }
 
