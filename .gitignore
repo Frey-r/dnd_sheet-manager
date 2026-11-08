@@ -49,3 +49,8 @@ ehthumbs.db
 .env
 .env.*
 !.env.example
+
+# AI agent tooling (local only, not part of the app)
+.claude/
+.agents/
+skills-lock.json
