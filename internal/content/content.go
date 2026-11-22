@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -108,7 +109,53 @@ func Load(root string) (*LoadResult, error) {
 		}
 		entity.References = references(entity.Data)
 	}
+	if err := mergeSpellClassLists(root, result); err != nil {
+		return nil, err
+	}
 	return result, nil
+}
+
+// mergeSpellClassLists attaches class lists to spells. Since 5etools v2.x a spell no longer
+// carries its classes inline: they live in spells/sources.json as
+// {BOOK: {SpellName: {"class": [{name, source}], "classVariant": [...]}}}. Without this the
+// spell planner and the per-class spell filters find nothing. Inline "classes" win.
+func mergeSpellClassLists(root string, result *LoadResult) error {
+	raw, err := os.ReadFile(filepath.Join(root, "spells", "sources.json"))
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("read spells/sources.json: %w", err)
+	}
+	var books map[string]map[string]map[string]any
+	if err := json.Unmarshal(raw, &books); err != nil {
+		return fmt.Errorf("parse spells/sources.json: %w", err)
+	}
+	lookup := map[string]map[string]any{}
+	for book, spells := range books {
+		for name, lists := range spells {
+			lookup[normalize(book)+"|"+normalize(name)] = lists
+		}
+	}
+	merged := 0
+	for i := range result.Entities {
+		entity := &result.Entities[i]
+		if entity.Type != "spell" || entity.Data["classes"] != nil {
+			continue
+		}
+		name := stringValue(entity.Data["name"])
+		if name == "" {
+			name = entity.Name
+		}
+		if lists, ok := lookup[normalize(entity.Source)+"|"+normalize(name)]; ok {
+			entity.Data["classes"] = lists
+			merged++
+		}
+	}
+	if merged == 0 && result.Counts["spell"] > 0 {
+		result.Warnings = append(result.Warnings, "spells/sources.json matched no spell: per-class spell lists will be empty")
+	}
+	return nil
 }
 
 var referencePattern = regexp.MustCompile(`\{@([A-Za-z]+)\s+([^}|]+)(?:\|([^}]*))?}`)
@@ -169,7 +216,12 @@ func loadFile(root, path string) ([]Entity, error) {
 				name += " [" + flatIdentityText(data["pantheon"]) + "]"
 			}
 			if entityType == "magicvariant" {
-				name += " [" + flatIdentityText(data["inherits"]) + "]"
+				// Qualify by the inherited source only: "inherits" is a whole item template
+				// (entries, tables...), and printing it made names of several KB that broke
+				// the unique index (e.g. Moonblade in 5etools v2.30).
+				if inherits, ok := data["inherits"].(map[string]any); ok && stringValue(inherits["source"]) != "" {
+					name += " [" + stringValue(inherits["source"]) + "]"
+				}
 			}
 			source := stringValue(data["source"])
 			if source == "" {
@@ -335,9 +387,20 @@ func identity(entityType, name, source string) string {
 func Normalize(value string) string { return normalize(value) }
 func normalize(value string) string { return strings.Join(strings.Fields(strings.ToLower(value)), " ") }
 
+// flatIdentityText renders a value used to qualify an entity name. Scalars are used as is;
+// anything else (maps, lists) becomes a short stable hash so identity strings stay small
+// enough for the (entity_type, normalized_name, source) btree index.
 func flatIdentityText(value any) string {
 	if text := stringValue(value); text != "" {
 		return text
+	}
+	switch value.(type) {
+	case nil:
+		return ""
+	case map[string]any, []any:
+		encoded, _ := json.Marshal(value)
+		sum := sha256.Sum256(encoded)
+		return hex.EncodeToString(sum[:4])
 	}
 	return fmt.Sprint(value)
 }

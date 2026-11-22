@@ -126,7 +126,7 @@ func projectLegacy(ctx context.Context, tx *sql.Tx, contentID int64, entity Enti
 		_, err := tx.ExecContext(ctx, `INSERT INTO srd_spells(name,level,school,casting_time,range,duration,concentration,ritual,components_v,components_s,components_m,material_desc,description,higher_levels,classes,damage_type,area_type,is_srd,source,content_entity_id)
 			VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
 			ON CONFLICT(name,source) DO UPDATE SET level=EXCLUDED.level,school=EXCLUDED.school,casting_time=EXCLUDED.casting_time,range=EXCLUDED.range,duration=EXCLUDED.duration,concentration=EXCLUDED.concentration,ritual=EXCLUDED.ritual,components_v=EXCLUDED.components_v,components_s=EXCLUDED.components_s,components_m=EXCLUDED.components_m,material_desc=EXCLUDED.material_desc,description=EXCLUDED.description,higher_levels=EXCLUDED.higher_levels,classes=EXCLUDED.classes,damage_type=EXCLUDED.damage_type,area_type=EXCLUDED.area_type,is_srd=EXCLUDED.is_srd,content_entity_id=EXCLUDED.content_entity_id`,
-			entity.Name, intValue(data["level"]), stringValue(data["school"]), flatText(data["time"]), flatText(data["range"]), flatText(data["duration"]), nestedBool(data, "duration", "concentration"), nestedBool(data, "meta", "ritual"), components["v"] == true, components["s"] == true, components["m"] != nil && components["m"] != false, flatText(components["m"]), flatText(data["entries"]), flatText(data["entriesHigherLevel"]), jsonValue(classNames(data["classes"])), flatText(data["damageInflict"]), flatText(data["areaTags"]), entity.IsSRD, entity.Source, contentID)
+			entity.Name, intValue(data["level"]), schoolName(stringValue(data["school"])), flatText(data["time"]), flatText(data["range"]), flatText(data["duration"]), nestedBool(data, "duration", "concentration"), nestedBool(data, "meta", "ritual"), components["v"] == true, components["s"] == true, components["m"] != nil && components["m"] != false, flatText(components["m"]), flatText(data["entries"]), flatText(data["entriesHigherLevel"]), jsonValue(classNames(data["classes"])), flatText(data["damageInflict"]), flatText(data["areaTags"]), entity.IsSRD, entity.Source, contentID)
 		return err
 	case "monster":
 		ac := firstNumber(data["ac"], 10)
@@ -134,23 +134,28 @@ func projectLegacy(ctx context.Context, tx *sql.Tx, contentID int64, entity Enti
 		if hpData, ok := data["hp"].(map[string]any); ok {
 			hp = intValue(hpData["average"])
 		}
-		monsterType := flatText(data["type"])
+		monsterType, subtype := monsterTypeParts(data["type"])
 		cr := flatText(data["cr"])
 		if crData, ok := data["cr"].(map[string]any); ok {
 			cr = flatText(crData["cr"])
 		}
 		_, err := tx.ExecContext(ctx, `INSERT INTO srd_monsters(name,size,type,subtype,alignment,ac,ac_type,hp,hit_dice,speed,str,dex,con,"int",wis,cha,cr,xp,senses,languages,traits,actions,legendary_actions,reactions,resistances,immunities,vulnerabilities,condition_immunities,saving_throws,skills,proficiency_bonus,is_srd,source,content_entity_id)
 			VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34)
-			ON CONFLICT(name,source) DO UPDATE SET size=EXCLUDED.size,type=EXCLUDED.type,alignment=EXCLUDED.alignment,ac=EXCLUDED.ac,hp=EXCLUDED.hp,hit_dice=EXCLUDED.hit_dice,speed=EXCLUDED.speed,str=EXCLUDED.str,dex=EXCLUDED.dex,con=EXCLUDED.con,"int"=EXCLUDED.int,wis=EXCLUDED.wis,cha=EXCLUDED.cha,cr=EXCLUDED.cr,xp=EXCLUDED.xp,senses=EXCLUDED.senses,languages=EXCLUDED.languages,traits=EXCLUDED.traits,actions=EXCLUDED.actions,legendary_actions=EXCLUDED.legendary_actions,reactions=EXCLUDED.reactions,is_srd=EXCLUDED.is_srd,content_entity_id=EXCLUDED.content_entity_id`,
-			entity.Name, firstString(data["size"], "M"), monsterType, "", flatText(data["alignment"]), ac, flatText(data["ac"]), hp, nestedString(data, "hp", "formula"), jsonValue(data["speed"]), intValue(data["str"]), intValue(data["dex"]), intValue(data["con"]), intValue(data["int"]), intValue(data["wis"]), intValue(data["cha"]), cr, crXP(cr), flatText(data["senses"]), flatText(data["languages"]), jsonValue(data["trait"]), jsonValue(data["action"]), jsonValue(data["legendary"]), jsonValue(data["reaction"]), flatText(data["resist"]), flatText(data["immune"]), flatText(data["vulnerable"]), flatText(data["conditionImmune"]), jsonValue(data["save"]), jsonValue(data["skill"]), proficiency(cr), entity.IsSRD, entity.Source, contentID)
+			ON CONFLICT(name,source) DO UPDATE SET size=EXCLUDED.size,type=EXCLUDED.type,subtype=EXCLUDED.subtype,alignment=EXCLUDED.alignment,ac=EXCLUDED.ac,hp=EXCLUDED.hp,hit_dice=EXCLUDED.hit_dice,speed=EXCLUDED.speed,str=EXCLUDED.str,dex=EXCLUDED.dex,con=EXCLUDED.con,"int"=EXCLUDED.int,wis=EXCLUDED.wis,cha=EXCLUDED.cha,cr=EXCLUDED.cr,xp=EXCLUDED.xp,senses=EXCLUDED.senses,languages=EXCLUDED.languages,traits=EXCLUDED.traits,actions=EXCLUDED.actions,legendary_actions=EXCLUDED.legendary_actions,reactions=EXCLUDED.reactions,is_srd=EXCLUDED.is_srd,content_entity_id=EXCLUDED.content_entity_id`,
+			entity.Name, sizeName(firstString(data["size"], "M")), monsterType, subtype, flatText(data["alignment"]), ac, flatText(data["ac"]), hp, nestedString(data, "hp", "formula"), jsonValue(data["speed"]), intValue(data["str"]), intValue(data["dex"]), intValue(data["con"]), intValue(data["int"]), intValue(data["wis"]), intValue(data["cha"]), cr, crXP(cr), flatText(data["senses"]), flatText(data["languages"]), jsonValue(data["trait"]), jsonValue(data["action"]), jsonValue(data["legendary"]), jsonValue(data["reaction"]), flatText(data["resist"]), flatText(data["immune"]), flatText(data["vulnerable"]), flatText(data["conditionImmune"]), jsonValue(data["save"]), jsonValue(data["skill"]), proficiency(cr), entity.IsSRD, entity.Source, contentID)
 		return err
 	case "class":
 		hitDie := 8
 		if hd, ok := data["hd"].(map[string]any); ok {
 			hitDie = intValue(hd["faces"])
 		}
-		_, err := tx.ExecContext(ctx, `INSERT INTO srd_classes(name,hit_die,primary_ability,saving_throws,armor_proficiencies,weapon_proficiencies,tool_proficiencies,skill_choices,starting_equipment,spellcasting_ability,description,is_srd,source,content_entity_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) ON CONFLICT(name,source) DO UPDATE SET hit_die=EXCLUDED.hit_die,description=EXCLUDED.description,is_srd=EXCLUDED.is_srd,content_entity_id=EXCLUDED.content_entity_id`, entity.Name, hitDie, jsonValue(data["primaryAbility"]), jsonValue(data["proficiency"]), jsonValue(data["startingProficiencies"]), jsonValue(data["startingProficiencies"]), jsonValue(data["startingProficiencies"]), jsonValue(data["startingProficiencies"]), flatText(data["startingEquipment"]), flatText(data["spellcastingAbility"]), flatText(data["entries"]), entity.IsSRD, entity.Source, contentID)
-		return err
+		var classID int64
+		err := tx.QueryRowContext(ctx, `INSERT INTO srd_classes(name,hit_die,primary_ability,saving_throws,armor_proficiencies,weapon_proficiencies,tool_proficiencies,skill_choices,starting_equipment,spellcasting_ability,description,is_srd,source,content_entity_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) ON CONFLICT(name,source) DO UPDATE SET hit_die=EXCLUDED.hit_die,spellcasting_ability=EXCLUDED.spellcasting_ability,description=EXCLUDED.description,is_srd=EXCLUDED.is_srd,content_entity_id=EXCLUDED.content_entity_id RETURNING id`, entity.Name, hitDie, jsonValue(data["primaryAbility"]), jsonValue(data["proficiency"]), jsonValue(data["startingProficiencies"]), jsonValue(data["startingProficiencies"]), jsonValue(data["startingProficiencies"]), jsonValue(data["startingProficiencies"]), flatText(data["startingEquipment"]), flatText(data["spellcastingAbility"]), flatText(data["entries"]), entity.IsSRD, entity.Source, contentID).Scan(&classID)
+		if err != nil {
+			return err
+		}
+		// The spell planner reads srd_class_spell_slots; project the class table into it.
+		return projectClassProgression(ctx, tx, classID, data)
 	case "race":
 		_, err := tx.ExecContext(ctx, `INSERT INTO srd_races(name,speed,size,ability_bonuses,traits,languages,subraces,description,is_srd,source,content_entity_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT(name,source) DO UPDATE SET speed=EXCLUDED.speed,size=EXCLUDED.size,ability_bonuses=EXCLUDED.ability_bonuses,traits=EXCLUDED.traits,languages=EXCLUDED.languages,description=EXCLUDED.description,is_srd=EXCLUDED.is_srd,content_entity_id=EXCLUDED.content_entity_id`, entity.Name, firstNumber(data["speed"], 30), firstString(data["size"], "M"), jsonValue(data["ability"]), jsonValue(data["entries"]), jsonValue(data["languageProficiencies"]), jsonValue(data["subraces"]), flatText(data["entries"]), entity.IsSRD, entity.Source, contentID)
 		return err
@@ -261,6 +266,10 @@ func firstString(value any, fallback string) string {
 func firstNumber(value any, fallback int) int {
 	if list, ok := value.([]any); ok && len(list) > 0 {
 		if object, ok := list[0].(map[string]any); ok {
+			// Monster AC entries are {"ac": 19, "from": [...]}; speeds and others use "number".
+			if ac, present := object["ac"]; present {
+				return intValue(ac)
+			}
 			return intValue(object["number"])
 		}
 		return intValue(list[0])
@@ -297,6 +306,7 @@ func nullableInt(value any) any {
 }
 func classNames(value any) []string {
 	names := []string{}
+	seen := map[string]bool{}
 	var visit func(any)
 	visit = func(current any) {
 		switch typed := current.(type) {
@@ -306,7 +316,10 @@ func classNames(value any) []string {
 			}
 		case map[string]any:
 			if name := stringValue(typed["name"]); name != "" {
-				names = append(names, name)
+				if !seen[name] { // the same class appears once per edition (PHB, XPHB...)
+					seen[name] = true
+					names = append(names, name)
+				}
 			} else {
 				for _, child := range typed {
 					visit(child)
@@ -362,4 +375,67 @@ func crValue(cr string) float64 {
 	}
 	value, _ := strconv.ParseFloat(cr, 64)
 	return value
+}
+
+// monsterTypeParts splits a 5etools creature type into the main type and its tags:
+// "dragon" | {"type":"humanoid","tags":["goblinoid"]} | {"type":{"choose":["beast","monstrosity"]}}.
+// The main type alone is what the bestiary and encounter builder filter on.
+func monsterTypeParts(value any) (string, string) {
+	object, ok := value.(map[string]any)
+	if !ok {
+		return strings.ToLower(flatText(value)), ""
+	}
+	main := ""
+	switch typed := object["type"].(type) {
+	case string:
+		main = typed
+	case map[string]any:
+		if choices, ok := typed["choose"].([]any); ok {
+			parts := make([]string, 0, len(choices))
+			for _, choice := range choices {
+				parts = append(parts, flatText(choice))
+			}
+			main = strings.Join(parts, " or ")
+		}
+	}
+	var tags []string
+	if list, ok := object["tags"].([]any); ok {
+		for _, tag := range list {
+			if tagObject, ok := tag.(map[string]any); ok {
+				tags = append(tags, flatText(tagObject["tag"]))
+			} else if text := flatText(tag); text != "" {
+				tags = append(tags, text)
+			}
+		}
+	}
+	return strings.ToLower(strings.TrimSpace(main)), strings.Join(tags, ", ")
+}
+
+// sizeName maps 5etools size codes to the words the UI and filters use.
+func sizeName(code string) string {
+	switch strings.ToUpper(strings.TrimSpace(code)) {
+	case "T":
+		return "Tiny"
+	case "S":
+		return "Small"
+	case "M":
+		return "Medium"
+	case "L":
+		return "Large"
+	case "H":
+		return "Huge"
+	case "G":
+		return "Gargantuan"
+	}
+	return code
+}
+
+// schoolName expands 5etools school codes ("V") to the names the UI and filters use.
+func schoolName(code string) string {
+	names := map[string]string{"A": "Abjuration", "C": "Conjuration", "D": "Divination", "E": "Enchantment",
+		"V": "Evocation", "I": "Illusion", "N": "Necromancy", "T": "Transmutation", "P": "Psionic"}
+	if name, ok := names[strings.ToUpper(strings.TrimSpace(code))]; ok {
+		return name
+	}
+	return code
 }
