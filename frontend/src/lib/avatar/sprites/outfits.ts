@@ -1,325 +1,467 @@
-/* Ten preset outfits, each with a primary (P) and a secondary (Q) colour.
+/* Ten outfits on the three-quarter pose, each with a primary (P) and a secondary (Q) colour.
    0 túnica · 1 jubón · 2 camisa y chaleco · 3 abrigo largo · 4 vestido · 5 corsé y falda ·
    6 blusa y pantalón · 7 capa corta · 8 armadura ligera · 9 túnica de mago.
-   Any body may wear any outfit (character-appearance.md). */
+   Drawn in canonical body coordinates (painter.ts, CANON); any body and size can wear any outfit.
+
+   Template keys (one character per pixel, '.' = nothing):
+   P 1 hi 2 light 3 base 4 shadow 5 deep · Q 6 hi 7 light 8 base 9 shadow 0 deep
+   gold Y G M L F (hi → deep) · W white glint · leather a b c e · metal i j m u v
+   skin k K D · n ink (fold lines, as in the reference sprite). */
 import { mix, ramp, type Ramp } from '../color';
-import { FOOT_Y, mx } from '../painter';
-import { shadeSpan } from './body';
+import type { Painter } from '../painter';
 import type { DrawCtx } from './context';
 
-const LEATHER = ramp('#7a4e2c');
-const BOOT = ramp('#4e3427');
-const DARK = ramp('#3a3644');
-const METAL = ramp('#a9b2bd');
-const GOLD = ramp('#e2b043');
+const LEATHER = ramp('#7a4a2a');
+const DARK = ramp('#3b3242');
+const METAL = ramp('#a3adba');
 
-/** Torso rows y1…y2 (grow widens them, e.g. for loose tunics). */
-function torso(c: DrawCtx, r: Ramp, y1: number, y2: number, grow = 0) {
-  for (let y = y1; y <= y2; y++) {
-    const [x1, x2] = c.f.span(Math.min(y, c.f.torsoBottom));
-    shadeSpan(c.p, y, x1 - grow, x2 + grow, r, y === y2 && y2 > c.f.waistY ? 1 : 0);
-  }
+/** Upper body templates start at this row and column. */
+const TOP_Y = 27;
+const TOP_X = 8;
+
+function keyMap(c: DrawCtx, P: Ramp, Q: Ramp): Record<string, string> {
+  const s = c.skin;
+  return {
+    1: P.hi, 2: P.light, 3: P.base, 4: P.shadow, 5: P.deep,
+    6: Q.hi, 7: Q.light, 8: Q.base, 9: Q.shadow, 0: Q.deep,
+    // Gold trims use the reference's fixed gold ramp.
+    Y: '#fdf780', G: '#fed958', M: '#f7b61f', L: '#eaa211', F: '#bd7720', W: '#eef8f4',
+    a: LEATHER.light, b: LEATHER.base, c: LEATHER.shadow, e: LEATHER.deep,
+    i: METAL.hi, j: METAL.light, m: METAL.base, u: METAL.shadow, v: METAL.deep,
+    k: s.base, K: s.shadow, D: s.deep,
+    n: mix(P.ink, '#201e1e', 0.7),
+  };
 }
 
-/** Both sleeves from the shoulder, `rows` long (the hands are never covered). */
-function sleeves(c: DrawCtx, r: Ramp, rows: number, cuff?: Ramp, puff = 0) {
-  const { arm, handH } = c.f;
-  const n = Math.min(rows, arm.h - handH);
-  for (const right of [false, true]) {
-    for (let j = 0; j < n; j++) {
-      const y = arm.y + j;
-      const grow = j < puff ? 1 : 0;
-      const x1 = right ? mx(arm.x + arm.w - 1) : arm.x - grow;
-      const x2 = right ? mx(arm.x) + grow : arm.x + arm.w - 1;
-      const rr = cuff && j === n - 1 ? cuff : r;
-      shadeSpan(c.p, y, x1, x2, rr, right ? 1 : 0);
+/* Legs (from row 44): hips, the near leg straight under the weight, the far leg stepping out to the
+   right; the far foot sits one row higher (further away). Digits are tones of the leg material. */
+const LEG_X = 16;
+const LEG_Y = 44;
+const LEGS = [
+  '.2333333334444',
+  '.2334...23345',
+  '.2334....2334',
+  '.2334....2334',
+  '.2334.....2334',
+  '..234.....2334',
+  '..234......234',
+  '..234......2334',
+  '..23334....23345',
+  '..44555',
+];
+
+function legs(c: DrawCtx, pants: Ramp, boots: Ramp, bootH: number) {
+  const top = 53 - bootH + 1;
+  LEGS.forEach((row, j) => {
+    const y = LEG_Y + j;
+    const r = y >= top || j >= 8 ? boots : pants;
+    for (let i = 0; i < row.length; i++) {
+      const t = row[i];
+      if (t === '.') continue;
+      const cuff = bootH > 2 && y === top && t !== '5';
+      c.p.set(LEG_X + i, y, cuff ? r.light : t === '2' ? r.light : t === '3' ? r.base : t === '4' ? r.shadow : r.deep);
     }
-    // Rounded shoulder.
-    c.p.clear(right ? mx(arm.x) + (puff ? 1 : 0) : arm.x - (puff ? 1 : 0), arm.y);
-  }
+  });
 }
 
-/** Trousers: hips and both legs down to the ankle. */
-function pants(c: DrawCtx, r: Ramp, fromY = c.f.waistY + 2) {
-  const { leg } = c.f;
-  torso(c, r, fromY, c.f.torsoBottom);
-  for (const right of [false, true]) {
-    const x = right ? mx(leg.x + leg.w - 1) : leg.x;
-    for (let y = leg.y; y < leg.y + leg.h; y++) shadeSpan(c.p, y, x, x + leg.w - 1, r, right ? 1 : 0);
-  }
+/* Flowing elements in Q, behind the body, sweeping to the viewer's left like the reference's
+   golden wing: 6 highlight edge, 7 light, 8 base, 9 shadow, 0 deep. */
+const FLOW: Record<'wing' | 'scarf' | 'cape' | 'sash', { x: number; y: number; rows: string[] }> = {
+  wing: {
+    x: 0, y: 18,
+    rows: [
+      '78',
+      '8778',
+      '87768',
+      '8776677',
+      '977666677',
+      '.9776666677',
+      '.977766666677',
+      '..97776666666788',
+      '..977776666666677',
+      '...9977776666666689',
+      '.....97766666677669',
+      '......99977666666677',
+      '.........99966766667',
+      '...........97777666',
+      '........88877767766',
+      '..8888888777777776',
+      '..877777777777777',
+      '...8777787777999',
+      '....8777779999',
+      '.....99999',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '.......8.......8877',
+      '.......87....897777',
+      '........97778777777',
+      '.........9977777799',
+      '...........999999',
+    ],
+  },
+  scarf: {
+    x: 0, y: 21,
+    rows: [
+      '78',
+      '8778',
+      '87768',
+      '987766',
+      '.98776667',
+      '.9987766667',
+      '..99887766667',
+      '....998877766677',
+      '......99988877777',
+      '.........9998888777',
+      '............999888',
+      '...............99',
+    ],
+  },
+  cape: {
+    x: 3, y: 29,
+    rows: [
+      '...........778888999',
+      '.........7788888899900',
+      '.......7788888888999000',
+      '......77888888889990000',
+      '.....778888888899900000',
+      '....7788888888999000000',
+      '...77888888889990000000',
+      '...7888888889990000000',
+      '..77888888899900000000',
+      '..7888888899900000000',
+      '.77888888999000000000',
+      '.7888888899000000000',
+      '7788888899000000000',
+      '7888888899000000000',
+      '788888889900000000',
+      '788888899900000000',
+      '78888889990000000',
+      '7888888999000000',
+      '.888888999000000',
+      '.8888.8899..00',
+      '..88...889',
+    ],
+  },
+  sash: {
+    x: 2, y: 37,
+    rows: [
+      '..........776',
+      '.......7788877',
+      '....77888889988',
+      '..7788899990',
+      '.7889990',
+      '7899',
+      '79',
+      '',
+      '......67',
+      '....77887',
+      '...788899',
+      '..78890',
+      '.789',
+      '.79',
+    ],
+  },
+};
+
+function flow(p: Painter, kind: keyof typeof FLOW, Q: Ramp) {
+  const f = FLOW[kind];
+  p.stamp(f.x, f.y, f.rows, { 6: Q.hi, 7: Q.light, 8: Q.base, 9: Q.shadow, 0: Q.deep });
 }
 
-/** Shoes, plus `height` rows of boot shaft over the leg. */
-function boots(c: DrawCtx, r: Ramp, height: number) {
-  const { leg } = c.f;
-  for (const right of [false, true]) {
-    const x = right ? mx(leg.x + leg.w - 1) : leg.x;
-    for (let y = leg.y + leg.h - height; y < leg.y + leg.h; y++) shadeSpan(c.p, y, x, x + leg.w - 1, r, right ? 1 : 0);
-    const fx = right ? x : x - 1;
-    shadeSpan(c.p, FOOT_Y - 1, fx, fx + leg.w, r, right ? 1 : 0);
-    shadeSpan(c.p, FOOT_Y, fx, fx + leg.w, r, 1);
-    if (height > 2) c.p.hline(x, x + leg.w - 1, leg.y + leg.h - height, r.light);
-  }
-}
-
-/** Skirt or coat tail from y1 to y2, flaring out; vertical folds every few columns. */
-function skirt(c: DrawCtx, r: Ramp, y1: number, y2: number, flare: number, hem?: Ramp) {
-  const [hx1, hx2] = c.f.span(c.f.torsoBottom);
-  for (let y = y1; y <= y2; y++) {
-    const t = (y - y1) / Math.max(1, y2 - y1);
-    const g = Math.round(t * flare);
-    const x1 = hx1 - g;
-    const x2 = hx2 + g;
-    const rr = hem && y >= y2 - 1 ? hem : r;
-    shadeSpan(c.p, y, x1, x2, rr, y === y2 && !hem ? 1 : 0);
-    for (let x = x1 + 3; x < x2 - 1; x += 4) if (y > y1 + 1) c.p.set(x, y, rr.shadow);
-  }
-}
-
-function belt(c: DrawCtx, y: number, r: Ramp = LEATHER, buckle = true) {
-  const [x1, x2] = c.f.span(y);
-  shadeSpan(c.p, y, x1, x2, r, 0);
-  if (buckle) { c.p.hline(23, 24, y, GOLD.base); c.p.set(23, y, GOLD.hi); }
-}
-
-/** V neckline showing skin, with a trim in r. */
-function vNeck(c: DrawCtx, trim: Ramp, depth = 2) {
-  const { p, f, skin } = c;
-  for (let j = 0; j < depth; j++) {
-    const hw = depth - j;
-    p.hline(24 - hw, 23 + hw, f.torsoTop + j, j === depth - 1 ? skin.shadow : skin.base);
-    p.set(23 - hw, f.torsoTop + j, trim.base);
-    p.set(24 + hw, f.torsoTop + j, trim.shadow);
-  }
-  p.hline(23, 24, f.torsoTop + depth, trim.base);
-}
-
-/** Bare forearm rows are already skin; this darkens the arm edge next to the torso. */
-function armContour(c: DrawCtx) {
-  const { p, f } = c;
-  const { arm } = f;
-  const inner = arm.x + arm.w - 1;
-  for (let y = arm.y + 1; y < arm.y + arm.h; y++) {
-    for (const x of [inner, mx(inner)]) {
-      const col = p.get(x, y);
-      if (col) p.set(x, y, mix(col.slice(0, 7), '#140c18', 0.45));
-    }
-  }
+/** Far forearm cuff next to the raised hand. */
+function farSleeve(p: Painter, r: Ramp) {
+  p.stamp(31, 32, ['.3', '34', '45', '5.'], { 3: r.base, 4: r.shadow, 5: r.deep });
 }
 
 interface Outfit {
-  /** Behind the body (capes). */
-  back?: (c: DrawCtx, P: Ramp, Q: Ramp) => void;
-  body: (c: DrawCtx, P: Ramp, Q: Ramp) => void;
+  top: string[];
+  /** Extra template drawn after the legs (skirts and coat tails), from row `skirtY`. */
+  skirt?: string[];
+  skirtY?: number;
+  pants: (P: Ramp, Q: Ramp) => Ramp;
+  boots: (P: Ramp, Q: Ramp) => Ramp;
+  bootH: number;
+  flow: keyof typeof FLOW;
+  sleeve: (P: Ramp, Q: Ramp) => Ramp;
 }
 
+const darker = (r: Ramp, k = 0.55) => ramp(mix('#151018', r.base, k));
+
 const OUTFITS: Outfit[] = [
-  { // 0 Túnica: belted tunic over trousers.
-    body: (c, P, Q) => {
-      const f = c.f;
-      pants(c, ramp(mix(Q.base, '#2b2b30', 0.55)));
-      boots(c, BOOT, 3);
-      torso(c, P, f.torsoTop, f.torsoBottom);
-      skirt(c, P, f.torsoBottom + 1, f.torsoBottom + 3, 1);
-      c.p.hline(f.span(f.torsoBottom)[0] - 1, f.span(f.torsoBottom)[1] + 1, f.torsoBottom + 3, Q.base);
-      sleeves(c, P, 99, Q);
-      vNeck(c, Q, 3);
-      belt(c, f.waistY + 1);
-    },
+  { // 0 Túnica: belted tunic with a V neck and trimmed hem, trousers and short boots.
+    top: [
+      '..........2333KKKK334',
+      '.........233338KK83344',
+      '........23333338KK83344',
+      '........233333338833444',
+      '........2333333333333445',
+      '.......23342333333333445',
+      '......233423333333333445',
+      '.....2334233333333433445',
+      '....23344333333333433445',
+      '....789.4333333333433445',
+      '.....89..23333333334445',
+      '.........abbbbbYMbbbbcc',
+      '.........23333333334445',
+      '........2333433333433445',
+      '........2334333334334445',
+      '.......233433333433334455',
+      '.......778888888888889990',
+    ],
+    pants: (_P, Q) => darker(Q, 0.5), boots: () => LEATHER, bootH: 3, flow: 'scarf', sleeve: (P) => P,
   },
-  { // 1 Jubón: doublet with puffed, slashed shoulders and buttons.
-    body: (c, P, Q) => {
-      const f = c.f;
-      pants(c, ramp(shadeHex(Q.base, 0.75)));
-      boots(c, DARK, 5);
-      torso(c, P, f.torsoTop, f.torsoBottom - 1);
-      c.p.hline(f.span(f.torsoTop)[0], f.span(f.torsoTop)[1], f.torsoTop, Q.light);
-      torso(c, Q, f.torsoBottom - 1, f.torsoBottom - 1);
-      for (let y = f.torsoTop + 2; y < f.torsoBottom - 1; y += 2) c.p.set(23, y, GOLD.light);
-      c.p.vline(24, f.torsoTop + 1, f.torsoBottom - 2, P.shadow);
-      sleeves(c, P, 99, Q);
-      sleeves(c, Q, 3, undefined, 3);
-      for (const x of [f.arm.x, mx(f.arm.x)]) c.p.vline(x + 1, f.arm.y, f.arm.y + 2, P.base);
-    },
+  { // 1 Jubón: doublet with puffed, slashed shoulders, gold buttons and a short peplum.
+    top: [
+      '..........7888KKKK889',
+      '.........788888KK88899',
+      '.......67888888888889990',
+      '......6788878888888899900',
+      '......7888788333333888999',
+      '.......9884233M333333445',
+      '......2334233333333333445',
+      '.....233423333M333333445',
+      '....2334433333333333445',
+      '....789.4333333M33333445',
+      '.....89..2333333333334445',
+      '.........23333333M333445',
+      '.........99999999999900',
+      '........7888888888888999',
+      '........78898888898889990',
+      '.......00000000000000000',
+      '',
+    ],
+    pants: (_P, Q) => darker(Q, 0.7), boots: () => DARK, bootH: 6, flow: 'scarf', sleeve: (P) => P,
   },
-  { // 2 Camisa y chaleco: rolled-up shirt, open vest and a neckerchief.
-    body: (c, P, Q) => {
-      const f = c.f;
-      pants(c, ramp('#5a4636'));
-      boots(c, BOOT, 3);
-      torso(c, Q, f.torsoTop, f.torsoBottom);
-      for (let y = f.torsoTop; y <= f.torsoBottom; y++) {
-        const [x1, x2] = f.span(y);
-        const open = y < f.torsoTop + 3 ? 2 : 1;
-        shadeSpan(c.p, y, x1, 23 - open, P, 0);
-        shadeSpan(c.p, y, 24 + open, x2, P, 1);
-      }
-      sleeves(c, Q, Math.ceil((f.arm.h - f.handH) * 0.55), ramp(shadeHex(Q.base, 0.85)));
-      c.p.stamp(21, f.torsoTop, ['lbbbbs', '.lbbs.', '..bs..'], { l: P.light, b: P.base, s: P.shadow });
-      belt(c, f.waistY + 2, LEATHER, false);
-    },
+  { // 2 Camisa y chaleco: shirt with rolled sleeves, open vest and a neckerchief.
+    top: [
+      '..........7888KKKK889',
+      '.........2338887788344',
+      '........233333888833444',
+      '........2333337887334445',
+      '........2333337887334445',
+      '.......7889233788733445',
+      '......778923378873334445',
+      '.....kkkK2333788733344',
+      '....kkkKK3333788733344',
+      '....kkK..3333788733344',
+      '.....kK..33337887333445',
+      '.........bbbbbbbbbbbcc',
+      '.........33337887333445',
+      '.........3333788733344',
+      '.........3333788733344',
+      '.........4444900944445',
+      '',
+    ],
+    pants: () => ramp('#5a4636'), boots: () => LEATHER, bootH: 3, flow: 'scarf', sleeve: (_P, Q) => Q,
   },
-  { // 3 Abrigo largo: long open coat with lapels and cuffs.
-    body: (c, P, Q) => {
-      const f = c.f;
-      pants(c, DARK);
-      boots(c, DARK, 5);
-      torso(c, P, f.torsoTop, f.torsoBottom);
-      const knee = f.leg.y + Math.round(f.leg.h * 0.6);
-      skirt(c, P, f.torsoBottom + 1, knee, 2);
-      for (let y = f.waistY + 1; y <= knee; y++) c.p.hline(23, 24, y, y > f.torsoBottom ? DARK.shadow : Q.shadow);
-      c.p.stamp(19, f.torsoTop, ['.bbs..sbb.', '..bbsbbs..', '...bss....', '....bs....'], { b: Q.base, s: Q.shadow });
-      for (let y = f.torsoTop + 4; y <= f.waistY; y += 2) c.p.set(22, y, GOLD.base);
-      sleeves(c, P, 99, Q);
-    },
+  { // 3 Abrigo largo: long open coat with lapels, gold buttons and cuffs.
+    top: [
+      '..........8999KKKK990',
+      '.........2799900K09944',
+      '........23379990099344',
+      '........233379900993444',
+      '........2333379009933445',
+      '.......2334233M00M334445',
+      '......233423333000333445',
+      '.....2334233M300M3334445',
+      '....23344333330003334445',
+      '....GLF.433333M00M334445',
+      '.....LF..2333330003334445',
+      '.........2333330003334445',
+      '........23333333003334445',
+      '........23334333003334445',
+      '.......233343333003334455',
+      '.......233433333003333455',
+      '.......233433333..3333455',
+    ],
+    skirtY: 44,
+    skirt: [
+      '.......23343333...333455',
+      '.......2343333.....33455',
+      '......23343333.....33345',
+      '......2343333.......3345',
+      '......234333.........345',
+      '.......4455...........55',
+    ],
+    pants: () => DARK, boots: () => DARK, bootH: 4, flow: 'cape', sleeve: (P) => P,
   },
-  { // 4 Vestido: fitted bodice, sash and a long flared skirt.
-    body: (c, P, Q) => {
-      const f = c.f;
-      boots(c, ramp(shadeHex(Q.base, 0.6)), 0);
-      torso(c, P, f.torsoTop, f.waistY);
-      c.p.hline(f.span(f.torsoTop)[0], f.span(f.torsoTop)[1], f.torsoTop, P.light);
-      torso(c, Q, f.waistY + 1, f.waistY + 2);
-      c.p.stamp(21, f.waistY, ['ll..ss', '.lbbs.', 'lb..bs'], { l: Q.light, b: Q.base, s: Q.shadow });
-      skirt(c, P, f.waistY + 3, FOOT_Y - 2, 4, Q);
-      sleeves(c, Q, 3, undefined, 3);
-    },
+  { // 4 Vestido: fitted bodice, sash and a long flared skirt with a trimmed hem.
+    top: [
+      '..........2333KKKK334',
+      '.........23333KKKK3344',
+      '........7883333KK33344',
+      '.......78893333333334445',
+      '.......78993333333334445',
+      '........KK33333333334445',
+      '......kKK423333333333445',
+      '.....kkK42333333333445',
+      '....kkK4.3333333333445',
+      '....kK..43333333333445',
+      '.........2333333333445',
+      '.........778887788899',
+      '.........97888889999',
+      '........23333433333445',
+      '........23334333343345',
+      '.......2333433333433445',
+      '.......2334333334333445',
+    ],
+    skirtY: 44,
+    skirt: [
+      '......233343333343333455',
+      '......2334333334333334455',
+      '.....23343333343333334455',
+      '.....233433333433333344555',
+      '....2334333334333333344555',
+      '....2343333343333333344455',
+      '....7788888888888888899990',
+      '.....000000000000000000',
+    ],
+    pants: () => DARK, boots: (_P, Q) => darker(Q, 0.6), bootH: 2, flow: 'sash', sleeve: (_P, Q) => Q,
   },
-  { // 5 Corsé y falda: blouse, laced corset and knee skirt.
-    body: (c, P, Q) => {
-      const f = c.f;
-      pants(c, DARK);
-      boots(c, LEATHER, 4);
-      torso(c, Q, f.torsoTop, f.torsoBottom);
-      const top = f.torsoTop + 3;
-      torso(c, P, top, f.torsoBottom);
-      for (let y = top + 1; y <= f.torsoBottom - 1; y++) c.p.set(y % 2 ? 23 : 24, y, Q.light);
-      c.p.hline(f.span(top)[0], f.span(top)[1], top, P.light);
-      const knee = f.leg.y + Math.round(f.leg.h * 0.5);
-      skirt(c, P, f.torsoBottom + 1, knee, 3, ramp(shadeHex(P.base, 0.7)));
-      sleeves(c, Q, 99, undefined, 2);
-    },
+  { // 5 Corsé y falda: blouse, laced corset and a knee skirt over leggings.
+    top: [
+      '..........7888KKKK889',
+      '.........788888KK88899',
+      '........78888888888889',
+      '.......678887888888889',
+      '.......788878888888899',
+      '.......7889233333M33445',
+      '......788923333M3M33445',
+      '.....78892333333M333445',
+      '....788993333M3M33345',
+      '....789.4333333M333445',
+      '.....89..33333M3M33445',
+      '.........3333333M33445',
+      '.........34444444444455',
+      '........2333433333433445',
+      '........2334333334334445',
+      '.......233433333433334455',
+      '.......233433333433333455',
+    ],
+    skirtY: 44,
+    skirt: [
+      '......23343333343333334455',
+      '......23433333433333334455',
+      '.....5555555555555555555555',
+    ],
+    pants: () => DARK, boots: () => LEATHER, bootH: 5, flow: 'scarf', sleeve: (_P, Q) => Q,
   },
-  { // 6 Blusa y pantalón: loose blouse with a knotted sash.
-    body: (c, P, Q) => {
-      const f = c.f;
-      pants(c, Q);
-      boots(c, LEATHER, 3);
-      torso(c, P, f.torsoTop, f.torsoBottom - 1, 0);
-      c.p.stamp(22, f.torsoTop, ['l..s', '.ls.'], { l: P.shadow, s: P.deep });
-      const sash = ramp(shadeHex(Q.base, 1.25));
-      torso(c, sash, f.waistY + 1, f.waistY + 2);
-      c.p.stamp(25, f.waistY + 1, ['bs', 'bs', '.b', '.s'], { b: sash.base, s: sash.shadow });
-      sleeves(c, P, 99, undefined);
-      for (const right of [false, true]) {
-        const y = f.arm.y + f.arm.h - f.handH - 1;
-        const x = right ? mx(f.arm.x) + 1 : f.arm.x - 1;
-        c.p.set(x, y, right ? P.shadow : P.light);
-      }
-    },
+  { // 6 Blusa y pantalón: loose blouse with a knotted sash, wide trousers.
+    top: [
+      '..........2333KKKK334',
+      '.........23333KKKK3344',
+      '........2333334KK433444',
+      '........233333344333444',
+      '........2333333433333445',
+      '.......23342333333333445',
+      '......2333423333333333445',
+      '.....23334233333333433445',
+      '....233344333333333433445',
+      '....2334.4333333333433445',
+      '.....344..2333333333334445',
+      '.........7788888888899',
+      '.........99999999998809',
+      '........2333433333438890',
+      '........23343333343338990',
+      '.......233433333433334400',
+      '.......2334333334333344',
+    ],
+    pants: (_P, Q) => Q, boots: () => LEATHER, bootH: 3, flow: 'sash', sleeve: (P) => P,
   },
-  { // 7 Capa corta: shirt, shoulder mantle and a cape that flutters to one side.
-    back: (c, _P, Q) => {
-      const { p, f } = c;
-      const bottom = f.leg.y + Math.round(f.leg.h * 0.7);
-      const [x1, x2] = f.span(f.torsoTop);
-      for (let y = f.torsoTop + 1; y <= bottom + 2; y++) {
-        const t = (y - f.torsoTop) / (bottom - f.torsoTop);
-        // Billows to the viewer's left; the hem is cut in soft points.
-        const left = x1 - 3 - Math.round(Math.pow(t, 1.3) * 5);
-        const right = x2 + 3 + Math.round(t * 1.5);
-        for (let x = left; x <= right; x++) {
-          const hem = bottom + Math.round(Math.abs(Math.sin((x - left) / 2.3)) * 2) - (x < 20 ? 0 : 1);
-          if (y > hem) continue;
-          const fold = (x - left) % 4 === 2;
-          const k = y >= hem - 1 ? Q.deep : x === left ? Q.base : fold ? Q.deep : x > right - 2 ? Q.deep : Q.shadow;
-          p.set(x, y, k);
-        }
-      }
-    },
-    body: (c, P, Q) => {
-      const f = c.f;
-      pants(c, ramp(shadeHex(P.base, 0.45)));
-      boots(c, ramp(shadeHex(Q.base, 0.55)), 4);
-      torso(c, P, f.torsoTop, f.torsoBottom);
-      belt(c, f.waistY + 1);
-      sleeves(c, P, 99, undefined);
-      // Mantle over the shoulders.
-      const [x1, x2] = f.span(f.torsoTop + 1);
-      for (let j = 0; j < 3; j++) shadeSpan(c.p, f.torsoTop + j, x1 - f.arm.w - (j === 0 ? 0 : 1) + j, x2 + f.arm.w + (j === 0 ? 0 : 1) - j, Q, 0);
-      c.p.hline(x1 - f.arm.w + 2, x2 + f.arm.w - 2, f.torsoTop + 3, Q.shadow);
-      c.p.stamp(22, f.torsoTop + 1, ['hb', 'bs'], { h: GOLD.hi, b: GOLD.base, s: GOLD.shadow });
-    },
+  { // 7 Capa corta: shirt and belt under a short shoulder cape with a gold clasp.
+    top: [
+      '..........7888KKKK889',
+      '.......77788888YM8888999',
+      '.....7788888888ML88889999',
+      '....778888888888888889990',
+      '....7888888888888888899900',
+      '....98888888888888888999000',
+      '.....99998888888888899990',
+      '.....2334999999999999445',
+      '....23344333333333333445',
+      '....789.4333333333333445',
+      '.....89..23333333333445',
+      '.........abbbbbYMbbbbcc',
+      '.........23333333334445',
+      '.........2333433334445',
+      '.........2334333343445',
+      '.........2344444444455',
+      '',
+    ],
+    pants: (P) => darker(P, 0.45), boots: (_P, Q) => darker(Q, 0.55), bootH: 5, flow: 'cape', sleeve: (P) => P,
   },
-  { // 8 Armadura ligera: padded coat, breastplate, pauldrons, bracers, greaves and a tabard.
-    body: (c, P, Q) => {
-      const f = c.f;
-      pants(c, ramp(shadeHex(P.base, 0.6)));
-      boots(c, METAL, 5);
-      torso(c, P, f.torsoTop, f.torsoBottom);
-      for (let y = f.torsoTop + 1; y <= f.waistY; y++) {
-        const [x1, x2] = f.span(y);
-        shadeSpan(c.p, y, x1 + 1, x2 - 1, METAL, y === f.waistY ? 1 : 0);
-      }
-      c.p.set(20, f.torsoTop + 2, METAL.hi);
-      c.p.set(21, f.torsoTop + 3, METAL.hi);
-      belt(c, f.waistY + 1);
-      const tabEnd = f.leg.y + Math.round(f.leg.h * 0.45);
-      for (let y = f.waistY + 2; y <= tabEnd; y++) shadeSpan(c.p, y, 21, 26, Q, y === tabEnd ? 1 : 0);
-      sleeves(c, P, 99, undefined);
-      sleeves(c, METAL, 3, undefined, 3);
-      const { arm, handH } = f;
-      const by = arm.y + arm.h - handH - 3;
-      for (const right of [false, true]) {
-        const x = right ? mx(arm.x + arm.w - 1) : arm.x;
-        for (let y = by; y < by + 3; y++) shadeSpan(c.p, y, x, x + arm.w - 1, METAL, right ? 1 : 0);
-      }
-    },
+  { // 8 Armadura ligera: breastplate and pauldrons over a padded coat, tabard and greaves.
+    top: [
+      '..........2333KKKK334',
+      '.......ijjmmu333KK33mu',
+      '......ijjmmmuuj33jmmuu',
+      '.....ijmmmmuuijjmmmmuuv',
+      '......jmmuuvijjmmmmmuuv',
+      '.......2334ijjjmmmmmuuv',
+      '......2334ijjmmmmmmmuuv',
+      '.....2334.ijmmmmmmmuuv',
+      '....imm44.jmmmmmmmuuv',
+      '....jmu..43jmmmmmuu445',
+      '.....mu..2333mmmmm3445',
+      '.........abbbbbYMbbbbcc',
+      '.........2333788883445',
+      '........23334788883445',
+      '........23343788883445',
+      '.......2334437888833455',
+      '.......2333449888994455',
+    ],
+    pants: (P) => darker(P, 0.6), boots: () => METAL, bootH: 5, flow: 'cape', sleeve: (P) => P,
   },
-  { // 9 Túnica de mago: long robe with a trim, bell sleeves and a rope belt.
-    body: (c, P, Q) => {
-      const f = c.f;
-      boots(c, DARK, 0);
-      torso(c, P, f.torsoTop, f.torsoBottom);
-      skirt(c, P, f.torsoBottom + 1, FOOT_Y - 1, 3);
-      for (let y = f.torsoTop + 1; y <= FOOT_Y - 1; y++) c.p.hline(23, 24, y, y % 2 ? Q.base : Q.light);
-      const [hx1, hx2] = f.span(f.torsoBottom);
-      c.p.hline(hx1 - 3, hx2 + 3, FOOT_Y - 1, Q.shadow);
-      // Hood resting on the shoulders.
-      const [x1, x2] = f.span(f.torsoTop);
-      c.p.hline(x1 - 1, x2 + 1, f.torsoTop, P.shadow);
-      c.p.hline(x1, x2, f.torsoTop + 1, P.deep);
-      c.p.hline(22, 25, f.torsoTop, c.skin.shadow);
-      sleeves(c, P, 99, undefined);
-      const { arm, handH } = f;
-      const cy = arm.y + arm.h - handH - 2;
-      for (const right of [false, true]) {
-        const x = right ? mx(arm.x + arm.w - 1) : arm.x;
-        shadeSpan(c.p, cy, x - (right ? 0 : 1), x + arm.w - (right ? 0 : 1), P, right ? 1 : 0);
-        shadeSpan(c.p, cy + 1, x - (right ? 0 : 1), x + arm.w - (right ? 0 : 1), Q, right ? 1 : 0);
-      }
-      belt(c, f.waistY + 1, GOLD, false);
-      c.p.dots([[25, f.waistY + 2], [25, f.waistY + 3], [26, f.waistY + 4]], GOLD.shadow);
-      for (const [x, y] of [[19, 3], [28, 5], [20, 8], [27, 10]]) c.p.set(x, f.torsoBottom + y, P.light);
-    },
+  { // 9 Túnica de mago: the reference robe, open over a lining, gold mantle and trims.
+    top: [
+      '..........nGFF8KKKK',
+      '.........nGG5GF8nLnnn',
+      '.........FLK55LL8MnFF',
+      '.........LMWMFFLLYLnFn',
+      '.........FLLFFnFWWWFnnn',
+      '.......n5nnnnn5FMWWF3nF5',
+      '......nFWFFn5555FFF53n53F',
+      '.....nFFn5nn5335Ln5L3n5FL',
+      '....nn5335n88335M35L4nnF',
+      '....FLL335n88F88WFLnFn',
+      '......LG5n5n8FF8WMWnFn',
+      '.......Fnn558888LMWFnnn',
+      '.......nn5555335FFFF335n',
+      '.......n5553333LnLFnL33n',
+      '....nnnn553333LFnLLnFG33n',
+      '....nn555333MLn88nnn8FL3n',
+      '....FF555FWLFn88nn887n8LLF',
+      '....FFFFLFFnn88nnn8778nnLL',
+      '.....FFW',
+    ],
+    pants: () => ramp('#3e2c30'), boots: () => ramp('#2c2228'), bootH: 2, flow: 'wing', sleeve: (P) => P,
   },
 ];
 
-function shadeHex(hex: string, k: number) {
-  return k <= 1 ? mix('#000000', hex, k) : mix(hex, '#ffffff', Math.min(1, k - 1));
-}
-
 const outfitOf = (c: DrawCtx) => OUTFITS[Math.max(0, Math.min(OUTFITS.length - 1, c.a.outfit))];
 
-export function drawOutfitBack(c: DrawCtx) {
-  c.p.tag = 'cloth';
-  outfitOf(c).back?.(c, c.cloth[0], c.cloth[1]);
-  c.p.tag = null;
+/** Flowing element (behind the body), canonical coordinates. */
+export function drawOutfitBack(c: DrawCtx, p: Painter) {
+  p.tag = 'flow';
+  flow(p, outfitOf(c).flow, c.cloth[1]);
+  p.tag = null;
 }
 
-export function drawOutfitBody(c: DrawCtx) {
-  c.p.tag = 'cloth';
-  outfitOf(c).body(c, c.cloth[0], c.cloth[1]);
-  armContour(c);
-  c.p.tag = null;
+/** Legs, far sleeve and upper body, canonical coordinates. */
+export function drawOutfitBody(c: DrawCtx, p: Painter) {
+  const o = outfitOf(c);
+  const [P, Q] = c.cloth;
+  p.tag = 'cloth';
+  legs({ ...c, p }, o.pants(P, Q), o.boots(P, Q), o.bootH);
+  farSleeve(p, o.sleeve(P, Q));
+  const map = keyMap(c, P, Q);
+  p.stamp(TOP_X, TOP_Y, o.top, map);
+  if (o.skirt) p.stamp(TOP_X, o.skirtY ?? 44, o.skirt, map);
+  // The scarf wraps the neck in front of the collar.
+  if (o.flow === 'scarf') p.stamp(17, 27, ['.7888', '799889', '.9900'], map);
+  p.tag = null;
 }

@@ -70,32 +70,40 @@ function hueToward(h: number, target: number, by: number): number {
   return (h + step + 360) % 360;
 }
 
-/** Five-tone cel-shading ramp (openspec/specs/character-appearance.md, "Shading"). */
-export interface Ramp { hi: string; light: string; base: string; shadow: string; deep: string }
+/**
+ * Cel-shading ramp (openspec/specs/character-appearance.md, "Shading"): highlight → deep shadow, plus
+ * `cool`, a dark accent pushed towards teal-blue, and `ink`, the darkest tone (outlines, hair roots).
+ */
+export interface Ramp { hi: string; light: string; base: string; shadow: string; deep: string; cool: string; ink: string }
 
 const rampCache = new Map<string, Ramp>();
 
 /**
- * Builds highlight → deep shadow tones from one base colour. Shadows drift towards a cool
- * purple-blue and highlights towards a warm yellow, which reads better than plain darkening.
+ * Builds highlight → ink tones from one base colour, tuned on the reference sprite: warm colours
+ * (skin, gold, browns) shift their shadows towards red and their highlights towards yellow; cool
+ * colours shift shadows towards blue and highlights towards cyan-white. Pale colours lose saturation
+ * in the shadows (pink-beige skin shadow, slate hair shadow), dark ones gain it. `cool` is a teal
+ * accent and `ink` a near-black of the same family.
  */
 export function ramp(base: string): Ramp {
   const hit = rampCache.get(base);
   if (hit) return hit;
-  const [h, s, l] = hexToHsl(base);
-  const grey = s < 0.08;
-  const tone = (dl: number, hueBy: number, target: number, ds: number) => {
-    const nh = grey ? h : hueToward(h, target, hueBy);
-    const ns = Math.max(0, Math.min(1, grey ? s : s * ds));
-    const nl = Math.max(0, Math.min(1, dl));
-    return hslToHex(nh, ns, nl);
-  };
+  const [h0, s0, l] = hexToHsl(base);
+  // Neutral greys are treated as a faintly cool slate.
+  const grey = s0 < 0.08;
+  const h = grey ? 210 : h0;
+  const s = grey ? Math.max(s0, 0.1) : s0;
+  const warm = h < 75 || h > 300;
+  const hsl = (hh: number, ss: number, ll: number) => hslToHex(hh, Math.max(0, Math.min(1, ss)), Math.max(0, Math.min(1, ll)));
+  const shadeSat = (k: number) => s * (l > 0.75 ? 0.5 * k : l > 0.5 ? 0.78 * k : 1.12);
   const r: Ramp = {
-    hi: tone(l + (1 - l) * 0.55, 14, 55, 0.85),
-    light: tone(l + (1 - l) * 0.24, 7, 55, 0.95),
+    hi: hsl(hueToward(h, warm ? 55 : 180, warm ? 12 : 10), s * 0.85, l + (1 - l) * 0.68),
+    light: hsl(hueToward(h, warm ? 55 : 180, warm ? 6 : 4), s * 0.95, l + (1 - l) * 0.3),
     base,
-    shadow: tone(l * 0.7, 10, 250, 1.05),
-    deep: tone(l * 0.45, 18, 250, 1.1),
+    shadow: hsl(hueToward(h, warm ? 0 : 220, warm ? 10 : 6), shadeSat(1), l * 0.76),
+    deep: hsl(hueToward(h, warm ? 0 : 225, warm ? 8 : 12), shadeSat(1.05) + 0.04, l * 0.5),
+    cool: hsl(hueToward(h, 192, 40), Math.max(s * 1.3, 0.3), l * 0.44),
+    ink: hsl(hueToward(h, warm ? 5 : 188, warm ? 12 : 35), Math.max(s * 1.3, 0.45), Math.min(0.19, l * 0.26)),
   };
   if (rampCache.size > 500) rampCache.clear();
   rampCache.set(base, r);

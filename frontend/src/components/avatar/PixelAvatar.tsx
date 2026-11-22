@@ -10,7 +10,7 @@ interface Props {
   appearance?: unknown;
   race?: string | null;
   raceSize?: string | null;
-  /** Class name, for the aura colour. */
+  /** Class name, for the aura colour and (full sprite only) the held prop. */
   klass?: string | null;
   aura?: boolean;
   pulse?: boolean;
@@ -34,8 +34,9 @@ export function PixelAvatar({ appearance, race, raceSize, klass, aura = true, pu
     const ctx = ref.current?.getContext('2d');
     if (!ctx) return;
     ctx.clearRect(0, 0, r.w, r.h);
-    ctx.drawImage(avatarCanvas(app, visual, auraColor), r.x, r.y, r.w, r.h, 0, 0, r.w, r.h);
-  }, [app, visual, auraColor, r.x, r.y, r.w, r.h]);
+    // The class prop only appears in the full sprite (never in head crops).
+    ctx.drawImage(avatarCanvas(app, visual, auraColor, crop === 'full' ? klass : null), r.x, r.y, r.w, r.h, 0, 0, r.w, r.h);
+  }, [app, visual, auraColor, klass, crop, r.x, r.y, r.w, r.h]);
 
   // Width + aspect ratio (not a fixed height) so a max-width never stretches the sprite.
   const style = { width: r.w * scale, height: 'auto', aspectRatio: `${r.w} / ${r.h}`, '--aura': auraColor ?? 'transparent' } as CSSProperties;

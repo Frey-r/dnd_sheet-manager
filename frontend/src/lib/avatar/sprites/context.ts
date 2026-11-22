@@ -14,7 +14,17 @@ export interface DrawCtx {
   hair: Ramp;
   eyes: Ramp;
   cloth: [Ramp, Ramp];
+  /** Class colour (aura) or null; staves carry an orb of this colour. */
+  aura: string | null;
 }
 
-export const INK = '#1e1620';
-export const EYE_WHITE = '#f6f3ee';
+export const INK = '#1f1a22';
+export const EYE_WHITE = '#eef6f4';
+
+/**
+ * Template keys of one ramp: h highlight, l light, b base, s shadow, d deep, x cool dark, X ink.
+ * Used by hair, skin and race parts.
+ */
+export const keys = (r: Ramp, extra: Record<string, string> = {}): Record<string, string> => ({
+  h: r.hi, l: r.light, b: r.base, s: r.shadow, d: r.deep, x: r.cool, X: r.ink, ...extra,
+});
