@@ -162,7 +162,7 @@ producto, no tienen fuente de datos o son trabajo grande que exige una instancia
 - **RES-16** (resilience.md): Reconexión con backoff exponencial + jitter: base 1 s, máximo 30 s
 - **CHR-31** (characters.md): Bono de competencia +2; aptitud mágica por clase (INT/SAB/CAR; ninguna para marciales)
 - **CHR-36** (characters.md): Decisión: PV actuales acotados a [0, PV máx]; temporales no negativos
-- **APP-10** (character-appearance.md): feature o skin que no encajan con la raza se acotan o sustituyen por el valor por defecto al dibujar
+- **APP-10** (character-appearance.md): feature que no encaja con la raza se acota al dibujar; la piel válida se respeta aunque esté fuera de la paleta (D-0034)
 - **SEC-03** (security.md): Tokens con TTL configurable (por defecto 1 h)
 - **SEC-06** (security.md): Jugadores no alteran personajes ajenos ni acceden a elementos ocultos
 - **SEC-10** (security.md): El DM tiene visibilidad de solo lectura sobre todos los intercambios y ofertas
@@ -507,7 +507,7 @@ producto, no tienen fuente de datos o son trabajo grande que exige una instancia
 | APP-07 | Colores en formato #rrggbb | IMPLEMENTED | internal/service/appearance_rules.go:23,47-51 |
 | APP-08 | El servidor rechaza claves desconocidas, v≠1, índices fuera de rango, colores mal formados o >1 KB | IMPLEMENTED | internal/service/appearance_rules.go:32-51 |
 | APP-09 | Familia visual no guardada: se deriva de race en cada dibujo | IMPLEMENTED | frontend/src/components/avatar/PixelAvatar.tsx:27 |
-| APP-10 | feature o skin que no encajan con la raza se acotan o sustituyen por el valor por defecto al dibujar | IMPLEMENTED | frontend/src/components/avatar/PixelAvatar.tsx:28; frontend/src/components/vtt/TableCanvas.tsx:81; frontend/src/pages/EditAppearance.tsx:26 (strictSkin al dibujar) — *corregido 2026-11-22* |
+| APP-10 | feature que no encaja con la raza se acota al dibujar; la piel válida se respeta aunque esté fuera de la paleta (D-0034) | IMPLEMENTED | frontend/src/components/avatar/PixelAvatar.tsx:28, frontend/src/components/vtt/TableCanvas.tsx:81, frontend/src/pages/EditAppearance.tsx:30 sin strictSkin; reseteo al cambiar de raza en creator/look.ts; tests CustomSkin.test.tsx (T-11) |
 | APP-11 | Personaje sin apariencia se dibuja con el aspecto por defecto de su raza | IMPLEMENTED | frontend/src/lib/avatar/types.ts:90-91 |
 | APP-12 | Razas agrupadas por raza base; una entrada por raza base y luego se elige libro/variante | IMPLEMENTED | frontend/src/lib/avatar/raceGroups.ts:8-28; frontend/src/components/character/creator/RaceStep.tsx:32-35 |
 | APP-13 | Cada raza base: tamaño, tipo de cabeza, paleta de piel y 2–4 opciones con nombre | IMPLEMENTED | frontend/src/lib/avatar/races.ts:14-26,214-227 |

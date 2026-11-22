@@ -4,4 +4,10 @@ enabled: true
 nivel: N1
 modo: mejora
 idioma: es
-comandos: {}
+comandos:
+  test: "go test ./... && npm --prefix frontend test"
+  test_afectados: "npm --prefix frontend test"
+  lint: "npm --prefix frontend run lint"
+  tipos: "cd frontend && npx tsc -b"
+  build: "go build ./... && npm --prefix frontend run build"
+  run: "npm --prefix frontend run dev"
