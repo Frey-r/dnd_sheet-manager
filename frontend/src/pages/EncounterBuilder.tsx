@@ -74,8 +74,9 @@ export function EncounterBuilder() {
           
           <form onSubmit={handleBuild} className="space-y-4">
             <div>
-              <label className="font-label-sm text-secondary block mb-1">Tamaño del grupo</label>
+              <label htmlFor="eb-party-size" className="font-label-sm text-secondary block mb-1">Tamaño del grupo</label>
               <input
+                id="eb-party-size"
                 type="number"
                 min="1"
                 max="20"
@@ -87,8 +88,9 @@ export function EncounterBuilder() {
             </div>
 
             <div>
-              <label className="font-label-sm text-secondary block mb-1">Nivel medio del grupo</label>
+              <label htmlFor="eb-party-level" className="font-label-sm text-secondary block mb-1">Nivel medio del grupo</label>
               <input
+                id="eb-party-level"
                 type="number"
                 min="1"
                 max="20"
@@ -134,8 +136,9 @@ export function EncounterBuilder() {
             </div>
 
             <div>
-              <label className="font-label-sm text-secondary block mb-1">Máximo de monstruos</label>
+              <label htmlFor="eb-max-monsters" className="font-label-sm text-secondary block mb-1">Máximo de monstruos</label>
               <input
+                id="eb-max-monsters"
                 type="number"
                 min="1"
                 max="50"

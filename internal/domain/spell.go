@@ -30,6 +30,8 @@ type CreateSpellRequest struct {
 	Components  string `json:"components"`
 	DamageType  string `json:"damage_type"`
 	SRDRefID    *int64 `json:"srd_ref_id"`
+	// Prepared was sent by the client but dropped: spells were always stored unprepared.
+	Prepared *bool `json:"prepared"`
 }
 
 type UpdateSpellRequest struct {

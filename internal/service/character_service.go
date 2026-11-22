@@ -355,7 +355,7 @@ func (s *CharacterService) AddSpell(ctx context.Context, charID int64, req *doma
 		Description: req.Description,
 		Components:  req.Components,
 		DamageType:  req.DamageType,
-		Prepared:    false,
+		Prepared:    req.Prepared != nil && *req.Prepared,
 		SRDRefID:    req.SRDRefID,
 	}
 	if err := s.itemRepo.CreateSpell(ctx, spell); err != nil {
