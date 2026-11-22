@@ -95,7 +95,7 @@ export interface Frame {
   hy: number;
   /** Head bounding box (skull only, without hair). */
   head: Rect;
-  /** Top row of the eyes; eyes are 4×4 at columns 17–20 and 27–30. */
+  /** Top row (lash) of the eyes; eyes are 5×6 at columns 16–20 and 27–31. */
   eyeY: number;
   mouthY: number;
   chinY: number;

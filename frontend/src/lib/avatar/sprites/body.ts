@@ -239,19 +239,30 @@ export function drawHead(c: DrawCtx) {
   p.tag = null;
 }
 
+/** Colour keys shared by the eye templates: k lash, w white, h highlight, d/s/i/l iris top → bottom. */
+function eyeMap(c: DrawCtx, glow: boolean): Record<string, string> {
+  const { eyes } = c;
+  return glow
+    ? { k: INK, w: eyes.hi, h: '#ffffff', d: eyes.shadow, s: eyes.base, i: eyes.light, l: eyes.hi }
+    : { k: INK, w: EYE_WHITE, h: '#ffffff', d: eyes.deep, s: eyes.shadow, i: eyes.base, l: eyes.light };
+}
+
+/*
+ * Big chibi eye, 5 × 6 px: a dark lash on top that is two pixels thick at the outer corner, a white
+ * sliver on the outer side, an iris that goes from dark (top) to light (bottom), a 2-px highlight at
+ * its top left and a 1-px one at its bottom right. Light comes from the top left, so the highlights
+ * sit on the same side of both eyes; only the lash and the white are mirrored.
+ */
+const EYE_L = ['kkkkk', 'khhdd', 'wssss', 'wiiii', 'wllhl', '.lll.'];
+const EYE_R = ['kkkkk', 'hhddk', 'ssssw', 'iiiiw', 'llhlw', '.lll.'];
+
 function eye(c: DrawCtx, right: boolean, glow: boolean) {
-  const { p, f, eyes, a } = c;
-  const x0 = right ? 27 : 17;
+  const { p, f, a } = c;
   const y0 = f.eyeY;
-  const map = glow
-    ? { k: INK, w: eyes.hi, d: eyes.light, i: eyes.hi, l: eyes.light, h: '#ffffff' }
-    : { k: INK, w: EYE_WHITE, d: eyes.deep, i: eyes.base, l: eyes.light, h: '#ffffff' };
   p.tag = 'eye';
-  p.stamp(x0, y0, right
-    ? ['kkkk', 'hddw', 'iidw', 'lli.']
-    : ['kkkk', 'whdd', 'wiid', '.lli'], map);
+  p.stamp(right ? 27 : 16, y0, right ? EYE_R : EYE_L, eyeMap(c, glow));
   // Outer lash flick for body B.
-  if (a.body === 1) p.set(right ? 31 : 16, y0, INK);
+  if (a.body === 1) p.set(right ? 32 : 15, y0 - 1, INK);
   p.tag = null;
 }
 
@@ -260,49 +271,54 @@ export function drawFace(c: DrawCtx) {
   const { p, f, a, v, skin, parts, hair, eyes } = c;
   const { eyeY, mouthY, hy } = f;
   const glow = parts.has('glow-eyes');
+  const map = eyeMap(c, glow);
 
   if (parts.has('cyclops')) {
-    p.stamp(21, eyeY - 1, ['.kkkk.', 'kwhddk', 'kwdidk', 'kwiilk', '.klll.'], { k: INK, w: EYE_WHITE, d: eyes.deep, i: eyes.base, l: eyes.light, h: '#ffffff' });
-    p.hline(20, 27, eyeY - 2, skin.shadow);
+    // One big centred eye, 6 × 7, white on both sides.
+    p.stamp(21, eyeY - 1, ['.kkkk.', 'kkkkkk', 'wddddw', 'whhssw', 'wiiiiw', 'wllhlw', '.llll.'], map);
+    p.hline(20, 27, eyeY - 3, skin.shadow);
     p.hline(23, 24, mouthY, skin.deep);
     return;
   }
   switch (v.head) {
     case 'skull': {
+      // Round dark sockets; glowing eyes show a pinpoint with a highlight.
       for (const right of [false, true]) {
-        const x0 = right ? 27 : 17;
-        p.rect(x0, eyeY, 4, 4, INK);
-        p.set(x0 - (right ? 0 : -0), eyeY + 3, skin.shadow);
-        if (glow) { p.rect(x0 + 1, eyeY + 1, 2, 2, eyes.hi); p.set(x0 + 1, eyeY + 1, '#ffffff'); }
+        const x0 = right ? 27 : 16;
+        p.stamp(x0, eyeY, ['.kkk.', 'kkkkk', 'kkkkk', 'kkkkk', '.kkk.'], { k: INK });
+        p.set(right ? x0 : x0 + 4, eyeY + 4, skin.shadow);
+        if (glow) p.stamp(x0 + 1, eyeY + 1, ['hi.', 'iil', '.l.'], { h: '#ffffff', i: eyes.hi, l: eyes.light });
       }
       return;
     }
     case 'insect': {
+      // Big faceted eyes with the same two highlights.
       for (const right of [false, true]) {
-        p.stamp(right ? 26 : 15, eyeY - 2, ['.ddd.', 'dihid', 'diiid', 'dllid', '.ddd.'],
-          { d: eyes.deep, i: eyes.base, l: eyes.light, h: eyes.hi }, right);
+        p.stamp(right ? 27 : 15, eyeY - 2, ['.ddd.', 'dhhsd', 'dhsid', 'dsiid', 'diihd', '.ddd.'],
+          { ...map, d: eyes.deep, s: eyes.shadow, i: glow ? eyes.hi : eyes.base, h: '#ffffff' });
       }
       return;
     }
     case 'fish': {
+      // Round bulging eyes on the sides of the head.
       for (const right of [false, true]) {
-        p.stamp(right ? 29 : 14, eyeY - 1, ['.ww.', 'whdw', 'wddw', '.ww.'],
-          { w: EYE_WHITE, d: glow ? eyes.hi : eyes.deep, h: '#ffffff' }, right);
+        p.stamp(right ? 29 : 14, eyeY - 1, ['.www.', 'whhdw', 'wdssw', 'wsihw', '.www.'], map);
       }
       return;
     }
     case 'frog': {
       for (const right of [false, true]) {
-        p.stamp(right ? 27 : 15, hy + 1, ['.kkk.', 'kwhdk', 'kwddk', '.kkk.'],
-          { k: INK, w: EYE_WHITE, h: '#ffffff', d: glow ? eyes.hi : eyes.deep });
+        p.stamp(right ? 27 : 16, hy + 1, ['.kkk.', 'khhdk', 'kdssk', 'kiihk', '.kkk.'], map);
       }
       return;
     }
     case 'reptile': {
+      // Slit pupil, heavy lid slanting down towards the snout.
       for (const right of [false, true]) {
-        const x0 = right ? 27 : 17;
-        p.stamp(x0, eyeY, ['kkkk', 'lihl', 'iki.', '.d..'],
-          { k: INK, i: glow ? eyes.hi : eyes.base, l: eyes.light, h: '#ffffff', d: eyes.shadow }, right);
+        p.stamp(right ? 27 : 16, eyeY, right
+          ? ['.kkkk', 'khhdd', 'sskss', 'iikih', '.lll.']
+          : ['kkkk.', 'hhddk', 'sskss', 'iikih', '.lll.'],
+        map);
       }
       return;
     }
@@ -319,7 +335,7 @@ export function drawFace(c: DrawCtx) {
       if (v.head === 'human' || v.head === 'ooze') {
         const bearded = parts.has('beard-full') || parts.has('beard-braided') || parts.has('beard-short');
         const blush = mix(skin.base, '#ff7a7a', 0.32);
-        p.sym([[17, eyeY + 5], [18, eyeY + 5]], blush);
+        p.sym([[17, eyeY + 6], [18, eyeY + 6]], blush);
         p.set(24, eyeY + 4, skin.shadow);
         if (!bearded) {
           const lip = mix(skin.deep, '#8a2a3a', 0.35);

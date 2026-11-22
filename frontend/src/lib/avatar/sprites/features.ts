@@ -214,7 +214,7 @@ const SKIN: Partial<Record<Part, Drawer>> = {
 const FACE: Partial<Record<Part, Drawer>> = {
   freckles: (c) => {
     const { eyeY } = c.f;
-    sym(c, [[16, eyeY + 5], [18, eyeY + 6], [19, eyeY + 5]], mix(c.skin.shadow, '#7a3a1a', 0.35));
+    sym(c, [[16, eyeY + 6], [19, eyeY + 6], [18, eyeY + 7]], mix(c.skin.shadow, '#7a3a1a', 0.35));
   },
   scar: (c) => {
     const { eyeY } = c.f;
@@ -225,20 +225,21 @@ const FACE: Partial<Record<Part, Drawer>> = {
   tattoo: (c) => {
     const { eyeY, hy } = c.f;
     const col = c.v.hair ? '#2e4a7a' : acc(c).deep;
-    sym(c, [[16, eyeY + 4], [17, eyeY + 5], [17, eyeY + 6], [15, eyeY + 6]], col);
+    sym(c, [[15, eyeY + 5], [16, eyeY + 6], [17, eyeY + 6], [18, eyeY + 7]], col);
     c.p.dots([[23, hy + 5], [24, hy + 5], [23, hy + 6], [24, hy + 6], [23, hy + 7], [24, hy + 7]], col);
   },
   mark: (c) => {
     const { eyeY } = c.f;
-    c.p.dots([[17, eyeY + 4], [16, eyeY + 5], [18, eyeY + 5], [17, eyeY + 6]], '#8a3aa8');
-    c.p.set(17, eyeY + 5, '#c07ad8');
+    // Small rune on the cheek, under the outer corner of the eye.
+    c.p.dots([[16, eyeY + 6], [18, eyeY + 6], [18, eyeY + 7], [15, eyeY + 5]], '#8a3aa8');
+    c.p.set(17, eyeY + 6, '#c07ad8');
   },
   plates: (c) => {
     const { hy, eyeY, mouthY, chinY, waistY } = c.f;
     const line = c.skin.deep;
     c.p.hline(15, 32, hy + 5, line);
-    c.p.vline(16, hy + 5, chinY - 2, line);
-    c.p.vline(31, hy + 5, chinY - 2, line);
+    c.p.vline(15, hy + 5, chinY - 3, line);
+    c.p.vline(32, hy + 5, chinY - 3, line);
     c.p.hline(21, 26, mouthY, INK);
     c.p.dots([[22, mouthY], [24, mouthY]], c.skin.shadow);
     c.p.dots([[18, hy + 3], [19, hy + 2]], c.skin.hi);
@@ -247,11 +248,14 @@ const FACE: Partial<Record<Part, Drawer>> = {
   },
   visor: (c) => {
     const { eyeY } = c.f;
-    c.p.rect(15, eyeY, 18, 4, '#2b2b33');
+    // Covers the 6-row eyes: rim, dark glass and a glowing band in the eye colour.
+    c.p.rect(15, eyeY, 18, 6, '#2b2b33');
     c.p.hline(15, 32, eyeY - 1, '#4a4a55');
+    c.p.hline(16, 31, eyeY + 5, '#1d1d24');
     c.p.hline(17, 30, eyeY + 1, c.eyes.light);
-    c.p.hline(18, 29, eyeY + 2, c.eyes.base);
-    c.p.set(18, eyeY + 1, '#ffffff');
+    c.p.hline(17, 30, eyeY + 2, c.eyes.base);
+    c.p.hline(18, 29, eyeY + 3, c.eyes.shadow);
+    c.p.dots([[18, eyeY + 1], [19, eyeY + 1], [28, eyeY + 3]], '#ffffff');
   },
   stitches: (c) => {
     const { hy, chinY } = c.f;
@@ -271,7 +275,7 @@ const FACE: Partial<Record<Part, Drawer>> = {
   whiskers: (c) => {
     const { eyeY } = c.f;
     const col = '#ece6d4';
-    sym(c, [[18, eyeY + 5], [17, eyeY + 5], [16, eyeY + 4], [15, eyeY + 4], [18, eyeY + 6], [17, eyeY + 7], [16, eyeY + 7]], col);
+    sym(c, [[19, eyeY + 6], [18, eyeY + 6], [17, eyeY + 6], [16, eyeY + 5], [15, eyeY + 5], [19, eyeY + 7], [18, eyeY + 8], [17, eyeY + 8]], col);
   },
   gills: (c) => {
     const { eyeY } = c.f;
