@@ -19,6 +19,15 @@ func NewSRDRepository(db *sqlx.DB) *SRDRepository {
 	return &SRDRepository{db: db}
 }
 
+// notShadowedLegacySQL hides legacy monster rows (imported before the content catalog: no
+// content_entity_id, not homebrew) when the catalog has a creature with the same name, so
+// the bestiary and encounter builder do not list "Goblin" twice. Nothing is deleted: the row
+// stays reachable by id for combats and tokens that reference it, and legacy rows without a
+// catalog equivalent stay visible.
+const notShadowedLegacySQL = `NOT (srd_monsters.content_entity_id IS NULL AND srd_monsters.created_by IS NULL
+	AND EXISTS (SELECT 1 FROM srd_monsters cat WHERE cat.content_entity_id IS NOT NULL
+		AND LOWER(cat.name) = LOWER(srd_monsters.name)))`
+
 // crNumericSQL converts the text cr column to a number. Catalog monsters can have an empty or
 // non-numeric CR ("" for summons/variants, "Unknown"); those become NULL and drop out of CR
 // filters instead of failing the whole query with "invalid input syntax for type real".
@@ -68,7 +77,7 @@ func defaultPagination(limit, offset int) (int, int) {
 func (r *SRDRepository) SearchMonsters(filters domain.MonsterFilters) (*domain.PaginatedResult[domain.MonsterListItem], error) {
 	filters.Limit, filters.Offset = defaultPagination(filters.Limit, filters.Offset)
 
-	conditions := []string{}
+	conditions := []string{notShadowedLegacySQL}
 	args := map[string]interface{}{}
 
 	rankExpr := "CAST(0 AS float8)"
@@ -183,6 +192,7 @@ func (r *SRDRepository) GetMonstersByCRRange(crMin, crMax float64, monsterType s
 	conditions := []string{
 		crNumericSQL + ` >= $1`,
 		crNumericSQL + ` <= $2`,
+		notShadowedLegacySQL,
 	}
 	args := []interface{}{crMin, crMax}
 
