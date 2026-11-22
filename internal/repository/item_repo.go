@@ -176,3 +176,26 @@ func (r *ItemRepository) DeleteSpell(ctx context.Context, id int64) error {
 	_, err := r.db.ExecContext(ctx, query, id)
 	return err
 }
+
+// TradeableItem is the public view of another character's item offered in the trade picker.
+type TradeableItem struct {
+	ID       int64  `db:"id" json:"id"`
+	Name     string `db:"name" json:"name"`
+	ItemType string `db:"item_type" json:"item_type"`
+	Rarity   string `db:"rarity" json:"rarity"`
+	Quantity int    `db:"quantity" json:"quantity"`
+}
+
+// TradeableByCharacter lists the items of a campaign character that can be requested in a
+// trade (tradeable, not equipped, not quest-bound, not locked by another offer). It exposes
+// only what the trade picker needs, so players never read other characters' full inventory.
+func (r *ItemRepository) TradeableByCharacter(ctx context.Context, campaignID, characterID int64) ([]TradeableItem, error) {
+	items := []TradeableItem{}
+	err := r.db.SelectContext(ctx, &items, `SELECT i.id, i.name, i.item_type, i.rarity, COALESCE(i.quantity, 1) AS quantity
+		FROM inventory_items i JOIN characters c ON c.id = i.character_id
+		WHERE c.id = $1 AND c.campaign_id = $2 AND COALESCE(i.is_tradeable, TRUE)
+		  AND NOT COALESCE(i.quest_bound, FALSE) AND NOT COALESCE(i.is_equipped, FALSE)
+		  AND NOT COALESCE(i.trade_locked, FALSE)
+		ORDER BY i.name, i.id`, characterID, campaignID)
+	return items, err
+}

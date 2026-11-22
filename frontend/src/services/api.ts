@@ -77,6 +77,8 @@ export const characterApi = {
   addSpell: (charId: number | string, data: Record<string, unknown>) => api.post(`/characters/${charId}/spells`, data),
 };
 export const tradeApi = {
+  /** Tradeable items of another campaign character (the full inventory is owner/GM-only). */
+  tradeableItems: (campaignId: number | string, characterId: number | string) => api.get(`/campaigns/${campaignId}/characters/${characterId}/tradeable-items`),
   create: (characterId: number | string, data: { recipient_character_id: number; offered_item_ids: number[]; offered_gold: number; requested_item_ids: number[]; requested_gold: number }) => api.post(`/characters/${characterId}/trades`, data),
   accept: (id: number | string) => api.put(`/trades/${id}/accept`),
   reject: (id: number | string) => api.put(`/trades/${id}/reject`),

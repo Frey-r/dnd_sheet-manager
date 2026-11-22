@@ -45,7 +45,8 @@ export function NPCDetail() {
   if (npc.error || !npc.data) return <div className="p-8"><ErrorState message={npc.error ? getApiError(npc.error, 'No se pudo cargar el NPC') : 'NPC no encontrado'} onRetry={() => void npc.refetch()} /></div>;
   const current = npc.data;
   const { name, role, status, description } = current;
-  const stats = current.stats ?? {};
+  // Older NPCs may hold "" for stats left blank: treat them as not recorded, not as 0.
+  const stats: Stats = Object.fromEntries(Object.entries((current.stats ?? {}) as Record<string, unknown>).filter(([, value]) => value !== '' && value != null && Number.isFinite(Number(value))).map(([key, value]) => [key, Number(value)]));
   const dexMod = stats.dex != null ? abilityMod(stats.dex) : 0;
   const rollInitiative = () => {
     const result = rollExpression(`1d20${dexMod >= 0 ? '+' : '-'}${Math.abs(dexMod)}`);

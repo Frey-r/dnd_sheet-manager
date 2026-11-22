@@ -164,6 +164,7 @@ func main() {
 		auth.GET("/campaigns/:id/members", campaignHandler.GetMembers)
 		auth.GET("/campaigns/:id/sync", realtimeHub.Sync)
 		auth.GET("/campaigns/:id/characters", campaignHandler.GetCharacters)
+		auth.GET("/campaigns/:id/characters/:character_id/tradeable-items", campaignHandler.TradeableItems)
 		// Market: shops replace the old single marketplace list (openspec/specs/market-bastions.md).
 		auth.GET("/campaigns/:id/messages", msgHandler.GetConversations)
 		auth.GET("/campaigns/:id/messages/:user_id", msgHandler.GetConversation)

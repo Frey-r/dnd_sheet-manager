@@ -50,7 +50,8 @@ export function CampaignResourcePanel({ kind, title, fields, linkBase, addLabel 
         const value: unknown = field.type === 'number' && form[field.name] !== '' ? Number(form[field.name]) : form[field.name];
         if (field.name.startsWith('stats.')) {
           const stats = (payload.stats || {}) as Record<string, unknown>;
-          stats[field.name.slice(6)] = value;
+          // A blank stat is "not recorded", not 0 (a score of 0 would read as −5).
+          if (value !== '' && value != null) stats[field.name.slice(6)] = value;
           payload.stats = stats;
         } else {
           payload[field.name] = value;

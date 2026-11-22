@@ -37,12 +37,13 @@ export function raceSkillProficiencies(race: SRDRace | undefined): string[] {
 }
 
 /**
- * Passive Perception with the racial Perception proficiency (PHB Elf "Keen Senses"): the stored
- * value is 10 + WIS, so the proficiency bonus is added when the character's race grants it.
+ * Passive Perception as stored: the server already adds the racial Perception proficiency
+ * (PHB Elf "Keen Senses") at creation, so the sheet shows the same value as the hub and the VTT.
+ * `racial` only flags that the race grants it (for the tooltip).
  */
-export function usePassivePerception(character: Pick<Character, 'race' | 'passive_perception' | 'proficiency_bonus'> | undefined) {
+export function usePassivePerception(character: Pick<Character, 'race' | 'passive_perception'> | undefined) {
   const races = useQuery({ queryKey: ['srd-races'], queryFn: async () => (await listRaces()).data ?? [], staleTime: 300_000, enabled: Boolean(character) });
   if (!character) return { value: 0, racial: false };
   const racial = raceSkillProficiencies(raceEntryFor(races.data ?? [], character.race)).includes('perception');
-  return { value: character.passive_perception + (racial ? character.proficiency_bonus : 0), racial };
+  return { value: character.passive_perception, racial };
 }

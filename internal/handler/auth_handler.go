@@ -333,3 +333,15 @@ func (h *CampaignHandler) PurchaseMarketplaceItem(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "purchase successful"})
 }
+
+// TradeableItems lists the tradeable items of a character of this campaign for the trade
+// picker. Any member may call it (RBAC checks membership); it returns only trade-relevant
+// fields instead of the full inventory, which stays owner/GM-only.
+func (h *CampaignHandler) TradeableItems(c *gin.Context) {
+	items, err := h.itemRepo.TradeableByCharacter(c.Request.Context(), parseID(c.Param("id")), parseID(c.Param("character_id")))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not load items"})
+		return
+	}
+	c.JSON(http.StatusOK, items)
+}

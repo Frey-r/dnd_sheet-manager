@@ -58,7 +58,9 @@ export function Trade() {
   const characters = useQuery({ queryKey: ['characters', campaignId], queryFn: () => characterApi.listByCampaign(campaignId).then((response) => response.data as Character[]) });
   const mine = characters.data?.find((character) => character.user_id === user?.id);
   const inventory = useQuery({ queryKey: ['inventory', mine?.id], enabled: Boolean(mine), queryFn: () => characterApi.inventory(mine!.id).then((response) => response.data as InventoryItem[]) });
-  const recipientInventory = useQuery({ queryKey: ['inventory', recipientID], enabled: recipientID > 0, queryFn: () => characterApi.inventory(recipientID).then((response) => response.data as InventoryItem[]) });
+  // Players cannot read another character's inventory (owner/GM only); the trade picker uses a
+  // members-only endpoint that returns just the recipient's tradeable items.
+  const recipientInventory = useQuery({ queryKey: ['tradeable-items', recipientID], enabled: recipientID > 0 && Boolean(campaignId), queryFn: () => tradeApi.tradeableItems(campaignId, recipientID).then((response) => response.data as InventoryItem[]) });
   const offers = useQuery({ queryKey: ['trades'], queryFn: () => tradeApi.list().then((response) => response.data as Offer[]) });
   const campaignOffers = (offers.data ?? []).filter((offer) => String(offer.campaign_id) === campaignId);
   const invalidate = () => { void client.invalidateQueries({ queryKey: ['trades'] }); void client.invalidateQueries({ queryKey: ['inventory'] }); void client.invalidateQueries({ queryKey: ['characters'] }); };
