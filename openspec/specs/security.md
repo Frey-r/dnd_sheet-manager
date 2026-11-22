@@ -80,3 +80,16 @@ THEN it MUST NOT contain the Foundry relay api_key
 - The proxy in front of Foundry **MUST** restrict `Content-Security-Policy: frame-ancestors` to the app's origin(s) only — wildcard framing **MUST NOT** be used.
 - The Foundry session cookie set to `SameSite=None; Secure` **MUST** be served only over HTTPS.
 - CORS for relay/backend calls originating from the Foundry origin **MUST** be limited to known origins.
+
+## Decisiones de implementación (2026-11-21)
+
+- La IP del cliente solo se toma de `X-Forwarded-For` si viene de un proxy listado en
+  `server.trusted_proxies` (env `TRUSTED_PROXIES`); vacío = la IP es el par TCP. Sin esto, el
+  límite de ritmo, el baneo de WebSocket y la auditoría podían falsificarse.
+- WebSocket: 5 msg/s por conexión para mensajes generales; `vtt.move` tiene presupuesto propio
+  (15/s) porque la exploración transmite a ~8 Hz por diseño (vtt-modes.md). Exceso → cierre 1008
+  y baneo de IP 30 s.
+- Login, registro y refresh están limitados por IP (categoría `auth`). Las ráfagas por categoría
+  comparten un presupuesto total por usuario igual a `requests_per_minute`.
+- Monstruos propios: los crea cualquier usuario autenticado y solo su creador (o un admin) los
+  edita o borra; el contenido importado del catálogo es de solo lectura.

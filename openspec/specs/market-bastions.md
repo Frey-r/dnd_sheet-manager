@@ -198,3 +198,11 @@ Scenario: Maintain-only turn rolls an event
   When the GM runs a Bastion turn
   Then the Bastion rolls on the events table and the result is logged
 ```
+
+## Decisiones de implementación (2026-11-21)
+
+- El turno de bastión emite `BASTION_TURN`; los jugadores ven un aviso con enlace a su bastión
+  (solo para turnos de los últimos 2 minutos, para no repetirlo al reproducir el historial).
+- `bastion_sale_pct` es editable por el GM (0–100) en la pestaña Tasación.
+- Los rangos d100 y las opciones de orden sembrados son editables por el GM; las mecánicas de
+  cada evento las resuelve el GM a partir del texto.

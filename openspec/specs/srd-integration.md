@@ -234,3 +234,12 @@ AND the RAG pipeline MAY use these results as additional context alongside pgvec
   "offset": 0
 }
 ```
+
+## Decisiones de implementación (2026-11-21)
+
+- `POST /campaigns/:id/combat/encounter` acepta `{monster_id, count}`: el servidor resuelve PV,
+  CA e iniciativa (d20 + DES) desde el catálogo, ignora lo que envíe el cliente y emite
+  `ENCOUNTER_STARTED`. En campañas locales la UI abre el rastreador local (`/gm/combat`).
+- Los PX por VD siguen la tabla de la DMG (VD 1 = 200 PX); los PV "especiales" numéricos se leen.
+- Las filas antiguas sin enlace al catálogo se ocultan de búsquedas solo si el catálogo tiene una
+  criatura con el mismo nombre; no se borran.

@@ -158,3 +158,10 @@ Hidden-token moves **SHALL** publish `vtt.scene.updated` without coordinates. Mo
 | PUT | `/api/campaigns/:id/vtt/tokens/:token_id/move` | owner or GM |
 | DELETE | `/api/campaigns/:id/vtt/tokens/:token_id` | GM |
 | POST | `/api/campaigns/:id/uploads` | GM (multipart `file`) |
+
+## Decisiones de implementación (2026-11-21)
+
+- El movimiento de una ficha oculta se envía de forma efímera solo a los GMs y al dueño de la
+  ficha (`vtt.token.moved`); nunca se guarda en `game_events` ni llega a otros jugadores.
+- El aviso de botín `vtt.object.looted` llega solo a los GMs y se muestra en su pantalla.
+- Los nombres de escena y ficha conservan lo escrito mientras se guarda o se sube el mapa.

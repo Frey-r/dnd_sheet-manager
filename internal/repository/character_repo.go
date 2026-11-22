@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"dnd-campaign-manager/internal/domain"
+	"strings"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -195,4 +196,26 @@ func (r *CharacterRepository) LongRest(ctx context.Context, characterID int64) e
 		return err
 	}
 	return tx.Commit()
+}
+
+// RaceGrantsSkill reports whether the catalog race grants a fixed skill proficiency
+// (srd_races.skill_proficiencies). race may carry its book, "Elf (PHB)"; without one the
+// 2024 version is preferred, then the 2014 one.
+func (r *CharacterRepository) RaceGrantsSkill(ctx context.Context, race, skill string) (bool, error) {
+	name, source := splitRaceSource(race)
+	var granted bool
+	err := r.db.GetContext(ctx, &granted, `SELECT COALESCE((
+		SELECT skill_proficiencies ? $3 FROM srd_races
+		WHERE LOWER(name) = LOWER($1) AND ($2 = '' OR LOWER(source) = LOWER($2))
+		ORDER BY CASE source WHEN 'XPHB' THEN 0 WHEN 'PHB' THEN 1 ELSE 2 END, id LIMIT 1), FALSE)`, name, source, skill)
+	return granted, err
+}
+
+// splitRaceSource splits "Elf (PHB)" into ("Elf", "PHB"); a plain name has no source.
+func splitRaceSource(race string) (string, string) {
+	race = strings.TrimSpace(race)
+	if open := strings.LastIndex(race, " ("); open > 0 && strings.HasSuffix(race, ")") {
+		return race[:open], race[open+2 : len(race)-1]
+	}
+	return race, ""
 }

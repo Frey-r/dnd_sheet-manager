@@ -91,3 +91,11 @@ WHEN they assign 15 to CON and apply +2 CON
 THEN the character SHALL be created with CON 17
 AND a request assigning a 16 that was not rolled SHALL be rejected
 ```
+
+## Decisiones de implementación (2026-11-21)
+
+- Los PV actuales se acotan a [0, PV máximos]; los temporales no son negativos.
+- La raza se guarda con su libro cuando hay varias versiones ("Elf (PHB)"). La Percepción
+  pasiva suma el bono de competencia si la raza otorga competencia fija en Percepción
+  (`srd_races.skill_proficiencies`); un nombre sin libro se resuelve a XPHB y luego a PHB.
+- Los espacios de conjuro se serializan en snake_case (`level`, `total`, `used`).

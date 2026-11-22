@@ -79,6 +79,11 @@ func (s *CharacterService) Create(ctx context.Context, userID int64, req *domain
 	if err := ApplyStartingStats(char, final); err != nil {
 		return nil, err
 	}
+	// Racial Perception proficiency (e.g. PHB Elf "Keen Senses") counts in the stored passive
+	// Perception, which the hub and the VTT read; the sheet computes the same value.
+	if granted, err := s.charRepo.RaceGrantsSkill(ctx, char.Race, "perception"); err == nil && granted {
+		char.PassivePerception += char.ProficiencyBonus
+	}
 	if req.Speed >= 5 && req.Speed <= 120 {
 		char.Speed = req.Speed
 	}
