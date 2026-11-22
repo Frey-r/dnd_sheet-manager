@@ -56,7 +56,10 @@ func (s *RAGService) GetEmbedding(ctx context.Context, text string) ([]float32, 
 		return nil, err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", s.ollamaConfig.BaseURL+"/api/embeddings", bytes.NewReader(body))
+	// /api/embed takes {"model","input"} and returns {"embeddings":[[...]]}. The legacy
+	// /api/embeddings expects "prompt" instead and answers an empty vector to "input", which
+	// silently disabled semantic lore search (everything fell back to keyword search).
+	req, err := http.NewRequestWithContext(ctx, "POST", s.ollamaConfig.BaseURL+"/api/embed", bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}

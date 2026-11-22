@@ -21,6 +21,7 @@ type LoreEntry struct {
 	Title           string    `db:"title" json:"title"`
 	FoundryUUID     *string   `db:"foundry_uuid" json:"foundry_uuid,omitempty"`
 	IsFoundryOrphan bool      `db:"is_foundry_orphan" json:"is_foundry_orphan"`
+	IsVectorized    bool      `db:"is_vectorized" json:"is_vectorized"` // derived: content_vector IS NOT NULL
 	CreatedAt       time.Time `db:"created_at" json:"created_at"`
 	UpdatedAt       time.Time `db:"updated_at" json:"updated_at"`
 }

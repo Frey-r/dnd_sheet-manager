@@ -36,6 +36,12 @@ func AuthMiddleware(authSvc *service.AuthService) gin.HandlerFunc {
 			return
 		}
 
+		// Campaign context is intentionally NOT a JWT claim (security.md asks for it):
+		// a user belongs to several campaigns with different roles, memberships can be
+		// revoked or the GM changed while a token is still valid, and the SPA uses one
+		// token across campaigns. Embedding it would be stale and break multi-campaign
+		// use, so RBACMiddleware resolves campaign_id/campaign_role from the database
+		// on every request (authoritative and immediately revocable).
 		c.Set("user_id", claims.UserID)
 		c.Set("role", claims.Role)
 		c.Next()
@@ -59,22 +65,28 @@ func RBACMiddleware(campaignSvc *service.CampaignService) gin.HandlerFunc {
 		if campaignIDStr == "" {
 			campaignIDStr = c.Param("campaign_id")
 		}
-		if campaignIDStr != "" && strings.HasPrefix(c.Request.URL.Path, "/api/campaigns/") {
+		// POST /campaigns/:id/join resolves the campaign from the join code, not from :id
+		// (a player does not know the id yet; the UI sends 0), so it skips the id checks.
+		isJoin := strings.HasSuffix(c.Request.URL.Path, "/join")
+		if campaignIDStr != "" && strings.HasPrefix(c.Request.URL.Path, "/api/campaigns/") && !isJoin {
 			campaignID, err := strconv.ParseInt(campaignIDStr, 10, 64)
 			if err != nil || campaignID < 1 {
 				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid campaign id"})
 				return
 			}
-			if !strings.HasSuffix(c.Request.URL.Path, "/join") {
+			{
 				role, err := campaignSvc.GetMemberRole(c.Request.Context(), campaignID, userID.(int64))
 				if err != nil {
 					c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "could not verify membership"})
 					return
 				}
 				if role == "" {
+					SetAuditCampaign(c, campaignID)
+					SetAuditReason(c, "campaign membership required")
 					c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "campaign membership required"})
 					return
 				}
+				SetAuditCampaign(c, campaignID)
 				c.Set("campaign_role", role)
 				c.Set("is_gm", role == "gm")
 			}
@@ -118,6 +130,7 @@ func RequireRole(allowedRoles ...string) gin.HandlerFunc {
 				return
 			}
 		}
+		SetAuditReason(c, "insufficient permissions: role "+role+" not in "+strings.Join(allowedRoles, ","))
 		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "insufficient permissions"})
 	}
 }

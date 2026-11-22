@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"log"
 	"time"
 
 	"dnd-campaign-manager/internal/config"
@@ -52,7 +53,11 @@ func NewLoreWorkerPool(rag *RAGService, cfg config.WorkerConfig) *LoreWorkerPool
 				case job := <-pool.jobs:
 					if job.vectorizeID > 0 {
 						ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-						_ = pool.rag.VectorizeLoreEntry(ctx, job.vectorizeID)
+						if err := pool.rag.VectorizeLoreEntry(ctx, job.vectorizeID); err != nil {
+							// Without this an Oracle with a broken embedding setup silently
+							// falls back to keyword search forever.
+							log.Printf("lore: vectorize entry %d: %v", job.vectorizeID, err)
+						}
 						cancel()
 					} else if job.query != nil {
 						answer, sources, err := pool.rag.Query(job.ctx, job.query.CampaignID, job.query.CharacterID, job.query.UserID, job.query.IsGM, job.query.Tier, job.query.Text)

@@ -63,9 +63,62 @@ func (r *CombatRepository) Add(ctx context.Context, combatant *domain.Combatant)
 	if combatant.Initiative < -20 || combatant.Initiative > 100 {
 		return ErrResourceConflict
 	}
-	return r.db.QueryRowxContext(ctx, `INSERT INTO combatants (campaign_id, character_id, name, initiative, hp, max_hp, is_player)
-		VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id, created_at`, combatant.CampaignID, combatant.CharacterID,
-		combatant.Name, combatant.Initiative, combatant.HP, combatant.MaxHP, combatant.IsPlayer).Scan(&combatant.ID, &combatant.CreatedAt)
+	return insertCombatant(ctx, r.db, combatant)
+}
+
+type combatantQueryer interface {
+	QueryRowxContext(ctx context.Context, query string, args ...any) *sqlx.Row
+}
+
+func insertCombatant(ctx context.Context, q combatantQueryer, combatant *domain.Combatant) error {
+	return q.QueryRowxContext(ctx, `INSERT INTO combatants (campaign_id, character_id, name, initiative, hp, max_hp, is_player, ac, srd_monster_id)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id, created_at`, combatant.CampaignID, combatant.CharacterID,
+		combatant.Name, combatant.Initiative, combatant.HP, combatant.MaxHP, combatant.IsPlayer, combatant.AC, combatant.SRDMonsterID).Scan(&combatant.ID, &combatant.CreatedAt)
+}
+
+// SRDMonsterStats loads the combat stats (name, hp, ac, dex) of the given SRD
+// monsters, keyed by id. Ids that do not exist are simply absent from the map.
+func (r *CombatRepository) SRDMonsterStats(ctx context.Context, ids []int64) (map[int64]domain.SRDMonster, error) {
+	out := map[int64]domain.SRDMonster{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	var rows []domain.SRDMonster
+	query, args, err := sqlx.In(`SELECT id, name, ac, hp, dex FROM srd_monsters WHERE id IN (?)`, ids)
+	if err != nil {
+		return nil, err
+	}
+	if err := r.db.SelectContext(ctx, &rows, r.db.Rebind(query), args...); err != nil {
+		return nil, err
+	}
+	for _, m := range rows {
+		out[m.ID] = m
+	}
+	return out, nil
+}
+
+// AddMany inserts all combatants in one transaction (all or nothing). Each one is
+// validated like Add; character-bound combatants are not supported here.
+func (r *CombatRepository) AddMany(ctx context.Context, combatants []*domain.Combatant) error {
+	for _, c := range combatants {
+		if c.MaxHP < 1 || c.MaxHP > 100000 || c.HP < 0 || c.Initiative < -20 || c.Initiative > 100 {
+			return ErrResourceConflict
+		}
+		if c.HP > c.MaxHP {
+			c.HP = c.MaxHP
+		}
+	}
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	for _, c := range combatants {
+		if err := insertCombatant(ctx, tx, c); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 func (r *CombatRepository) NextTurn(ctx context.Context, campaignID, actorID int64) error {

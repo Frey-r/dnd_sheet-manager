@@ -580,3 +580,41 @@ func (r *MarketRepository) CloseOffer(ctx context.Context, o *domain.ShopOffer, 
 	}
 	return tx.Commit()
 }
+
+// ---------- Appraisal (market-bastions.md §4) ----------
+
+// UnvaluedItem is a party inventory line without a known value.
+type UnvaluedItem struct {
+	ID            int64  `db:"id" json:"id"`
+	CharacterID   int64  `db:"character_id" json:"character_id"`
+	CharacterName string `db:"character_name" json:"character_name"`
+	Name          string `db:"name" json:"name"`
+	ItemType      string `db:"item_type" json:"item_type"`
+	Rarity        string `db:"rarity" json:"rarity"`
+	Quantity      int    `db:"quantity" json:"quantity"`
+	ValueCP       *int64 `db:"value_cp" json:"value_cp"`
+}
+
+// AppraisalItems lists the party's inventory (items without value first).
+func (r *MarketRepository) AppraisalItems(ctx context.Context, campaignID int64) ([]UnvaluedItem, error) {
+	items := []UnvaluedItem{}
+	err := r.db.SelectContext(ctx, &items, `
+		SELECT i.id, i.character_id, c.name AS character_name, i.name, i.item_type, i.rarity, COALESCE(i.quantity, 1) AS quantity, i.value_cp
+		FROM inventory_items i JOIN characters c ON c.id = i.character_id
+		WHERE c.campaign_id=$1 ORDER BY (i.value_cp IS NOT NULL), c.name, i.name LIMIT 500`, campaignID)
+	return items, err
+}
+
+// SetItemValue appraises an inventory item of the campaign (nil clears the value).
+func (r *MarketRepository) SetItemValue(ctx context.Context, campaignID, itemID int64, valueCP *int64) error {
+	res, err := r.db.ExecContext(ctx, `
+		UPDATE inventory_items SET value_cp=$3, updated_at=NOW()
+		WHERE id=$2 AND character_id IN (SELECT id FROM characters WHERE campaign_id=$1)`, campaignID, itemID, valueCP)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrMarketNotFound
+	}
+	return nil
+}

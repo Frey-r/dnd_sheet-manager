@@ -14,6 +14,9 @@ var (
 	ErrItemQuestBound   = repository.ErrTradeItem
 	ErrItemNotOwned     = repository.ErrTradeItem
 	ErrTradeConflict    = repository.ErrTradeItem
+	ErrTradeInvalidated = repository.ErrTradeInvalidated
+	// ErrCounterRecipient: a counter-offer must go back to the original offeror.
+	ErrCounterRecipient = errors.New("counter-offer must be addressed to the original offeror")
 )
 
 type TradeService struct {
@@ -96,12 +99,19 @@ func (s *TradeService) CounterOffer(ctx context.Context, tradeID, userID int64, 
 		return nil, err
 	}
 	if req.RecipientCharacterID != original.OfferorCharacterID {
-		return nil, errors.New("counter-offer must be addressed to the original offeror")
+		return nil, ErrCounterRecipient
 	}
-	if _, err := s.tradeRepo.FinishTransactional(ctx, tradeID, domain.TradeRejected); err != nil {
-		return nil, err
+	// Rejecting the original and filing the counter is one transaction: a counter that
+	// fails (gold, items) leaves the original offer pending.
+	offeror, err := s.charRepo.GetByID(ctx, original.RecipientCharacterID)
+	if err != nil || offeror == nil {
+		return nil, ErrNotFound
 	}
-	return s.CreateOffer(ctx, original.RecipientCharacterID, userID, false, req)
+	recipient, err := s.charRepo.GetByID(ctx, req.RecipientCharacterID)
+	if err != nil || recipient == nil || recipient.CampaignID != offeror.CampaignID || recipient.ID == offeror.ID {
+		return nil, ErrNotFound
+	}
+	return s.tradeRepo.CounterTransactional(ctx, tradeID, offeror, recipient, req)
 }
 
 func (s *TradeService) ExpireStaleTrades(ctx context.Context) error {

@@ -78,6 +78,13 @@ func (r *MessageRepository) MarkAsRead(ctx context.Context, userID int64) error 
 	return err
 }
 
+// MarkConversationAsRead marks only messages sent by otherUserID to userID within one campaign.
+func (r *MessageRepository) MarkConversationAsRead(ctx context.Context, campaignID, userID, otherUserID int64) error {
+	query := `UPDATE messages SET is_read=true WHERE campaign_id=$1 AND recipient_user_id=$2 AND sender_user_id=$3 AND is_read=false`
+	_, err := r.db.ExecContext(ctx, query, campaignID, userID, otherUserID)
+	return err
+}
+
 func (r *MessageRepository) GetConversationsList(ctx context.Context, campaignID, userID int64) ([]domain.Conversation, error) {
 	conversations := []domain.Conversation{}
 	query := `
@@ -98,7 +105,10 @@ func (r *MessageRepository) GetConversationsList(ctx context.Context, campaignID
 			u.username as other_username,
 			COALESCE(m.message_type, 'player_direct') as conversation_type,
 			m.body as last_message,
-			l.last_message_at
+			l.last_message_at,
+			(SELECT COUNT(*) FROM messages un
+				WHERE un.campaign_id = $1 AND un.sender_user_id = l.other_user_id
+					AND un.recipient_user_id = $2 AND un.is_read = false) as unread_count
 		FROM latest l
 		JOIN users u ON l.other_user_id = u.id
 		LEFT JOIN messages m ON m.id = (
@@ -202,8 +212,8 @@ func (r *LoreRepository) GetByID(ctx context.Context, id int64) (*domain.LoreEnt
 	return &l, err
 }
 
-// loreCols lists every lore_entries column except the pgvector embedding.
-const loreCols = `id, campaign_id, character_id, content_text, lore_tier, chapter_order, title, foundry_uuid, is_foundry_orphan, created_at, updated_at`
+// loreCols lists every lore_entries column except the pgvector embedding, plus a derived is_vectorized flag.
+const loreCols = `id, campaign_id, character_id, content_text, lore_tier, chapter_order, title, foundry_uuid, is_foundry_orphan, created_at, updated_at, (content_vector IS NOT NULL) AS is_vectorized`
 
 func (r *LoreRepository) GetByCampaign(ctx context.Context, campaignID int64) ([]domain.LoreEntry, error) {
 	entries := []domain.LoreEntry{}

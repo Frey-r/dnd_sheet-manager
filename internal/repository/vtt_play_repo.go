@@ -321,3 +321,11 @@ func (r *VTTRepository) ShopForObject(ctx context.Context, objectID int64) (int6
 	err := r.db.GetContext(ctx, &id, `SELECT COALESCE((SELECT id FROM shops WHERE object_id=$1), 0)`, objectID)
 	return id, err
 }
+
+// CampaignGMs returns the user ids allowed to receive GM-only notifications of a campaign.
+func (r *VTTRepository) CampaignGMs(ctx context.Context, campaignID int64) ([]int64, error) {
+	ids := []int64{}
+	err := r.db.SelectContext(ctx, &ids, `SELECT gm_user_id FROM campaigns WHERE id=$1
+		UNION SELECT user_id FROM campaign_members WHERE campaign_id=$1 AND role='gm'`, campaignID)
+	return ids, err
+}

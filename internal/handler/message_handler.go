@@ -87,6 +87,16 @@ func (h *MessageHandler) GetConversation(c *gin.Context) {
 func (h *MessageHandler) MarkAsRead(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 
+	// Optional scope: ?campaign_id=X&user_id=Y marks only that conversation.
+	if campaignID, otherID := parseID(c.Query("campaign_id")), parseID(c.Query("user_id")); campaignID > 0 && otherID > 0 {
+		if err := h.msgSvc.MarkConversationAsRead(c.Request.Context(), campaignID, userID, otherID); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to mark as read"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "marked as read"})
+		return
+	}
+
 	if err := h.msgSvc.MarkAsRead(c.Request.Context(), userID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to mark as read"})
 		return

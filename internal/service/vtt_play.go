@@ -8,6 +8,7 @@ import (
 	"log"
 	"math"
 	"math/rand/v2"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,6 +20,8 @@ import (
 type Realtime interface {
 	Publish(ctx context.Context, campaignID, userID int64, eventType string, payload any) error
 	Broadcast(ctx context.Context, campaignID int64, eventType string, payload any) error
+	// BroadcastTo delivers an ephemeral event only to the listed users of the campaign.
+	BroadcastTo(ctx context.Context, campaignID int64, userIDs []int64, eventType string, payload any) error
 }
 
 // Errors surfaced to players as HTTP 4xx.
@@ -110,7 +113,12 @@ func (p *VTTPlay) HandleMove(ctx context.Context, userID, campaignID int64, raw 
 	p.mu.Lock()
 	p.last[token.ID] = prev
 	p.mu.Unlock()
-	_ = p.rt.Broadcast(ctx, campaignID, "vtt.token.moved", map[string]any{"scene_id": scene.ID, "token_id": token.ID, "x": x, "y": y, "corrected": corrected})
+	moved := map[string]any{"scene_id": scene.ID, "token_id": token.ID, "x": x, "y": y, "corrected": corrected}
+	if token.Hidden {
+		p.moveHidden(ctx, campaignID, token, moved)
+	} else {
+		_ = p.rt.Broadcast(ctx, campaignID, "vtt.token.moved", moved)
+	}
 
 	token.X, token.Y = x, y
 	p.checkTriggers(ctx, scene, token, &prev)
@@ -281,6 +289,22 @@ func (p *VTTPlay) monstersDown(ctx context.Context, c *domain.VTTCombat) bool {
 	return any
 }
 
+// CheckAutoEnd ends the active combat of a token once every monster participant is down
+// (vtt-modes.md §5). It is called after a token's HP changes, not only when a turn advances.
+func (p *VTTPlay) CheckAutoEnd(ctx context.Context, campaignID, tokenID int64) {
+	combatID, err := p.repo.TokenInCombat(ctx, tokenID)
+	if err != nil || combatID == 0 {
+		return
+	}
+	c, err := p.repo.Combat(ctx, campaignID, combatID)
+	if err != nil || c.Status != "active" || !p.monstersDown(ctx, c) {
+		return
+	}
+	if err := p.EndCombat(ctx, c); err != nil {
+		log.Printf("vtt play: auto-end combat %d: %v", c.ID, err)
+	}
+}
+
 // EndCombat closes a combat; participants return to exploration.
 func (p *VTTPlay) EndCombat(ctx context.Context, c *domain.VTTCombat) error {
 	c.Status = "ended"
@@ -366,7 +390,11 @@ func (p *VTTPlay) CombatMove(ctx context.Context, c *domain.VTTCombat, userID in
 	if err := p.repo.MoveToken(ctx, token.CampaignID, token.ID, nx, ny); err != nil {
 		return 0, 0, err
 	}
-	p.emit(ctx, token.CampaignID, "vtt.token.moved", map[string]any{"scene_id": scene.ID, "token_id": token.ID, "x": nx, "y": ny})
+	if token.Hidden {
+		p.moveHidden(ctx, token.CampaignID, token, map[string]any{"scene_id": scene.ID, "token_id": token.ID, "x": nx, "y": ny})
+	} else {
+		p.emit(ctx, token.CampaignID, "vtt.token.moved", map[string]any{"scene_id": scene.ID, "token_id": token.ID, "x": nx, "y": ny})
+	}
 	p.emit(ctx, token.CampaignID, "vtt.combat.updated", map[string]any{"scene_id": scene.ID, "combat_id": c.ID})
 	return nx, ny, nil
 }
@@ -433,6 +461,39 @@ type InteractResult struct {
 	ShopID  int64  `json:"shop_id,omitempty"`
 }
 
+// moveHidden delivers a hidden token's movement only to the GM(s) and the token's owner
+// (vtt.md §7: hidden coordinates never reach other players). It is ephemeral on purpose:
+// movement streams at ~8 Hz and must not land in the game_events replay log.
+func (p *VTTPlay) moveHidden(ctx context.Context, campaignID int64, token *domain.VTTToken, payload map[string]any) {
+	recipients, err := p.repo.CampaignGMs(ctx, campaignID)
+	if err != nil {
+		log.Printf("vtt play: hidden move recipients: %v", err)
+		return
+	}
+	if token.OwnerUserID != nil {
+		recipients = append(recipients, *token.OwnerUserID)
+	}
+	if len(recipients) == 0 {
+		return
+	}
+	if err := p.rt.BroadcastTo(ctx, campaignID, recipients, "vtt.token.moved", payload); err != nil {
+		log.Printf("vtt play: hidden move: %v", err)
+	}
+}
+
+// notifyGM sends vtt.object.looted to the campaign's GM(s) only (vtt-modes.md §3, §6). It is ephemeral:
+// loot results and silent rolls must not reach players, neither live nor through the event-log replay.
+func (p *VTTPlay) notifyGM(ctx context.Context, campaignID, objectID, characterID int64, success bool, detail string) {
+	gms, err := p.repo.CampaignGMs(ctx, campaignID)
+	if err != nil || len(gms) == 0 {
+		return
+	}
+	payload := map[string]any{"object_id": objectID, "character_id": characterID, "success": success, "detail": detail}
+	if err := p.rt.BroadcastTo(ctx, campaignID, gms, "vtt.object.looted", payload); err != nil {
+		log.Printf("vtt play: notify gm: %v", err)
+	}
+}
+
 // Interact resolves a player interaction with an object (vtt-modes.md §3).
 func (p *VTTPlay) Interact(ctx context.Context, userID, campaignID, objectID int64) (*InteractResult, error) {
 	obj, err := p.repo.Object(ctx, campaignID, objectID)
@@ -482,7 +543,8 @@ func (p *VTTPlay) Interact(ctx context.Context, userID, campaignID, objectID int
 		if err := p.repo.RecordAttempt(ctx, obj.ID, prof.ID, false, msg+" "+roll, nil, false); err != nil {
 			return nil, err
 		}
-		p.emit(ctx, campaignID, "vtt.object.updated", map[string]any{"scene_id": scene.ID, "object_id": obj.ID, "character_id": prof.ID, "success": false})
+		p.emit(ctx, campaignID, "vtt.object.updated", map[string]any{"scene_id": scene.ID})
+		p.notifyGM(ctx, campaignID, obj.ID, prof.ID, false, strings.TrimSpace(msg+" "+roll))
 		return res, nil
 	}
 	if len(req.Milestones) > 0 {
@@ -545,6 +607,7 @@ func (p *VTTPlay) Interact(ctx context.Context, userID, campaignID, objectID int
 	if err := p.repo.RecordAttempt(ctx, obj.ID, prof.ID, true, desc, grant, !obj.PerCharacter); err != nil {
 		return nil, err
 	}
-	p.emit(ctx, campaignID, "vtt.object.updated", map[string]any{"scene_id": scene.ID, "object_id": obj.ID, "character_id": prof.ID, "success": true, "loot": desc})
+	p.emit(ctx, campaignID, "vtt.object.updated", map[string]any{"scene_id": scene.ID})
+	p.notifyGM(ctx, campaignID, obj.ID, prof.ID, true, desc)
 	return &InteractResult{Success: true, Message: "Lo consigues.", Roll: rollText, Loot: desc}, nil
 }

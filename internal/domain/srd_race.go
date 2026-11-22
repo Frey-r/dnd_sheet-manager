@@ -6,6 +6,7 @@ import "time"
 type SRDRace struct {
 	ID             int64     `db:"id" json:"id"`
 	Name           string    `db:"name" json:"name"`
+	Source         string    `db:"source" json:"source"`
 	Speed          int       `db:"speed" json:"speed"`
 	Size           string    `db:"size" json:"size"`
 	AbilityBonuses string    `db:"ability_bonuses" json:"ability_bonuses"` // JSON: {"str": 2, "con": 1}

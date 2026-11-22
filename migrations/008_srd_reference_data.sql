@@ -329,3 +329,23 @@ CREATE TRIGGER trg_srd_rules_search
 ALTER TABLE spells ADD COLUMN IF NOT EXISTS srd_ref_id BIGINT REFERENCES srd_spells(id) ON DELETE SET NULL;
 ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS srd_ref_id BIGINT REFERENCES srd_equipment(id) ON DELETE SET NULL;
 ALTER TABLE marketplace_items ADD COLUMN IF NOT EXISTS srd_ref_id BIGINT REFERENCES srd_equipment(id) ON DELETE SET NULL;
+
+-- +goose Down
+ALTER TABLE marketplace_items DROP COLUMN IF EXISTS srd_ref_id;
+ALTER TABLE inventory_items DROP COLUMN IF EXISTS srd_ref_id;
+ALTER TABLE spells DROP COLUMN IF EXISTS srd_ref_id;
+DROP TABLE IF EXISTS srd_rules CASCADE;
+DROP TABLE IF EXISTS srd_conditions CASCADE;
+DROP TABLE IF EXISTS srd_races CASCADE;
+DROP TABLE IF EXISTS srd_class_spell_slots CASCADE;
+DROP TABLE IF EXISTS srd_class_features CASCADE;
+DROP TABLE IF EXISTS srd_classes CASCADE;
+DROP TABLE IF EXISTS srd_magic_items CASCADE;
+DROP TABLE IF EXISTS srd_equipment CASCADE;
+DROP TABLE IF EXISTS srd_spells CASCADE;
+DROP TABLE IF EXISTS srd_monsters CASCADE;
+DROP FUNCTION IF EXISTS srd_rules_search_trigger();
+DROP FUNCTION IF EXISTS srd_magic_items_search_trigger();
+DROP FUNCTION IF EXISTS srd_equipment_search_trigger();
+DROP FUNCTION IF EXISTS srd_spells_search_trigger();
+DROP FUNCTION IF EXISTS srd_monsters_search_trigger();

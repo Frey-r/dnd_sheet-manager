@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
 
@@ -18,12 +19,18 @@ func NewSRDRepository(db *sqlx.DB) *SRDRepository {
 	return &SRDRepository{db: db}
 }
 
+// crNumericSQL converts the text cr column to a number. Catalog monsters can have an empty or
+// non-numeric CR ("" for summons/variants, "Unknown"); those become NULL and drop out of CR
+// filters instead of failing the whole query with "invalid input syntax for type real".
+const crNumericSQL = `(CASE WHEN cr = '1/8' THEN 0.125 WHEN cr = '1/4' THEN 0.25 WHEN cr = '1/2' THEN 0.5
+	WHEN cr ~ '^[0-9]+(\.[0-9]+)?$' THEN CAST(cr AS REAL) END)`
+
 // sanitizeFTSQuery cleans a raw user query for PostgreSQL FTS.
 func sanitizeFTSQuery(query string) string {
 	// Remove special FTS characters
 	cleaned := strings.Map(func(r rune) rune {
 		switch r {
-		case '*', '"', ':', '(', ')', '^', '~', '{', '}', '<', '>', '!', '&', '|', '\\':
+		case '*', '"', '\'', ':', '(', ')', '^', '~', '{', '}', '<', '>', '!', '&', '|', '\\':
 			return -1
 		default:
 			return r
@@ -64,23 +71,32 @@ func (r *SRDRepository) SearchMonsters(filters domain.MonsterFilters) (*domain.P
 	conditions := []string{}
 	args := map[string]interface{}{}
 
+	rankExpr := "CAST(0 AS float8)"
+	orderBy := "name ASC"
 	if filters.Query != "" {
 		fts := sanitizeFTSQuery(filters.Query)
 		if fts != "" {
 			conditions = append(conditions, "search_vector @@ to_tsquery('english', :fts_query)")
 			args["fts_query"] = fts
+			args["name_query"] = strings.TrimSpace(filters.Query)
+			args["name_prefix"] = strings.TrimSpace(filters.Query) + "%"
+			rankExpr = "CAST(ts_rank(search_vector, to_tsquery('english', :fts_query)) AS float8)"
+			// With the full catalog, lore text mentioning a word often outranks the creature
+			// itself ("Goblin" below NPCs that talk about goblins): exact and prefix name
+			// matches come first, then FTS relevance.
+			orderBy = "(LOWER(name) = LOWER(:name_query)) DESC, (name ILIKE :name_prefix) DESC, rank DESC, name ASC"
 		}
 	}
 	if filters.CR != "" {
 		conditions = append(conditions, "cr = :cr")
 		args["cr"] = filters.CR
 	}
-	if filters.CRMin > 0 {
-		conditions = append(conditions, `CASE WHEN cr = '1/8' THEN 0.125 WHEN cr = '1/4' THEN 0.25 WHEN cr = '1/2' THEN 0.5 ELSE CAST(cr AS REAL) END >= :cr_min`)
+	if filters.CRMin > 0 || filters.HasCRMin {
+		conditions = append(conditions, crNumericSQL+` >= :cr_min`)
 		args["cr_min"] = filters.CRMin
 	}
-	if filters.CRMax > 0 {
-		conditions = append(conditions, `CASE WHEN cr = '1/8' THEN 0.125 WHEN cr = '1/4' THEN 0.25 WHEN cr = '1/2' THEN 0.5 ELSE CAST(cr AS REAL) END <= :cr_max`)
+	if filters.CRMax > 0 || filters.HasCRMax {
+		conditions = append(conditions, crNumericSQL+` <= :cr_max`)
 		args["cr_max"] = filters.CRMax
 	}
 	if filters.Type != "" {
@@ -119,8 +135,8 @@ func (r *SRDRepository) SearchMonsters(filters domain.MonsterFilters) (*domain.P
 	args["limit"] = filters.Limit
 	args["offset"] = filters.Offset
 	dataQuery := fmt.Sprintf(
-		"SELECT id, name, size, type, cr, xp, hp, ac, is_srd FROM srd_monsters %s ORDER BY name ASC LIMIT :limit OFFSET :offset",
-		where,
+		"SELECT id, name, size, type, cr, xp, hp, ac, is_srd, source, (created_by IS NOT NULL) AS is_homebrew, %s AS rank FROM srd_monsters %s ORDER BY %s LIMIT :limit OFFSET :offset",
+		rankExpr, where, orderBy,
 	)
 
 	rows, err := r.db.NamedQuery(dataQuery, args)
@@ -153,7 +169,8 @@ func (r *SRDRepository) GetMonster(id int64) (*domain.SRDMonster, error) {
 		speed::text, str, dex, con, "int", wis, cha, cr, xp, senses, languages, 
 		traits::text, actions::text, legendary_actions::text, reactions::text,
 		resistances, immunities, vulnerabilities, condition_immunities,
-		saving_throws::text, skills::text, proficiency_bonus, is_srd, created_at
+		saving_throws::text, skills::text, proficiency_bonus, is_srd, created_at,
+		source, created_by, (created_by IS NOT NULL) AS is_homebrew
 		FROM srd_monsters WHERE id = $1`, id)
 	if err != nil {
 		return nil, fmt.Errorf("get monster %d: %w", id, err)
@@ -164,8 +181,8 @@ func (r *SRDRepository) GetMonster(id int64) (*domain.SRDMonster, error) {
 // GetMonstersByCRRange returns monsters within a CR range, for encounter building.
 func (r *SRDRepository) GetMonstersByCRRange(crMin, crMax float64, monsterType string) ([]domain.SRDMonster, error) {
 	conditions := []string{
-		`CASE WHEN cr = '1/8' THEN 0.125 WHEN cr = '1/4' THEN 0.25 WHEN cr = '1/2' THEN 0.5 ELSE CAST(cr AS REAL) END >= $1`,
-		`CASE WHEN cr = '1/8' THEN 0.125 WHEN cr = '1/4' THEN 0.25 WHEN cr = '1/2' THEN 0.5 ELSE CAST(cr AS REAL) END <= $2`,
+		crNumericSQL + ` >= $1`,
+		crNumericSQL + ` <= $2`,
 	}
 	args := []interface{}{crMin, crMax}
 
@@ -199,11 +216,15 @@ func (r *SRDRepository) SearchSpells(filters domain.SpellFilters) (*domain.Pagin
 	conditions := []string{}
 	args := map[string]interface{}{}
 
+	rankExpr := "CAST(0 AS float8)"
+	orderBy := "level ASC, name ASC"
 	if filters.Query != "" {
 		fts := sanitizeFTSQuery(filters.Query)
 		if fts != "" {
 			conditions = append(conditions, "search_vector @@ to_tsquery('english', :fts_query)")
 			args["fts_query"] = fts
+			rankExpr = "CAST(ts_rank(search_vector, to_tsquery('english', :fts_query)) AS float8)"
+			orderBy = "rank DESC, level ASC, name ASC"
 		}
 	}
 	if filters.Level != nil {
@@ -215,8 +236,10 @@ func (r *SRDRepository) SearchSpells(filters domain.SpellFilters) (*domain.Pagin
 		args["school"] = filters.School
 	}
 	if filters.ClassName != "" {
-		conditions = append(conditions, "classes::jsonb @> :class_json::jsonb")
-		args["class_json"] = fmt.Sprintf(`["%s"]`, filters.ClassName)
+		// Case-insensitive match on the class list, bound as a plain parameter (building the
+		// JSON with Sprintf broke on quotes and missed "wizard" vs "Wizard").
+		conditions = append(conditions, spellHasClassSQL(":class_name"))
+		args["class_name"] = filters.ClassName
 	}
 	if filters.Concentration != nil {
 		conditions = append(conditions, "concentration = :concentration")
@@ -251,8 +274,8 @@ func (r *SRDRepository) SearchSpells(filters domain.SpellFilters) (*domain.Pagin
 	args["limit"] = filters.Limit
 	args["offset"] = filters.Offset
 	dataQuery := fmt.Sprintf(
-		"SELECT id, name, level, school, casting_time, concentration, ritual, is_srd FROM srd_spells %s ORDER BY level ASC, name ASC LIMIT :limit OFFSET :offset",
-		where,
+		"SELECT id, name, level, school, casting_time, concentration, ritual, is_srd, %s AS rank FROM srd_spells %s ORDER BY %s LIMIT :limit OFFSET :offset",
+		rankExpr, where, orderBy,
 	)
 
 	rows, err := r.db.NamedQuery(dataQuery, args)
@@ -338,7 +361,7 @@ func (r *SRDRepository) SearchEquipment(filters domain.EquipmentFilters) (*domai
 	dataQuery := fmt.Sprintf(
 		`SELECT id, name, category, cost_gp, cost_unit, weight, description,
 		 damage_dice, damage_type, weapon_category, weapon_range, range_normal, range_long,
-		 properties::text, ac_base, ac_dex_bonus, ac_max_bonus, str_minimum, stealth_disadvantage,
+		 CAST(properties AS text), ac_base, ac_dex_bonus, ac_max_bonus, str_minimum, stealth_disadvantage,
 		 armor_category, is_srd, created_at
 		 FROM srd_equipment %s ORDER BY name ASC LIMIT :limit OFFSET :offset`, where)
 
@@ -467,23 +490,34 @@ func (r *SRDRepository) GetMagicItem(id int64) (*domain.SRDMagicItem, error) {
 // ListClasses returns all SRD classes.
 func (r *SRDRepository) ListClasses() ([]domain.SRDClass, error) {
 	classes := []domain.SRDClass{}
-	err := r.db.Select(&classes, `SELECT id, name, hit_die, primary_ability, saving_throws::text,
+	err := r.db.Select(&classes, `SELECT id, name, source, hit_die, primary_ability, saving_throws::text,
 		armor_proficiencies::text, weapon_proficiencies::text, tool_proficiencies::text,
 		skill_choices::text, starting_equipment, spellcasting_ability, description, is_srd, created_at
-		FROM srd_classes ORDER BY name ASC`)
+		FROM srd_classes ORDER BY name ASC, source ASC`)
 	if err != nil {
 		return nil, fmt.Errorf("list classes: %w", err)
 	}
 	return classes, nil
 }
 
+// spellHasClassSQL matches a spell whose class list contains param, ignoring case.
+func spellHasClassSQL(param string) string {
+	return `EXISTS (SELECT 1 FROM jsonb_array_elements_text(CAST(classes AS jsonb)) AS cls WHERE LOWER(cls) = LOWER(` + param + `))`
+}
+
+// editionPreference orders same-named catalog rows deterministically: the 2024 core books
+// first, then the 2014 ones, then everything else by id (the full 5etools catalog holds e.g.
+// "Wizard" from both PHB and XPHB).
+const editionPreference = `CASE source WHEN 'XPHB' THEN 0 WHEN 'PHB' THEN 1 ELSE 2 END, id`
+
 // GetClassByName returns a class by name with its features and spell slots.
 func (r *SRDRepository) GetClassByName(name string) (*domain.SRDClass, error) {
 	var class domain.SRDClass
-	err := r.db.Get(&class, `SELECT id, name, hit_die, primary_ability, saving_throws::text,
+	err := r.db.Get(&class, `SELECT id, name, source, hit_die, primary_ability, saving_throws::text,
 		armor_proficiencies::text, weapon_proficiencies::text, tool_proficiencies::text,
 		skill_choices::text, starting_equipment, spellcasting_ability, description, is_srd, created_at
-		FROM srd_classes WHERE LOWER(name) = LOWER($1)`, name)
+		FROM srd_classes WHERE LOWER(name) = LOWER($1)
+		ORDER BY `+editionPreference+` LIMIT 1`, name)
 	if err != nil {
 		return nil, fmt.Errorf("get class %s: %w", name, err)
 	}
@@ -511,9 +545,9 @@ func (r *SRDRepository) GetClassByName(name string) (*domain.SRDClass, error) {
 // ListRaces returns all SRD races.
 func (r *SRDRepository) ListRaces() ([]domain.SRDRace, error) {
 	races := []domain.SRDRace{}
-	err := r.db.Select(&races, `SELECT id, name, speed, size, ability_bonuses::text, traits::text,
+	err := r.db.Select(&races, `SELECT id, name, source, speed, size, ability_bonuses::text, traits::text,
 		languages::text, subraces::text, description, is_srd, created_at
-		FROM srd_races ORDER BY name ASC`)
+		FROM srd_races ORDER BY name ASC, source ASC`)
 	if err != nil {
 		return nil, fmt.Errorf("list races: %w", err)
 	}
@@ -523,9 +557,10 @@ func (r *SRDRepository) ListRaces() ([]domain.SRDRace, error) {
 // GetRaceByName returns a race by name.
 func (r *SRDRepository) GetRaceByName(name string) (*domain.SRDRace, error) {
 	var race domain.SRDRace
-	err := r.db.Get(&race, `SELECT id, name, speed, size, ability_bonuses::text, traits::text,
+	err := r.db.Get(&race, `SELECT id, name, source, speed, size, ability_bonuses::text, traits::text,
 		languages::text, subraces::text, description, is_srd, created_at
-		FROM srd_races WHERE LOWER(name) = LOWER($1)`, name)
+		FROM srd_races WHERE LOWER(name) = LOWER($1)
+		ORDER BY `+editionPreference+` LIMIT 1`, name)
 	if err != nil {
 		return nil, fmt.Errorf("get race %s: %w", name, err)
 	}
@@ -611,4 +646,81 @@ func (r *SRDRepository) SearchRules(filters domain.RulesFilters) (*domain.Pagina
 		Limit:  filters.Limit,
 		Offset: filters.Offset,
 	}, nil
+}
+
+// -- Homebrew monsters (is_srd = FALSE) --
+
+const homebrewInsertSQL = `INSERT INTO srd_monsters (name, size, type, subtype, alignment, ac, ac_type, hp, hit_dice,
+	speed, str, dex, con, "int", wis, cha, cr, xp, senses, languages, traits, actions, legendary_actions, reactions,
+	resistances, immunities, vulnerabilities, condition_immunities, saving_throws, skills, proficiency_bonus, is_srd, created_by, source)
+	VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21::jsonb,$22::jsonb,$23::jsonb,$24::jsonb,
+	$25,$26,$27,$28,$29::jsonb,$30::jsonb,$31,FALSE,$32,'Homebrew') RETURNING id`
+
+// CreateHomebrewMonster inserts a custom monster with is_srd = FALSE owned by ownerID.
+func (r *SRDRepository) CreateHomebrewMonster(m *domain.SRDMonster, ownerID int64) (int64, error) {
+	var id int64
+	err := r.db.QueryRow(homebrewInsertSQL, m.Name, m.Size, m.Type, m.Subtype, m.Alignment, m.AC, m.ACType, m.HP, m.HitDice,
+		m.Speed, m.STR, m.DEX, m.CON, m.INT, m.WIS, m.CHA, m.CR, m.XP, m.Senses, m.Languages,
+		m.Traits, m.Actions, m.LegendaryActions, m.Reactions, m.Resistances, m.Immunities, m.Vulnerabilities,
+		m.ConditionImmunities, m.SavingThrows, m.Skills, m.ProficiencyBonus, ownerID).Scan(&id)
+	if err != nil {
+		return 0, fmt.Errorf("create homebrew monster: %w", err)
+	}
+	return id, nil
+}
+
+// UpdateHomebrewMonster updates a homebrew monster owned by ownerID (any homebrew when
+// asAdmin); returns sql.ErrNoRows when the id is missing, an SRD entry or someone else's.
+func (r *SRDRepository) UpdateHomebrewMonster(id int64, m *domain.SRDMonster, ownerID int64, asAdmin bool) error {
+	res, err := r.db.Exec(`UPDATE srd_monsters SET name=$2, size=$3, type=$4, subtype=$5, alignment=$6, ac=$7, ac_type=$8, hp=$9,
+		hit_dice=$10, speed=$11::jsonb, str=$12, dex=$13, con=$14, "int"=$15, wis=$16, cha=$17, cr=$18, xp=$19, senses=$20,
+		languages=$21, traits=$22::jsonb, actions=$23::jsonb, legendary_actions=$24::jsonb, reactions=$25::jsonb,
+		resistances=$26, immunities=$27, vulnerabilities=$28, condition_immunities=$29, saving_throws=$30::jsonb,
+		skills=$31::jsonb, proficiency_bonus=$32 WHERE id=$1 AND created_by IS NOT NULL AND ($34 OR created_by = $33)`,
+		id, m.Name, m.Size, m.Type, m.Subtype, m.Alignment, m.AC, m.ACType, m.HP, m.HitDice,
+		m.Speed, m.STR, m.DEX, m.CON, m.INT, m.WIS, m.CHA, m.CR, m.XP, m.Senses, m.Languages,
+		m.Traits, m.Actions, m.LegendaryActions, m.Reactions, m.Resistances, m.Immunities, m.Vulnerabilities,
+		m.ConditionImmunities, m.SavingThrows, m.Skills, m.ProficiencyBonus, ownerID, asAdmin)
+	if err != nil {
+		return fmt.Errorf("update homebrew monster %d: %w", id, err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
+// DeleteHomebrewMonster deletes a homebrew monster owned by ownerID (any homebrew when
+// asAdmin); returns sql.ErrNoRows when missing, SRD or someone else's.
+func (r *SRDRepository) DeleteHomebrewMonster(id, ownerID int64, asAdmin bool) error {
+	res, err := r.db.Exec(`DELETE FROM srd_monsters WHERE id=$1 AND created_by IS NOT NULL AND ($3 OR created_by = $2)`, id, ownerID, asAdmin)
+	if err != nil {
+		return fmt.Errorf("delete homebrew monster %d: %w", id, err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
+// -- Spell planner --
+
+// GetSpellsForClass returns spells available to a class up to maxLevel (full rows).
+func (r *SRDRepository) GetSpellsForClass(className string, maxLevel int) ([]domain.SRDSpell, error) {
+	spells := []domain.SRDSpell{}
+	// One row per spell name: the full catalog holds each spell once per edition (PHB, XPHB...),
+	// so keep the preferred edition and drop the reprints.
+	err := r.db.Select(&spells, `SELECT id, name, level, school, casting_time, range, duration,
+		concentration, ritual, components_v, components_s, components_m, material_desc,
+		description, higher_levels, classes, damage_type, area_type, is_srd, created_at
+		FROM (SELECT DISTINCT ON (LOWER(name)) id, name, level, school, casting_time, range, duration,
+			concentration, ritual, components_v, components_s, components_m, material_desc,
+			description, higher_levels, classes::text AS classes, damage_type, area_type, is_srd, created_at
+			FROM srd_spells WHERE `+spellHasClassSQL("$1")+` AND level <= $2
+			ORDER BY LOWER(name), `+editionPreference+`) s
+		ORDER BY level ASC, name ASC`, className, maxLevel)
+	if err != nil {
+		return nil, fmt.Errorf("spells for class %s: %w", className, err)
+	}
+	return spells, nil
 }

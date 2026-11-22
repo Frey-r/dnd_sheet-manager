@@ -10,6 +10,8 @@ const (
 	TradeRejected  TradeStatus = "rejected"
 	TradeCancelled TradeStatus = "cancelled"
 	TradeExpired   TradeStatus = "expired"
+	// TradeInvalidated: an item vanished before acceptance (user-stories.md, Trade Conflict).
+	TradeInvalidated TradeStatus = "invalidated"
 )
 
 type TradeOffer struct {

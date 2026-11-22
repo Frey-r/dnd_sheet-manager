@@ -479,6 +479,9 @@ func (h *VTTHandler) UpdateToken(c *gin.Context) {
 		h.fail(c, err, "could not update token")
 		return
 	}
+	if in.HP != nil || in.MaxHP != nil {
+		h.play.CheckAutoEnd(c.Request.Context(), campaignID, token.ID)
+	}
 	h.publish(c, campaignID, "vtt.scene.updated", gin.H{"scene_id": token.SceneID})
 	c.JSON(http.StatusOK, token)
 }

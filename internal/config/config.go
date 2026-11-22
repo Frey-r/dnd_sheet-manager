@@ -27,6 +27,10 @@ type ServerConfig struct {
 	AllowedOrigins []string `yaml:"allowed_origins"`
 	FrontendDist   string   `yaml:"frontend_dist"`
 	UploadDir      string   `yaml:"upload_dir"`
+	// TrustedProxies lists the reverse proxies (IPs/CIDRs) whose X-Forwarded-For is
+	// believed. Empty = no proxy: the client IP is the TCP peer, so rate limits, WS bans
+	// and audit logs cannot be spoofed with a forged header.
+	TrustedProxies []string `yaml:"trusted_proxies"`
 }
 
 type DatabaseConfig struct {
@@ -64,6 +68,36 @@ type RateLimitConfig struct {
 	RequestsPerMinute   int `yaml:"requests_per_minute"`
 	WSMessagesPerSecond int `yaml:"ws_messages_per_second"`
 	WSBurstSeconds      int `yaml:"ws_burst_seconds"`
+	// Burst is the token-bucket capacity per endpoint category (auth, read, write, foundry).
+	// Categories not listed use requests_per_minute as burst.
+	Burst map[string]int `yaml:"burst"`
+	// WSBanSeconds is how long an IP is blocked from reconnecting after a WS rate violation.
+	WSBanSeconds int `yaml:"ws_ban_seconds"`
+	// FoundrySyncPerMinute limits POST /foundry/sync and /foundry/sync/reference per user.
+	FoundrySyncPerMinute int `yaml:"foundry_sync_per_minute"`
+	// AuditBufferSize bounds the in-memory audit ring buffer.
+	AuditBufferSize int `yaml:"audit_buffer_size"`
+}
+
+func (r *RateLimitConfig) applyDefaults() {
+	if r.RequestsPerMinute <= 0 {
+		r.RequestsPerMinute = 100
+	}
+	if r.WSMessagesPerSecond <= 0 {
+		r.WSMessagesPerSecond = 5
+	}
+	if r.WSBurstSeconds <= 0 {
+		r.WSBurstSeconds = 1
+	}
+	if r.WSBanSeconds <= 0 {
+		r.WSBanSeconds = 30
+	}
+	if r.FoundrySyncPerMinute <= 0 {
+		r.FoundrySyncPerMinute = 5
+	}
+	if r.AuditBufferSize <= 0 {
+		r.AuditBufferSize = 1000
+	}
 }
 
 type FoundryConfig struct {
@@ -73,6 +107,22 @@ type FoundryConfig struct {
 	DefaultLoreTier string `yaml:"default_lore_tier"`
 	SyncCompendium  bool   `yaml:"sync_compendium"`
 	Timeout         int    `yaml:"timeout"`
+	// FrameAncestors lists the origins allowed to embed this app in an iframe
+	// (CSP frame-ancestors). Used only when Foundry is enabled; wildcards are rejected.
+	FrameAncestors []string `yaml:"frame_ancestors"`
+	// MaxRetries is the number of retries for transient relay failures (default 3).
+	MaxRetries int `yaml:"max_retries"`
+}
+
+// RetryCount returns the bounded number of retries for transient relay failures.
+func (c *FoundryConfig) RetryCount() int {
+	if c.MaxRetries <= 0 {
+		return 3
+	}
+	if c.MaxRetries > 6 {
+		return 6
+	}
+	return c.MaxRetries
 }
 
 func (c *FoundryConfig) TimeoutDuration() time.Duration {
@@ -96,6 +146,13 @@ func (c *DatabaseConfig) ConnMaxLifetimeDuration() time.Duration {
 
 func (c *ServerConfig) Address() string {
 	return fmt.Sprintf("%s:%d", c.Host, c.Port)
+}
+
+// IsPlaceholderSecret reports whether the JWT secret is still the example value shipped
+// in config.yaml. Only the HTTP server refuses it; offline tools (content-import,
+// foundry-export) never sign tokens and must keep working with the default config.
+func (c *Config) IsPlaceholderSecret() bool {
+	return strings.HasPrefix(c.JWT.Secret, "change-this")
 }
 
 func Load(path string) (*Config, error) {
@@ -130,6 +187,13 @@ func Load(path string) (*Config, error) {
 			cfg.Server.AllowedOrigins = append(cfg.Server.AllowedOrigins, strings.TrimSpace(origin))
 		}
 	}
+	if proxies := os.Getenv("TRUSTED_PROXIES"); proxies != "" {
+		for _, proxy := range strings.Split(proxies, ",") {
+			if proxy = strings.TrimSpace(proxy); proxy != "" {
+				cfg.Server.TrustedProxies = append(cfg.Server.TrustedProxies, proxy)
+			}
+		}
+	}
 	if cfg.Server.Port <= 0 || cfg.Server.Port > 65535 {
 		return nil, fmt.Errorf("server.port must be between 1 and 65535")
 	}
@@ -139,6 +203,20 @@ func Load(path string) (*Config, error) {
 	if len(cfg.JWT.Secret) < 32 {
 		return nil, fmt.Errorf("jwt.secret must contain at least 32 characters")
 	}
+	if origins := os.Getenv("FOUNDRY_FRAME_ANCESTORS"); origins != "" {
+		cfg.Foundry.FrameAncestors = nil
+		for _, origin := range strings.Split(origins, ",") {
+			if origin = strings.TrimSpace(origin); origin != "" {
+				cfg.Foundry.FrameAncestors = append(cfg.Foundry.FrameAncestors, origin)
+			}
+		}
+	}
+	for _, origin := range cfg.Foundry.FrameAncestors {
+		if strings.Contains(origin, "*") {
+			return nil, fmt.Errorf("foundry.frame_ancestors must not contain wildcards (security.md)")
+		}
+	}
+	cfg.RateLimit.applyDefaults()
 	if cfg.Server.FrontendDist == "" {
 		cfg.Server.FrontendDist = "frontend/dist"
 	}

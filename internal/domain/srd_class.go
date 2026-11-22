@@ -6,6 +6,7 @@ import "time"
 type SRDClass struct {
 	ID                  int64     `db:"id" json:"id"`
 	Name                string    `db:"name" json:"name"`
+	Source              string    `db:"source" json:"source"`
 	HitDie              int       `db:"hit_die" json:"hit_die"`
 	PrimaryAbility      string    `db:"primary_ability" json:"primary_ability"`
 	SavingThrows        string    `db:"saving_throws" json:"saving_throws"`               // JSON array

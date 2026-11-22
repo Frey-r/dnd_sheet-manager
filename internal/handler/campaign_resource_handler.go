@@ -1,10 +1,13 @@
 package handler
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"dnd-campaign-manager/internal/middleware"
 	"dnd-campaign-manager/internal/repository"
@@ -12,8 +15,20 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// BotLLM is the slice of the RAG service the bot test needs (satisfied by *service.RAGService).
+type BotLLM interface {
+	GenerateResponse(ctx context.Context, prompt string) (string, error)
+}
+
 type CampaignResourceHandler struct {
 	repo *repository.CampaignResourceRepository
+	llm  BotLLM
+}
+
+// WithBotLLM enables POST /campaigns/:id/bot/test.
+func (h *CampaignResourceHandler) WithBotLLM(llm BotLLM) *CampaignResourceHandler {
+	h.llm = llm
+	return h
 }
 
 func NewCampaignResourceHandler(repo *repository.CampaignResourceRepository) *CampaignResourceHandler {
@@ -30,6 +45,7 @@ func (h *CampaignResourceHandler) RegisterRoutes(auth *gin.RouterGroup) {
 	}
 	auth.GET("/campaigns/:id/bot", h.Bot)
 	auth.PUT("/campaigns/:id/bot", h.SaveBot)
+	auth.POST("/campaigns/:id/bot/test", h.TestBot)
 }
 
 func (h *CampaignResourceHandler) List(kind string) gin.HandlerFunc {
@@ -90,6 +106,44 @@ func validateResource(kind string, input map[string]any) error {
 		if _, err := time.Parse("2006-01-02", date); err != nil {
 			return errors.New("event_date must be YYYY-MM-DD")
 		}
+		return validateEventRelations(input)
+	}
+	return nil
+}
+
+const (
+	maxRelationEntries = 50
+	maxRelationLength  = 200
+)
+
+// validateEventRelations checks related_npcs / related_locations: arrays of at most 50 strings,
+// each at most 200 characters. A null value is normalised to an empty array.
+func validateEventRelations(input map[string]any) error {
+	for _, field := range []string{"related_npcs", "related_locations"} {
+		value, exists := input[field]
+		if !exists {
+			continue
+		}
+		if value == nil {
+			input[field] = []any{}
+			continue
+		}
+		list, ok := value.([]any)
+		if !ok {
+			return errors.New(field + " must be an array of strings")
+		}
+		if len(list) > maxRelationEntries {
+			return fmt.Errorf("%s allows at most %d entries", field, maxRelationEntries)
+		}
+		for _, item := range list {
+			text, ok := item.(string)
+			if !ok {
+				return errors.New(field + " must be an array of strings")
+			}
+			if utf8.RuneCountInString(text) > maxRelationLength {
+				return fmt.Errorf("%s entries must be at most %d characters", field, maxRelationLength)
+			}
+		}
 	}
 	return nil
 }
@@ -104,6 +158,12 @@ func (h *CampaignResourceHandler) Update(kind string) gin.HandlerFunc {
 		if err := c.ShouldBindJSON(&input); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid JSON"})
 			return
+		}
+		if kind == "events" {
+			if err := validateEventRelations(input); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
 		}
 		row, err := h.repo.Update(c.Request.Context(), parseID(c.Param("id")), parseID(c.Param("resource_id")), middleware.GetUserID(c), kind, input)
 		h.respond(c, row, err)

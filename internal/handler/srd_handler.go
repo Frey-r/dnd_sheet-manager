@@ -1,22 +1,39 @@
 package handler
 
 import (
+	"errors"
+	"log"
 	"net/http"
 	"strconv"
 
 	"dnd-campaign-manager/internal/domain"
+	"dnd-campaign-manager/internal/middleware"
 	"dnd-campaign-manager/internal/service"
 	"github.com/gin-gonic/gin"
+	"github.com/lib/pq"
 )
 
 // SRDHandler handles all SRD reference data REST endpoints.
 type SRDHandler struct {
 	svc *service.SRDService
+	// Burst limits (10 req/min per user) for the computationally intensive endpoints.
+	encounterLimiter *middleware.RateLimiter
+	plannerLimiter   *middleware.RateLimiter
 }
+
+// heavyRequestsPerMinute is the per-user burst limit for encounter build and spell planner.
+const heavyRequestsPerMinute = 10
+
+// limit returns a middleware enforcing the given per-user limiter.
+func limit(rl *middleware.RateLimiter) gin.HandlerFunc { return middleware.RateLimitMiddleware(rl) }
 
 // NewSRDHandler creates a new SRDHandler.
 func NewSRDHandler(svc *service.SRDService) *SRDHandler {
-	return &SRDHandler{svc: svc}
+	return &SRDHandler{
+		svc:              svc,
+		encounterLimiter: middleware.NewRateLimiter(heavyRequestsPerMinute),
+		plannerLimiter:   middleware.NewRateLimiter(heavyRequestsPerMinute),
+	}
 }
 
 // RegisterRoutes registers all SRD endpoints on the given router group.
@@ -37,7 +54,15 @@ func (h *SRDHandler) RegisterRoutes(rg *gin.RouterGroup) {
 		srd.GET("/races/:name", h.GetRace)
 		srd.GET("/conditions", h.ListConditions)
 		srd.GET("/rules", h.SearchRules)
-		srd.POST("/encounter/build", h.BuildEncounter)
+		// Any authenticated user: campaign GMs hold the global role "player", so a global
+		// role check here would lock every GM but the first (admin) user out.
+		srd.POST("/encounter/build", limit(h.encounterLimiter), h.BuildEncounter)
+		srd.POST("/spells/plan", limit(h.plannerLimiter), h.PlanSpells)
+		// Homebrew monsters are owned by their creator: editing/deleting is scoped to the
+		// owner (or an admin) in the repository, not to a global role.
+		srd.POST("/monsters", h.CreateMonster)
+		srd.PUT("/monsters/:id", h.UpdateMonster)
+		srd.DELETE("/monsters/:id", h.DeleteMonster)
 		srd.POST("/loadout/analyze", h.AnalyzeLoadout)
 	}
 }
@@ -50,8 +75,18 @@ func (h *SRDHandler) SearchMonsters(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	// Honour explicit zeros (cr_max=0 means "CR 0 only").
+	_, filters.HasCRMin = c.GetQuery("cr_min")
+	_, filters.HasCRMax = c.GetQuery("cr_max")
+	if filters.HasCRMin && c.Query("cr_min") == "" {
+		filters.HasCRMin = false
+	}
+	if filters.HasCRMax && c.Query("cr_max") == "" {
+		filters.HasCRMax = false
+	}
 	result, err := h.svc.SearchMonsters(filters)
 	if err != nil {
+		log.Printf("srd: search monsters: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to search monsters"})
 		return
 	}
@@ -240,7 +275,12 @@ func (h *SRDHandler) BuildEncounter(c *gin.Context) {
 		return
 	}
 	result, err := h.svc.BuildEncounter(req)
+	if errors.Is(err, service.ErrInvalidDifficulty) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 	if err != nil {
+		log.Printf("srd: build encounter: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to build encounter"})
 		return
 	}
@@ -261,4 +301,93 @@ func (h *SRDHandler) AnalyzeLoadout(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, result)
+}
+
+// ── Spell Planner ───────────────────────────────────────────
+
+func (h *SRDHandler) PlanSpells(c *gin.Context) {
+	var req service.SpellPlanRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	result, err := h.svc.PlanSpells(req)
+	if errors.Is(err, service.ErrClassNotFound) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Class not found"})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to plan spells"})
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
+// ── Homebrew Monsters (GM only, is_srd = FALSE) ─────────────
+
+func (h *SRDHandler) homebrewError(c *gin.Context, err error, fallback string) {
+	var ve *service.ValidationError
+	switch {
+	case errors.As(err, &ve):
+		c.JSON(http.StatusBadRequest, gin.H{"error": ve.Msg})
+	case errors.Is(err, service.ErrHomebrewNotFound):
+		c.JSON(http.StatusNotFound, gin.H{"error": "Homebrew monster not found (imported content is read-only; you can only change your own creatures)"})
+	case isUniqueViolation(err):
+		c.JSON(http.StatusConflict, gin.H{"error": "A homebrew monster with that name already exists"})
+	default:
+		log.Printf("srd: homebrew: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fallback})
+	}
+}
+
+func (h *SRDHandler) CreateMonster(c *gin.Context) {
+	var req service.HomebrewMonsterRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	m, err := h.svc.CreateHomebrewMonster(req, middleware.GetUserID(c))
+	if err != nil {
+		h.homebrewError(c, err, "Failed to create monster")
+		return
+	}
+	c.JSON(http.StatusCreated, m)
+}
+
+func (h *SRDHandler) UpdateMonster(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid monster ID"})
+		return
+	}
+	var req service.HomebrewMonsterRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	m, err := h.svc.UpdateHomebrewMonster(id, req, middleware.GetUserID(c), middleware.GetUserRole(c) == "admin")
+	if err != nil {
+		h.homebrewError(c, err, "Failed to update monster")
+		return
+	}
+	c.JSON(http.StatusOK, m)
+}
+
+func (h *SRDHandler) DeleteMonster(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid monster ID"})
+		return
+	}
+	if err := h.svc.DeleteHomebrewMonster(id, middleware.GetUserID(c), middleware.GetUserRole(c) == "admin"); err != nil {
+		h.homebrewError(c, err, "Failed to delete monster")
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+// isUniqueViolation reports a PostgreSQL unique_violation (23505) anywhere in the chain.
+func isUniqueViolation(err error) bool {
+	var pqErr *pq.Error
+	return errors.As(err, &pqErr) && pqErr.Code == "23505"
 }

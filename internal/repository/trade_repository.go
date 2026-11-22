@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"dnd-campaign-manager/internal/domain"
@@ -16,8 +17,30 @@ import (
 var (
 	ErrInsufficientGold = errors.New("insufficient gold balance")
 	ErrTradeUnavailable = errors.New("trade is no longer pending")
-	ErrTradeItem        = errors.New("item is not available for trade")
+	ErrTradeItem        = errors.New("item cannot be traded (equipped, quest-bound, locked or not owned)")
+	ErrTradeEmpty       = errors.New("a trade must include items or gold")
+	// ErrTradeInvalidated is returned when accepting a trade finds one of its items gone
+	// (user-stories.md: Trade Conflict). The offer is stored as invalidated.
+	ErrTradeInvalidated = errors.New("Trade invalidated: item no longer available")
 )
+
+// InsufficientGoldError carries the amounts of a rejected trade. It matches
+// ErrInsufficientGold with errors.Is. Messages follow user-stories.md: a trade
+// reads "Insufficient gold: attempted 500, available 300"; a gold-only transfer
+// reads "Insufficient gold balance".
+type InsufficientGoldError struct {
+	Attempted, Available int
+	GoldOnly             bool
+}
+
+func (e *InsufficientGoldError) Error() string {
+	if e.GoldOnly {
+		return "Insufficient gold balance"
+	}
+	return fmt.Sprintf("Insufficient gold: attempted %d, available %d", e.Attempted, e.Available)
+}
+
+func (e *InsufficientGoldError) Is(target error) bool { return target == ErrInsufficientGold }
 
 func decodeIDs(raw string) []int64 {
 	var ids []int64
@@ -54,6 +77,39 @@ func (r *TradeRepository) CreateTransactional(ctx context.Context, offeror *doma
 		return nil, err
 	}
 	defer tx.Rollback()
+	offer, err := createTradeTx(ctx, tx, offeror, recipient, req)
+	if err != nil {
+		return nil, err
+	}
+	return offer, tx.Commit()
+}
+
+// CounterTransactional rejects the original offer and files the counter-offer in one
+// transaction: when the counter cannot be created (gold, items) the original stays pending.
+func (r *TradeRepository) CounterTransactional(ctx context.Context, tradeID int64, offeror, recipient *domain.Character, req *domain.CreateTradeRequest) (*domain.TradeOffer, error) {
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	_, expired, err := finishTradeTx(ctx, tx, tradeID, domain.TradeRejected)
+	if err != nil {
+		return nil, err
+	}
+	if expired {
+		if err := tx.Commit(); err != nil {
+			return nil, err
+		}
+		return nil, ErrTradeUnavailable
+	}
+	offer, err := createTradeTx(ctx, tx, offeror, recipient, req)
+	if err != nil {
+		return nil, err
+	}
+	return offer, tx.Commit()
+}
+
+func createTradeTx(ctx context.Context, tx *sqlx.Tx, offeror *domain.Character, recipient *domain.Character, req *domain.CreateTradeRequest) (*domain.TradeOffer, error) {
 	var offerorGold, recipientGold int
 	if err := tx.QueryRowContext(ctx, `SELECT gold FROM characters WHERE id=$1 FOR UPDATE`, offeror.ID).Scan(&offerorGold); err != nil {
 		return nil, err
@@ -61,11 +117,24 @@ func (r *TradeRepository) CreateTransactional(ctx context.Context, offeror *doma
 	if err := tx.QueryRowContext(ctx, `SELECT gold FROM characters WHERE id=$1 FOR UPDATE`, recipient.ID).Scan(&recipientGold); err != nil {
 		return nil, err
 	}
-	if req.OfferedGold < 0 || req.RequestedGold < 0 || req.OfferedGold > offerorGold || req.RequestedGold > recipientGold {
-		return nil, ErrInsufficientGold
+	goldOnly := len(req.OfferedItemIDs) == 0 && len(req.RequestedItemIDs) == 0
+	if req.OfferedGold < 0 || req.RequestedGold < 0 {
+		return nil, &InsufficientGoldError{Attempted: max(req.OfferedGold, req.RequestedGold), GoldOnly: goldOnly}
+	}
+	// Gold already promised in other pending offers is locked (architecture.md: Trade System).
+	var reserved int
+	if err := tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(offered_gold), 0) FROM trade_offers
+		WHERE offeror_character_id=$1 AND status='pending' AND expires_at > NOW()`, offeror.ID).Scan(&reserved); err != nil {
+		return nil, err
+	}
+	if available := offerorGold - reserved; req.OfferedGold > available {
+		return nil, &InsufficientGoldError{Attempted: req.OfferedGold, Available: max(available, 0), GoldOnly: goldOnly}
+	}
+	if req.RequestedGold > recipientGold {
+		return nil, &InsufficientGoldError{Attempted: req.RequestedGold, Available: recipientGold, GoldOnly: goldOnly}
 	}
 	if req.OfferedGold == 0 && req.RequestedGold == 0 && len(req.OfferedItemIDs) == 0 && len(req.RequestedItemIDs) == 0 {
-		return nil, ErrTradeUnavailable
+		return nil, ErrTradeEmpty
 	}
 	offered, err := lockItems(ctx, tx, req.OfferedItemIDs)
 	if err != nil || !tradeable(offered, offeror.ID, req.OfferedItemIDs, false) {
@@ -90,7 +159,7 @@ func (r *TradeRepository) CreateTransactional(ctx context.Context, offeror *doma
 	if err != nil {
 		return nil, err
 	}
-	return offer, tx.Commit()
+	return offer, nil
 }
 
 func mustJSON(value any) string {
@@ -111,7 +180,17 @@ func (r *TradeRepository) AcceptTransactional(ctx context.Context, tradeID int64
 		}
 		return nil, err
 	}
-	if offer.Status != domain.TradePending || !offer.ExpiresAt.After(time.Now()) {
+	if offer.Status != domain.TradePending {
+		return nil, ErrTradeUnavailable
+	}
+	if !offer.ExpiresAt.After(time.Now()) {
+		// Expired but not swept yet: close it now so its items are released.
+		if err := releaseTrade(ctx, tx, &offer, domain.TradeExpired); err != nil {
+			return nil, err
+		}
+		if err := tx.Commit(); err != nil {
+			return nil, err
+		}
 		return nil, ErrTradeUnavailable
 	}
 	chars := []domain.Character{}
@@ -120,17 +199,33 @@ func (r *TradeRepository) AcceptTransactional(ctx context.Context, tradeID int64
 	}
 	byID := map[int64]*domain.Character{chars[0].ID: &chars[0], chars[1].ID: &chars[1]}
 	offeror, recipient := byID[offer.OfferorCharacterID], byID[offer.RecipientCharacterID]
-	if offer.OfferedGold > offeror.Gold || offer.RequestedGold > recipient.Gold {
-		return nil, ErrInsufficientGold
+	// decodeIDs, not a string compare: omitted item lists are stored as "null", not "[]".
+	goldOnly := len(decodeIDs(offer.OfferedItemIDs)) == 0 && len(decodeIDs(offer.RequestedItemIDs)) == 0
+	if offer.OfferedGold > offeror.Gold {
+		return nil, &InsufficientGoldError{Attempted: offer.OfferedGold, Available: offeror.Gold, GoldOnly: goldOnly}
+	}
+	if offer.RequestedGold > recipient.Gold {
+		return nil, &InsufficientGoldError{Attempted: offer.RequestedGold, Available: recipient.Gold, GoldOnly: goldOnly}
 	}
 	offeredIDs, requestedIDs := decodeIDs(offer.OfferedItemIDs), decodeIDs(offer.RequestedItemIDs)
 	offered, err := lockItems(ctx, tx, offeredIDs)
-	if err != nil || !tradeable(offered, offeror.ID, offeredIDs, true) {
-		return nil, ErrTradeItem
+	if err != nil {
+		return nil, err
 	}
 	requested, err := lockItems(ctx, tx, requestedIDs)
-	if err != nil || !tradeable(requested, recipient.ID, requestedIDs, false) {
-		return nil, ErrTradeItem
+	if err != nil {
+		return nil, err
+	}
+	if !tradeable(offered, offeror.ID, offeredIDs, true) || !tradeable(requested, recipient.ID, requestedIDs, false) {
+		// Conflict: an item left the inventory (or became untradeable) since the offer.
+		// The trade is invalidated and the offeror's locks released (user-stories.md).
+		if err := releaseTrade(ctx, tx, &offer, domain.TradeInvalidated); err != nil {
+			return nil, err
+		}
+		if err := tx.Commit(); err != nil {
+			return nil, err
+		}
+		return nil, ErrTradeInvalidated
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE characters SET gold=gold+$1 WHERE id=$2`, offer.RequestedGold-offer.OfferedGold, offeror.ID); err != nil {
 		return nil, err
@@ -151,33 +246,61 @@ func (r *TradeRepository) AcceptTransactional(ctx context.Context, tradeID int64
 	return &offer, tx.Commit()
 }
 
+// releaseTrade unlocks the offered items and stores the final status of a pending offer.
+func releaseTrade(ctx context.Context, tx *sqlx.Tx, offer *domain.TradeOffer, status domain.TradeStatus) error {
+	if _, err := tx.ExecContext(ctx, `UPDATE inventory_items SET trade_locked=false WHERE id=ANY($1)`, pq.Array(decodeIDs(offer.OfferedItemIDs))); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE trade_offers SET status=$1 WHERE id=$2`, status, offer.ID); err != nil {
+		return err
+	}
+	offer.Status = status
+	return nil
+}
+
+// finishTradeTx closes a pending offer inside tx. A pending offer past its TTL is stored as
+// expired regardless of the requested status and reported through the bool.
+func finishTradeTx(ctx context.Context, tx *sqlx.Tx, tradeID int64, status domain.TradeStatus) (*domain.TradeOffer, bool, error) {
+	var offer domain.TradeOffer
+	if err := tx.QueryRowxContext(ctx, `SELECT * FROM trade_offers WHERE id=$1 FOR UPDATE`, tradeID).StructScan(&offer); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, false, ErrResourceNotFound
+		}
+		return nil, false, err
+	}
+	if offer.Status != domain.TradePending {
+		return nil, false, ErrTradeUnavailable
+	}
+	expired := offer.ExpiresAt.Before(time.Now())
+	if expired {
+		status = domain.TradeExpired
+	}
+	if err := releaseTrade(ctx, tx, &offer, status); err != nil {
+		return nil, false, err
+	}
+	return &offer, expired, nil
+}
+
+// FinishTransactional moves a pending offer to rejected/cancelled/expired and releases its
+// locks. Closing an offer already past its TTL stores it as expired and reports
+// ErrTradeUnavailable (unless expiry was the requested outcome).
 func (r *TradeRepository) FinishTransactional(ctx context.Context, tradeID int64, status domain.TradeStatus) (*domain.TradeOffer, error) {
 	tx, err := r.db.BeginTxx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
-	var offer domain.TradeOffer
-	if err := tx.QueryRowxContext(ctx, `SELECT * FROM trade_offers WHERE id=$1 FOR UPDATE`, tradeID).StructScan(&offer); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ErrResourceNotFound
-		}
+	offer, expired, err := finishTradeTx(ctx, tx, tradeID, status)
+	if err != nil {
 		return nil, err
 	}
-	if offer.Status != domain.TradePending {
-		return nil, ErrTradeUnavailable
-	}
-	if offer.ExpiresAt.Before(time.Now()) {
-		status = domain.TradeExpired
-	}
-	if _, err := tx.ExecContext(ctx, `UPDATE inventory_items SET trade_locked=false WHERE id=ANY($1)`, pq.Array(decodeIDs(offer.OfferedItemIDs))); err != nil {
+	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE trade_offers SET status=$1 WHERE id=$2`, status, offer.ID); err != nil {
-		return nil, err
+	if expired && status != domain.TradeExpired {
+		return offer, ErrTradeUnavailable
 	}
-	offer.Status = status
-	return &offer, tx.Commit()
+	return offer, nil
 }
 
 func (r *TradeRepository) ListForUser(ctx context.Context, userID int64) ([]domain.TradeOffer, error) {

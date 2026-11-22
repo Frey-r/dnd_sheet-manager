@@ -15,10 +15,58 @@ import (
 // (see openspec/specs/foundry-integration.md).
 type FoundryRepository struct {
 	db *sqlx.DB
+	tx *sqlx.Tx // set only on the transaction-scoped copy handed to InTx callbacks
 }
 
 func NewFoundryRepository(db *sqlx.DB) *FoundryRepository {
 	return &FoundryRepository{db: db}
+}
+
+// ext returns the active transaction when inside InTx, otherwise the pool.
+func (r *FoundryRepository) ext() sqlx.ExtContext {
+	if r.tx != nil {
+		return r.tx
+	}
+	return r.db
+}
+
+// InTx runs fn against a transaction-scoped repository: it commits when fn returns
+// nil and rolls everything back otherwise (resilience.md: each entity type is
+// committed atomically or rolled back).
+func (r *FoundryRepository) InTx(ctx context.Context, fn func(tx *FoundryRepository) error) error {
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	if err := fn(&FoundryRepository{db: r.db, tx: tx}); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+	return tx.Commit()
+}
+
+// MarkOrphans flags the rows of one entity group as orphaned; upserts of the same
+// transaction clear the flag again. Groups: "actors", "scenes", "journal".
+func (r *FoundryRepository) MarkOrphans(ctx context.Context, campaignID int64, group string) error {
+	var stmts []string
+	switch group {
+	case "actors":
+		stmts = []string{
+			`UPDATE characters      SET is_foundry_orphan=TRUE WHERE campaign_id=$1 AND foundry_uuid IS NOT NULL`,
+			`UPDATE npcs            SET is_foundry_orphan=TRUE WHERE campaign_id=$1`,
+			`UPDATE inventory_items SET is_foundry_orphan=TRUE WHERE foundry_uuid IS NOT NULL AND character_id IN (SELECT id FROM characters WHERE campaign_id=$1)`,
+		}
+	case "scenes":
+		stmts = []string{`UPDATE maps SET is_foundry_orphan=TRUE WHERE campaign_id=$1`}
+	case "journal":
+		stmts = []string{`UPDATE lore_entries SET is_foundry_orphan=TRUE WHERE campaign_id=$1 AND foundry_uuid IS NOT NULL`}
+	}
+	for _, s := range stmts {
+		if _, err := r.ext().ExecContext(ctx, s, campaignID); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ── Orphan marking ──────────────────────────────────────────
@@ -34,7 +82,7 @@ func (r *FoundryRepository) MarkAllOrphan(ctx context.Context, campaignID int64)
 		`UPDATE inventory_items SET is_foundry_orphan=TRUE WHERE foundry_uuid IS NOT NULL AND character_id IN (SELECT id FROM characters WHERE campaign_id=$1)`,
 	}
 	for _, s := range stmts {
-		if _, err := r.db.ExecContext(ctx, s, campaignID); err != nil {
+		if _, err := r.ext().ExecContext(ctx, s, campaignID); err != nil {
 			return err
 		}
 	}
@@ -59,7 +107,7 @@ func (r *FoundryRepository) UpsertCharacter(ctx context.Context, c *domain.Chara
 			is_foundry_orphan=FALSE, updated_at=NOW()
 		RETURNING id`
 	var id int64
-	err := r.db.QueryRowxContext(ctx, query,
+	err := r.ext().QueryRowxContext(ctx, query,
 		c.UserID, c.CampaignID, c.Name, c.Race, c.Class, c.Level, c.Background, c.Alignment,
 		c.StrScore, c.DexScore, c.ConScore, c.IntScore, c.WisScore, c.ChaScore,
 		c.MaxHP, c.CurrentHP, c.TempHP, c.AC, c.Speed, c.BackstoryText, c.FoundryUUID,
@@ -78,7 +126,7 @@ func (r *FoundryRepository) UpsertItem(ctx context.Context, it *domain.Inventory
 			description=EXCLUDED.description, is_equipped=EXCLUDED.is_equipped,
 			requires_attunement=EXCLUDED.requires_attunement, is_attuned=EXCLUDED.is_attuned,
 			is_foundry_orphan=FALSE, updated_at=NOW()`
-	_, err := r.db.ExecContext(ctx, query,
+	_, err := r.ext().ExecContext(ctx, query,
 		it.CharacterID, it.Name, it.ItemType, it.Rarity, it.Weight, it.Quantity, it.Description,
 		it.IsEquipped, it.RequiresAttunement, it.IsAttuned, it.IsTradeable, it.FoundryUUID,
 	)
@@ -93,7 +141,7 @@ func (r *FoundryRepository) UpsertNPC(ctx context.Context, n *domain.NPC) error 
 			name=EXCLUDED.name, role=EXCLUDED.role, status=EXCLUDED.status, avatar_url=EXCLUDED.avatar_url,
 			ac=EXCLUDED.ac, hp=EXCLUDED.hp, speed=EXCLUDED.speed, description=EXCLUDED.description,
 			is_foundry_orphan=FALSE, updated_at=NOW()`
-	_, err := r.db.ExecContext(ctx, query,
+	_, err := r.ext().ExecContext(ctx, query,
 		n.CampaignID, n.FoundryUUID, n.Name, n.Role, n.Status, n.AvatarURL, n.AC, n.HP, n.Speed, n.Description,
 	)
 	return err
@@ -106,7 +154,7 @@ func (r *FoundryRepository) UpsertMap(ctx context.Context, m *domain.Map) error 
 		ON CONFLICT (foundry_uuid) WHERE foundry_uuid IS NOT NULL DO UPDATE SET
 			name=EXCLUDED.name, location=EXCLUDED.location, image_url=EXCLUDED.image_url,
 			is_foundry_orphan=FALSE, updated_at=NOW()`
-	_, err := r.db.ExecContext(ctx, query, m.CampaignID, m.FoundryUUID, m.Name, m.Location, m.ImageURL)
+	_, err := r.ext().ExecContext(ctx, query, m.CampaignID, m.FoundryUUID, m.Name, m.Location, m.ImageURL)
 	return err
 }
 
@@ -122,7 +170,7 @@ func (r *FoundryRepository) UpsertLore(ctx context.Context, l *domain.LoreEntry)
 		RETURNING id, (xmax = 0) AS inserted`
 	var id int64
 	var inserted bool
-	err := r.db.QueryRowxContext(ctx, query,
+	err := r.ext().QueryRowxContext(ctx, query,
 		l.CampaignID, l.ContentText, l.LoreTier, l.Title, l.FoundryUUID,
 	).Scan(&id, &inserted)
 	return id, inserted, err
@@ -134,9 +182,9 @@ func (r *FoundryRepository) UpsertMonster(ctx context.Context, m *domain.SRDMons
 		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,FALSE,$16)
 		ON CONFLICT (foundry_uuid) WHERE foundry_uuid IS NOT NULL DO UPDATE SET
 			name=EXCLUDED.name, size=EXCLUDED.size, type=EXCLUDED.type, alignment=EXCLUDED.alignment,
-			ac=EXCLUDED.ac, hp=EXCLUDED.hp, str=EXCLUDED.str, dex=EXCLUDED.dex, con=EXCLUDED.con,
+			ac=EXCLUDED.ac, hp=EXCLUDED.hp, hit_dice=EXCLUDED.hit_dice, str=EXCLUDED.str, dex=EXCLUDED.dex, con=EXCLUDED.con,
 			"int"=EXCLUDED."int", wis=EXCLUDED.wis, cha=EXCLUDED.cha, cr=EXCLUDED.cr, xp=EXCLUDED.xp`
-	_, err := r.db.ExecContext(ctx, query,
+	_, err := r.ext().ExecContext(ctx, query,
 		m.Name, m.Size, m.Type, m.Alignment, m.AC, m.HP, m.HitDice,
 		m.STR, m.DEX, m.CON, m.INT, m.WIS, m.CHA, m.CR, m.XP, m.FoundryUUID,
 	)
@@ -174,4 +222,19 @@ func (r *FoundryRepository) GetSyncState(ctx context.Context, campaignID int64) 
 		return nil, nil
 	}
 	return &s, err
+}
+
+// FinishReference records the outcome of a compendium reference sync in
+// foundry_sync_state without clobbering the per-campaign sync counts: the
+// reference tally is merged into counts under the "reference" key.
+func (r *FoundryRepository) FinishReference(ctx context.Context, campaignID int64, status string, counts map[string]int, syncErr string) error {
+	countsJSON, _ := json.Marshal(map[string]any{"reference": counts})
+	query := `
+		INSERT INTO foundry_sync_state (campaign_id, status, last_synced_at, counts, error, updated_at)
+		VALUES ($1, $2, NOW(), $3, $4, NOW())
+		ON CONFLICT (campaign_id) DO UPDATE SET
+			status=EXCLUDED.status, last_synced_at=EXCLUDED.last_synced_at,
+			counts=foundry_sync_state.counts || EXCLUDED.counts, error=EXCLUDED.error, updated_at=NOW()`
+	_, err := r.db.ExecContext(ctx, query, campaignID, status, countsJSON, syncErr)
+	return err
 }

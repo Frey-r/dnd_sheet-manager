@@ -44,6 +44,8 @@ type UpdateCampaignRequest struct {
 	Name        *string         `json:"name"`
 	Description *string         `json:"description"`
 	Status      *CampaignStatus `json:"status"`
+	// BastionSalePct is the share of value_cp paid for Bastion goods (market-bastions.md §6.5).
+	BastionSalePct *int `json:"bastion_sale_pct" binding:"omitempty,min=0,max=100"`
 }
 
 const (

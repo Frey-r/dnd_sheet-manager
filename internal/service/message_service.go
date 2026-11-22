@@ -72,6 +72,10 @@ func (s *MessageService) MarkAsRead(ctx context.Context, userID int64) error {
 	return s.msgRepo.MarkAsRead(ctx, userID)
 }
 
+func (s *MessageService) MarkConversationAsRead(ctx context.Context, campaignID, userID, otherUserID int64) error {
+	return s.msgRepo.MarkConversationAsRead(ctx, campaignID, userID, otherUserID)
+}
+
 func (s *MessageService) GetUnreadCount(ctx context.Context, userID int64) (int, error) {
 	return s.msgRepo.GetUnreadCount(ctx, userID)
 }

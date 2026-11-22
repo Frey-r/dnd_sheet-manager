@@ -1,6 +1,9 @@
 server:
   host: "0.0.0.0"
   port: 8080
+  # Reverse proxies whose X-Forwarded-For is trusted (e.g. the cloudflared container IP).
+  # Empty: the client IP is the TCP peer. Env override: TRUSTED_PROXIES=a,b
+  trusted_proxies: []
 
 database:
   dsn: "postgres://dnduser:dndsharp@localhost:5432/dndmanager?sslmode=disable"
@@ -31,6 +34,14 @@ rate_limit:
   requests_per_minute: 100
   ws_messages_per_second: 5
   ws_burst_seconds: 1
+  ws_ban_seconds: 30
+  foundry_sync_per_minute: 5
+  audit_buffer_size: 1000
+  burst:                       # token-bucket capacity per endpoint category
+    auth: 20
+    read: 100
+    write: 60
+    foundry: 10
 
 foundry:
   relay_base_url: "http://localhost:3010"   # self-hosted foundryvtt-rest-api-relay
@@ -38,4 +49,5 @@ foundry:
   client_id: ""                              # connected world id; set via env FOUNDRY_CLIENT_ID
   default_lore_tier: "campaign_plot"
   sync_compendium: true
+  frame_ancestors: []                        # origins allowed to iframe this app (no wildcards); env FOUNDRY_FRAME_ANCESTORS
   timeout: 30

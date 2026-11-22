@@ -282,6 +282,15 @@ func (s *CharacterService) UpdateHP(ctx context.Context, charID, userID int64, i
 		return ErrForbidden
 	}
 
+	if currentHP > char.MaxHP {
+		currentHP = char.MaxHP
+	}
+	if currentHP < 0 {
+		currentHP = 0
+	}
+	if tempHP < 0 {
+		tempHP = 0
+	}
 	return s.charRepo.UpdateHP(ctx, charID, currentHP, tempHP)
 }
 

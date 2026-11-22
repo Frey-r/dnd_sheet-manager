@@ -83,6 +83,8 @@ type FanoutMessage struct {
 	CampaignID int64      `json:"campaign_id"`
 	Payload   interface{} `json:"payload"`
 	Timestamp int64       `json:"timestamp"`
+	// To restricts delivery to these user ids (empty = every campaign member).
+	To []int64 `json:"to,omitempty"`
 }
 
 func PublishCampaignEvent(ctx context.Context, redis *RedisPubSub, campaignID int64, eventType string, payload interface{}) error {
@@ -95,6 +97,12 @@ func PublishCampaignEvent(ctx context.Context, redis *RedisPubSub, campaignID in
 
 	channel := fmt.Sprintf("campaign:%d", campaignID)
 	return redis.Publish(ctx, channel, msg)
+}
+
+// PublishCampaignEventTo is PublishCampaignEvent limited to the given users.
+func PublishCampaignEventTo(ctx context.Context, redis *RedisPubSub, campaignID int64, userIDs []int64, eventType string, payload interface{}) error {
+	msg := FanoutMessage{Type: eventType, CampaignID: campaignID, Payload: payload, Timestamp: systemTimestamp(), To: userIDs}
+	return redis.Publish(ctx, fmt.Sprintf("campaign:%d", campaignID), msg)
 }
 
 func systemTimestamp() int64 {

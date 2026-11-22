@@ -86,6 +86,9 @@ func (s *CampaignService) Update(ctx context.Context, campaignID, userID int64, 
 	if req.Status != nil {
 		campaign.Status = *req.Status
 	}
+	if req.BastionSalePct != nil {
+		campaign.BastionSalePct = *req.BastionSalePct
+	}
 
 	if err := s.campaignRepo.Update(ctx, campaign); err != nil {
 		return nil, err

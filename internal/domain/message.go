@@ -30,10 +30,10 @@ type SendMessageRequest struct {
 }
 
 type Conversation struct {
-	OtherUserID   int64       `json:"other_user_id"`
-	OtherUsername string      `json:"other_username"`
-	MessageType   MessageType `json:"conversation_type"`
-	LastMessage   string      `json:"last_message"`
-	LastMessageAt time.Time   `json:"last_message_at"`
-	UnreadCount   int         `json:"unread_count"`
+	OtherUserID   int64       `db:"other_user_id" json:"other_user_id"`
+	OtherUsername string      `db:"other_username" json:"other_username"`
+	MessageType   MessageType `db:"conversation_type" json:"conversation_type"`
+	LastMessage   string      `db:"last_message" json:"last_message"`
+	LastMessageAt time.Time   `db:"last_message_at" json:"last_message_at"`
+	UnreadCount   int         `db:"unread_count" json:"unread_count"`
 }

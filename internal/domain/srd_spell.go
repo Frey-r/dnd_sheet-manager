@@ -42,12 +42,13 @@ type SpellFilters struct {
 
 // SpellListItem is a lightweight spell summary for list views.
 type SpellListItem struct {
-	ID            int64  `db:"id" json:"id"`
-	Name          string `db:"name" json:"name"`
-	Level         int    `db:"level" json:"level"`
-	School        string `db:"school" json:"school"`
-	CastingTime   string `db:"casting_time" json:"casting_time"`
-	Concentration bool   `db:"concentration" json:"concentration"`
-	Ritual        bool   `db:"ritual" json:"ritual"`
-	IsSRD         bool   `db:"is_srd" json:"is_srd"`
+	ID            int64   `db:"id" json:"id"`
+	Name          string  `db:"name" json:"name"`
+	Level         int     `db:"level" json:"level"`
+	School        string  `db:"school" json:"school"`
+	CastingTime   string  `db:"casting_time" json:"casting_time"`
+	Concentration bool    `db:"concentration" json:"concentration"`
+	Ritual        bool    `db:"ritual" json:"ritual"`
+	IsSRD         bool    `db:"is_srd" json:"is_srd"`
+	Rank          float64 `db:"rank" json:"rank"`
 }

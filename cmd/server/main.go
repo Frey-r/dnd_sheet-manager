@@ -32,6 +32,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("load config: %v", err)
 	}
+	if cfg.IsPlaceholderSecret() {
+		log.Fatalf("load config: jwt.secret is the example placeholder; set JWT_SECRET")
+	}
 	db, err := sqlx.Connect("postgres", cfg.Database.DSN)
 	if err != nil {
 		log.Fatalf("connect db: %v", err)
@@ -84,24 +87,46 @@ func main() {
 	tradeHandler := handler.NewTradeHandler(tradeSvc, charSvc)
 	srdHandler := handler.NewSRDHandler(srdSvc)
 	contentHandler := handler.NewContentHandler(contentRepo)
-	foundryHandler := handler.NewFoundryHandler(foundrySync, campaignSvc)
+	foundryHandler := handler.NewFoundryHandler(foundrySync, campaignSvc).WithSyncLimit(cfg.RateLimit.FoundrySyncPerMinute)
 	loreHandler := handler.NewLoreHandler(loreRepo, charRepo, lorePool)
 	realtimeHub := realtime.NewHub(db, redis, authSvc, campaignSvc, cfg.Server.AllowedOrigins)
-	resourceHandler := handler.NewCampaignResourceHandler(resourceRepo)
+	realtimeHub.Configure(cfg.RateLimit, middleware.NewIPBlacklist())
+	middleware.SetAuditCapacity(cfg.RateLimit.AuditBufferSize)
+	resourceHandler := handler.NewCampaignResourceHandler(resourceRepo).WithBotLLM(ragSvc)
 	combatHandler := handler.NewCombatHandler(combatRepo)
 	vttPlay := service.NewVTTPlay(vttRepo, realtimeHub)
 	realtimeHub.On("vtt.move", vttPlay.HandleMove)
 	timerCtx, stopTimers := context.WithCancel(context.Background())
 	defer stopTimers()
 	go vttPlay.RunTimers(timerCtx)
+	go func() {
+		t := time.NewTicker(time.Minute)
+		defer t.Stop()
+		for {
+			select {
+			case <-timerCtx.Done():
+				return
+			case <-t.C:
+				if err := tradeSvc.ExpireStaleTrades(timerCtx); err != nil {
+					log.Printf("trade expiry: %v", err)
+				}
+			}
+		}
+	}()
 	vttHandler := handler.NewVTTHandler(vttRepo, realtimeHub, vttPlay)
 	uploadHandler := handler.NewUploadHandler(cfg.Server.UploadDir)
 	marketRepo := repository.NewMarketRepository(db)
 	marketHandler := handler.NewMarketHandler(marketRepo, service.NewMarket(marketRepo, vttRepo))
-	rateLimiter := middleware.NewRateLimiter(cfg.RateLimit.RequestsPerMinute)
+	bastionHandler := handler.NewBastionHandler(service.NewBastions(repository.NewBastionRepository(db)))
+	rateLimiter := middleware.NewRateLimiter(cfg.RateLimit.RequestsPerMinute).WithBursts(cfg.RateLimit.Burst)
 
 	r := gin.New()
-	r.Use(gin.Recovery(), gin.Logger(), corsMiddleware(cfg.Server.AllowedOrigins), securityHeaders(), middleware.AuditLogger())
+	// Without this gin trusts every X-Forwarded-For, letting clients spoof the IP used by
+	// rate limits, the WebSocket ban and the audit log.
+	if err := r.SetTrustedProxies(cfg.Server.TrustedProxies); err != nil {
+		log.Fatalf("server.trusted_proxies: %v", err)
+	}
+	r.Use(gin.Recovery(), gin.Logger(), corsMiddleware(cfg.Server.AllowedOrigins), securityHeaders(frameAncestorsFor(cfg)), middleware.AuditLogger())
 	r.GET("/health", func(c *gin.Context) {
 		if err := db.PingContext(c.Request.Context()); err != nil {
 			c.JSON(http.StatusServiceUnavailable, gin.H{"status": "unavailable", "database": "error"})
@@ -116,9 +141,10 @@ func main() {
 	r.GET("/ws", realtimeHub.Handle)
 
 	api := r.Group("/api")
-	api.POST("/auth/login", authHandler.Login)
-	api.POST("/auth/register", authHandler.Register)
-	api.POST("/auth/refresh", authHandler.Refresh)
+	authIPLimit := middleware.AuthIPRateLimit(rateLimiter)
+	api.POST("/auth/login", authIPLimit, authHandler.Login)
+	api.POST("/auth/register", authIPLimit, authHandler.Register)
+	api.POST("/auth/refresh", authIPLimit, authHandler.Refresh)
 	api.POST("/auth/logout", authHandler.Logout)
 	auth := api.Group("")
 	auth.Use(middleware.AuthMiddleware(authSvc), middleware.RBACMiddleware(campaignSvc), middleware.CharacterAuthorizationMiddleware(charSvc), middleware.RateLimitMiddleware(rateLimiter), realtimeHub.Middleware())
@@ -171,6 +197,7 @@ func main() {
 		loreHandler.RegisterRoutes(auth)
 		auth.GET("/campaigns/:id/combat", combatHandler.State)
 		auth.POST("/campaigns/:id/combat/combatants", combatHandler.Add)
+		auth.POST("/campaigns/:id/combat/encounter", combatHandler.AddEncounter)
 		auth.DELETE("/campaigns/:id/combat/combatants/:combatant_id", combatHandler.Remove)
 		auth.PUT("/campaigns/:id/combat/combatants/:combatant_id/hp", combatHandler.UpdateHP)
 		auth.POST("/campaigns/:id/combat/next-turn", combatHandler.Next)
@@ -179,6 +206,7 @@ func main() {
 		vttHandler.RegisterRoutes(auth)
 		uploadHandler.RegisterRoutes(auth)
 		marketHandler.RegisterRoutes(auth)
+		bastionHandler.RegisterRoutes(auth)
 		handler.NewStatRollHandler(statRollRepo).RegisterRoutes(auth)
 	}
 
@@ -226,11 +254,17 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
+	// Graceful shutdown (resilience.md): refuse new sockets and close every open
+	// WebSocket with 1001, drain in-flight HTTP requests, then close Redis.
+	realtimeHub.Shutdown()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Printf("shutdown: %v", err)
 	}
+	stopTimers()
+	redis.Close()
+	log.Printf("shutdown complete")
 }
 
 func getenv(key, def string) string {
@@ -266,10 +300,39 @@ func corsMiddleware(allowed []string) gin.HandlerFunc {
 	}
 }
 
-func securityHeaders() gin.HandlerFunc {
+// frameAncestorsFor returns the extra origins allowed to frame the app. They are
+// only honoured when Foundry is enabled (game_mode "foundry" deployments); wildcards
+// are rejected at config load.
+func frameAncestorsFor(cfg *config.Config) []string {
+	if !cfg.Foundry.Enabled() {
+		return nil
+	}
+	return cfg.Foundry.FrameAncestors
+}
+
+// frameAncestorsPolicy builds the CSP frame-ancestors directive: 'self' plus the
+// configured origins, never a wildcard (security.md -> iframe / Cross-Origin).
+func frameAncestorsPolicy(ancestors []string) string {
+	policy := "frame-ancestors 'self'"
+	for _, origin := range ancestors {
+		if origin = strings.TrimSpace(origin); origin != "" && !strings.Contains(origin, "*") {
+			policy += " " + origin
+		}
+	}
+	return policy
+}
+
+func securityHeaders(frameAncestors []string) gin.HandlerFunc {
+	csp := frameAncestorsPolicy(frameAncestors)
+	// X-Frame-Options cannot list foreign origins and would block the Foundry
+	// iframe, so it is sent only while no extra ancestor is configured.
+	sameOriginOnly := len(frameAncestors) == 0
 	return func(c *gin.Context) {
 		c.Header("X-Content-Type-Options", "nosniff")
-		c.Header("X-Frame-Options", "SAMEORIGIN")
+		if sameOriginOnly {
+			c.Header("X-Frame-Options", "SAMEORIGIN")
+		}
+		c.Header("Content-Security-Policy", csp)
 		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
 		c.Next()
 	}

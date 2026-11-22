@@ -43,6 +43,40 @@ func (h *MarketHandler) RegisterRoutes(g *gin.RouterGroup) {
 	g.POST("/campaigns/:id/npcs/:resource_id/items", h.SaveNPCItem)
 	g.PUT("/campaigns/:id/npc-items/:item_id", h.SaveNPCItem)
 	g.DELETE("/campaigns/:id/npc-items/:item_id", h.DeleteNPCItem)
+	g.GET("/campaigns/:id/appraisals", h.Appraisals)
+	g.PUT("/campaigns/:id/inventory-items/:item_id/value", h.AppraiseItem)
+}
+
+// Appraisals lists the party's items so the GM can set their value (spec §4).
+func (h *MarketHandler) Appraisals(c *gin.Context) {
+	if !gmOnly(c) {
+		return
+	}
+	items, err := h.repo.AppraisalItems(c.Request.Context(), parseID(c.Param("id")))
+	if err != nil {
+		h.fail(c, err, "no se pudo cargar el inventario del grupo")
+		return
+	}
+	c.JSON(http.StatusOK, items)
+}
+
+// AppraiseItem sets inventory_items.value_cp (GM only); null clears it.
+func (h *MarketHandler) AppraiseItem(c *gin.Context) {
+	if !gmOnly(c) {
+		return
+	}
+	var in struct {
+		ValueCP *int64 `json:"value_cp"`
+	}
+	if err := c.ShouldBindJSON(&in); err != nil || (in.ValueCP != nil && *in.ValueCP < 0) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Indica un valor válido"})
+		return
+	}
+	if err := h.repo.SetItemValue(c.Request.Context(), parseID(c.Param("id")), parseID(c.Param("item_id")), in.ValueCP); err != nil {
+		h.fail(c, err, "no se pudo tasar el objeto")
+		return
+	}
+	c.Status(http.StatusNoContent)
 }
 
 func (h *MarketHandler) fail(c *gin.Context, err error, msg string) {
