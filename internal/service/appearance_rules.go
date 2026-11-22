@@ -15,8 +15,8 @@ var ErrInvalidAppearance = errors.New("apariencia inválida")
 
 const (
 	maxAppearanceBytes = 1024
-	maxHairStyle       = 8 // 0 = bald, 1–4 set A, 5–8 set B
-	maxOutfit          = 7 // 0–3 set A, 4–7 set B
+	maxHairStyle       = 11 // 0 = bald, 1–11 styles; 0–8 predate the chibi redesign and keep their meaning
+	maxOutfit          = 9  // 0–9 outfits; 0–7 predate the chibi redesign and keep their meaning
 	maxFeature         = 3
 )
 

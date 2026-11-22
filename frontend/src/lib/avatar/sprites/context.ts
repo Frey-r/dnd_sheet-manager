@@ -1,3 +1,4 @@
+import type { Ramp } from '../color';
 import type { Frame, Painter } from '../painter';
 import type { Appearance, Part, RaceVisual } from '../types';
 
@@ -8,11 +9,12 @@ export interface DrawCtx {
   a: Appearance;
   v: RaceVisual;
   parts: Set<Part>;
-  skin: string;
-  /** Darker skin for back limbs and shadows. */
-  skinDark: string;
-  hair: string;
+  /** Cel-shading ramps of the chosen colours. */
+  skin: Ramp;
+  hair: Ramp;
+  eyes: Ramp;
+  cloth: [Ramp, Ramp];
 }
 
-export const INK = '#1a1414';
-export const EYE_WHITE = '#f4f1ea';
+export const INK = '#1e1620';
+export const EYE_WHITE = '#f6f3ee';

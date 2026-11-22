@@ -8,19 +8,21 @@ export interface Appearance {
   body: 0 | 1;
   skin: string;
   eyes: string;
-  /** 0 = bald, 1–4 set A, 5–8 set B. Any body may use any style. */
+  /** 0 = bald, 1–11 styles (HAIR_STYLES). Any body may use any style; ids 0–8 predate the chibi redesign and keep their meaning. */
   hair: number;
   hairColor: string;
-  /** 0–3 set A, 4–7 set B. Any body may use any outfit. */
+  /** 0–9 (OUTFITS). Any body may use any outfit; ids 0–7 predate the chibi redesign and keep their meaning. */
   outfit: number;
   outfitColors: [string, string];
   /** Race option 0–3. */
   feature: number;
 }
 
-export const HAIR_STYLES = ['Calvo', 'Corto', 'Puntas', 'Coleta', 'Cresta', 'Largo', 'Trenza', 'Moño', 'Melena'] as const;
-export const OUTFITS = ['Túnica', 'Jubón', 'Camisa y chaleco', 'Abrigo largo', 'Vestido', 'Corsé y falda', 'Blusa y pantalón', 'Capa corta'] as const;
-export const BODIES = ['Cuerpo A', 'Cuerpo B'] as const;
+export const HAIR_STYLES = ['Calvo', 'Corto', 'Puntas', 'Coleta', 'Cresta', 'Largo', 'Trenza', 'Moño', 'Melena', 'Media melena', 'Dos coletas', 'Ondas'] as const;
+export const OUTFITS = ['Túnica', 'Jubón', 'Camisa y chaleco', 'Abrigo largo', 'Vestido', 'Corsé y falda', 'Blusa y pantalón', 'Capa corta', 'Armadura ligera', 'Túnica de mago'] as const;
+export const BODIES = ['Complexión ancha', 'Complexión esbelta'] as const;
+export const MAX_HAIR = HAIR_STYLES.length - 1;
+export const MAX_OUTFIT = OUTFITS.length - 1;
 
 /** S small, D short and stocky (dwarves), M medium, L large. */
 export type Size = 'S' | 'D' | 'M' | 'L';
@@ -99,9 +101,9 @@ export function normalizeAppearance(raw: unknown, visual: RaceVisual, strictSkin
     body: a.body === 1 ? 1 : 0,
     skin,
     eyes: isHex(a.eyes) ? a.eyes : d.eyes,
-    hair: visual.hair ? clampInt(a.hair, 0, 8, d.hair) : 0,
+    hair: visual.hair ? clampInt(a.hair, 0, MAX_HAIR, d.hair) : 0,
     hairColor: isHex(a.hairColor) ? a.hairColor : d.hairColor,
-    outfit: clampInt(a.outfit, 0, 7, d.outfit),
+    outfit: clampInt(a.outfit, 0, MAX_OUTFIT, d.outfit),
     outfitColors: [isHex(colors[0]) ? colors[0] : d.outfitColors[0], isHex(colors[1]) ? colors[1] : d.outfitColors[1]],
     feature: Math.min(clampInt(a.feature, 0, 3, 0), Math.max(0, visual.options.length - 1)),
   };
@@ -115,9 +117,9 @@ export function randomAppearance(visual: RaceVisual): Appearance {
     body: Math.random() < 0.5 ? 0 : 1,
     skin: pick(skinsFor(visual)),
     eyes: pick(EYES),
-    hair: visual.hair ? Math.floor(Math.random() * 9) : 0,
+    hair: visual.hair ? Math.floor(Math.random() * HAIR_STYLES.length) : 0,
     hairColor: pick(HAIR),
-    outfit: Math.floor(Math.random() * 8),
+    outfit: Math.floor(Math.random() * OUTFITS.length),
     outfitColors: [pick(CLOTH), pick(CLOTH)],
     feature: Math.floor(Math.random() * Math.max(1, visual.options.length)),
   };

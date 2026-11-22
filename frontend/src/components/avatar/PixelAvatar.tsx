@@ -15,7 +15,7 @@ interface Props {
   aura?: boolean;
   pulse?: boolean;
   crop?: 'full' | 'bust';
-  /** CSS pixels per sprite pixel. */
+  /** CSS pixels per sprite pixel (the full sprite is 48×56, the bust crop 24×24). */
   scale?: number;
   className?: string;
   label?: string;
@@ -25,7 +25,7 @@ interface Props {
 
 export function PixelAvatar({ appearance, race, raceSize, klass, aura = true, pulse = false, crop = 'full', scale = 4, className = '', label, decorative = false }: Props) {
   const visual = useMemo(() => resolveRaceVisual(race, raceSize), [race, raceSize]);
-  const app = useMemo(() => normalizeAppearance(parseStoredAppearance(appearance), visual), [appearance, visual]);
+  const app = useMemo(() => normalizeAppearance(parseStoredAppearance(appearance), visual, true), [appearance, visual]);
   const auraColor = aura ? auraForClass(klass) : null;
   const r = cropRect(visual, app, crop);
   const ref = useRef<HTMLCanvasElement>(null);
@@ -37,7 +37,8 @@ export function PixelAvatar({ appearance, race, raceSize, klass, aura = true, pu
     ctx.drawImage(avatarCanvas(app, visual, auraColor), r.x, r.y, r.w, r.h, 0, 0, r.w, r.h);
   }, [app, visual, auraColor, r.x, r.y, r.w, r.h]);
 
-  const style = { width: r.w * scale, height: r.h * scale, '--aura': auraColor ?? 'transparent' } as CSSProperties;
+  // Width + aspect ratio (not a fixed height) so a max-width never stretches the sprite.
+  const style = { width: r.w * scale, height: 'auto', aspectRatio: `${r.w} / ${r.h}`, '--aura': auraColor ?? 'transparent' } as CSSProperties;
   return (
     <canvas
       ref={ref}

@@ -12,8 +12,8 @@ export function AppearanceEditor({ value, visual, onChange }: {
   onChange: (next: Appearance) => void;
 }) {
   const set = <K extends keyof Appearance>(key: K, v: Appearance[K]) => onChange({ ...value, [key]: v });
-  const outfitLabel = (i: number) => `${OUTFITS[i]} · ${i < 4 ? 'A' : 'B'}`;
-  const hairLabel = (i: number) => (i === 0 ? HAIR_STYLES[0] : `${HAIR_STYLES[i]} · ${i <= 4 ? 'A' : 'B'}`);
+  const outfitLabel = (i: number) => OUTFITS[i] ?? '—';
+  const hairLabel = (i: number) => HAIR_STYLES[i] ?? '—';
 
   return (
     <div className="flex flex-col gap-4">

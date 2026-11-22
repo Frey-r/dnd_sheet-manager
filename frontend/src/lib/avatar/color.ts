@@ -48,6 +48,60 @@ export function hslToHex(h: number, s: number, l: number): string {
   return rgbToHex(f(0) * 255, f(8) * 255, f(4) * 255);
 }
 
+export function hexToHsl(hex: string): [number, number, number] {
+  const [r, g, b] = hexToRgb(hex).map((v) => v / 255);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  if (max === min) return [0, 0, l];
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  let h: number;
+  if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
+  else if (max === g) h = (b - r) / d + 2;
+  else h = (r - g) / d + 4;
+  return [h * 60, s, l];
+}
+
+/** Moves hue h towards target by at most `by` degrees (shortest way round). */
+function hueToward(h: number, target: number, by: number): number {
+  const diff = ((target - h + 540) % 360) - 180;
+  const step = Math.sign(diff) * Math.min(Math.abs(diff), by);
+  return (h + step + 360) % 360;
+}
+
+/** Five-tone cel-shading ramp (openspec/specs/character-appearance.md, "Shading"). */
+export interface Ramp { hi: string; light: string; base: string; shadow: string; deep: string }
+
+const rampCache = new Map<string, Ramp>();
+
+/**
+ * Builds highlight → deep shadow tones from one base colour. Shadows drift towards a cool
+ * purple-blue and highlights towards a warm yellow, which reads better than plain darkening.
+ */
+export function ramp(base: string): Ramp {
+  const hit = rampCache.get(base);
+  if (hit) return hit;
+  const [h, s, l] = hexToHsl(base);
+  const grey = s < 0.08;
+  const tone = (dl: number, hueBy: number, target: number, ds: number) => {
+    const nh = grey ? h : hueToward(h, target, hueBy);
+    const ns = Math.max(0, Math.min(1, grey ? s : s * ds));
+    const nl = Math.max(0, Math.min(1, dl));
+    return hslToHex(nh, ns, nl);
+  };
+  const r: Ramp = {
+    hi: tone(l + (1 - l) * 0.55, 14, 55, 0.85),
+    light: tone(l + (1 - l) * 0.24, 7, 55, 0.95),
+    base,
+    shadow: tone(l * 0.7, 10, 250, 1.05),
+    deep: tone(l * 0.45, 18, 250, 1.1),
+  };
+  if (rampCache.size > 500) rampCache.clear();
+  rampCache.set(base, r);
+  return r;
+}
+
 /** Alpha of a "#rrggbb" or "#rrggbbaa" colour, 0–255. */
 export function alphaOf(hex: string): number {
   const h = hex.replace('#', '');
