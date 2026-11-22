@@ -44,8 +44,8 @@ export function CharacterSheet() {
           <Link to={`/campaign/${campaignId}`} className="p-2 rounded-full hover:bg-surface-container">
             <span className="material-symbols-outlined text-primary">arrow_back</span>
           </Link>
-          <div className="w-8 h-8 rounded-full overflow-hidden bg-surface-container flex items-center justify-center">
-            <PixelAvatar appearance={character.appearance} race={character.race} klass={character.class} aura={false} crop="bust" scale={1.34} />
+          <div className="w-12 h-12 rounded-full overflow-hidden bg-surface-container flex items-center justify-center">
+            <PixelAvatar appearance={character.appearance} race={character.race} klass={character.class} aura={false} crop="bust" scale={2} />
           </div>
           <h1 className="font-headline-md text-on-surface font-bold">{character.name}</h1>
         </div>

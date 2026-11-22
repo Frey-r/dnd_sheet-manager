@@ -379,3 +379,532 @@ main .min-h-screen { min-height: 0; }
     radial-gradient(ellipse 55% 12% at 50% 88%, rgba(0, 0, 0, .45), transparent 70%),
     radial-gradient(ellipse 70% 60% at 50% 45%, var(--surface-3), var(--surface) 75%);
 }
+
+/* ==========================================================================
+   Character creator, World of Warcraft layout (character-appearance.md,
+   "Creation wizard"): races left, stage centre, classes right, action bar
+   at the bottom. Everything derives from the theme tokens above.
+   ========================================================================== */
+.cc {
+  container: cc / inline-size;
+  --cc-bar-h: 68px;
+  --cc-gap: 14px;
+  --cc-stage-top: var(--surface);
+  --cc-stage-bottom: var(--bg);
+  --cc-stage-glow: color-mix(in srgb, var(--surface-3) 85%, transparent);
+  --cc-beam: color-mix(in srgb, var(--gold) 15%, transparent);
+  --cc-vignette: color-mix(in srgb, var(--bg) 80%, transparent);
+  --cc-stone-hi: var(--line-strong);
+  --cc-stone: var(--surface-3);
+  --cc-stone-deep: var(--surface);
+  --cc-drop: color-mix(in srgb, var(--bg) 90%, transparent);
+  --cc-silhouette: brightness(0) invert(1);
+  --cc-silhouette-alpha: .14;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  /* The creator brings its own bar: cancel the bottom padding of the shell. */
+  margin-bottom: calc(16px - 7rem);
+}
+:root[data-theme="light"] .cc {
+  --cc-stage-bottom: var(--surface-3);
+  --cc-stage-glow: color-mix(in srgb, var(--surface) 95%, transparent);
+  --cc-beam: color-mix(in srgb, var(--surface) 90%, transparent);
+  --cc-vignette: color-mix(in srgb, var(--line-strong) 75%, transparent);
+  --cc-stone-hi: var(--surface);
+  --cc-stone-deep: var(--line-strong);
+  --cc-drop: color-mix(in srgb, var(--ink) 22%, transparent);
+  --cc-silhouette: brightness(0);
+  --cc-silhouette-alpha: .2;
+}
+
+.cc-layout { display: flex; flex-direction: column; gap: var(--cc-gap); }
+.cc-side { display: flex; flex-direction: column; gap: var(--cc-gap); min-width: 0; }
+.cc-slot { display: flex; flex-direction: column; min-height: 0; }
+.cc-scroll { overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--surface-3) transparent; }
+.cc-empty { grid-column: 1 / -1; padding: 16px 8px; text-align: center; font-size: 12.5px; color: var(--muted); }
+.cc-note { display: flex; align-items: center; gap: 6px; font-size: 12px; line-height: 1.4; color: var(--muted); }
+
+/* ---------- Stage ---------- */
+.cc-stage {
+  --cc-ped-y: 16px;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: clamp(19rem, 50svh, 26rem);
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(55% 35% at 50% 84%, color-mix(in srgb, var(--aura) 18%, transparent), transparent 72%),
+    radial-gradient(80% 60% at 50% 0%, var(--cc-stage-glow), transparent 72%),
+    linear-gradient(to bottom, var(--cc-stage-top), var(--cc-stage-bottom));
+  box-shadow: inset 0 0 110px var(--cc-vignette), var(--shadow-1);
+}
+/* Spotlight from above. */
+.cc-stage::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: 50%;
+  top: -8%;
+  width: min(36rem, 92%);
+  height: 96%;
+  transform: translateX(-50%);
+  background: linear-gradient(to bottom, var(--cc-beam), transparent 88%);
+  clip-path: polygon(41% 0, 59% 0, 90% 100%, 10% 100%);
+  filter: blur(16px);
+  pointer-events: none;
+}
+.cc-stage__caption { position: relative; padding: 18px 16px 0; text-align: center; }
+.cc-stage__eyebrow { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 650; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+.cc-stage__title { margin-top: 2px; font-family: var(--font-display); font-size: clamp(22px, 2.4vw, 32px); font-weight: 560; line-height: 1.15; letter-spacing: -.015em; color: var(--ink); }
+.cc-stage__slot { position: relative; min-height: 0; }
+.cc-stage__pedestal {
+  position: absolute;
+  left: 50%;
+  bottom: var(--cc-ped-y);
+  width: calc(var(--cc-scale) * 34px);
+  height: calc(var(--cc-scale) * 8px);
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: linear-gradient(to bottom, var(--cc-stone), var(--cc-stone-deep));
+  box-shadow: 0 calc(var(--cc-scale) * 2px) calc(var(--cc-scale) * 5px) var(--cc-drop);
+}
+/* Top face of the stone disc, lit from above and rimmed with the class colour. */
+.cc-stage__pedestal::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: calc(var(--cc-scale) * 5.5px);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, var(--cc-stone-hi), var(--cc-stone) 90%);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--ink) 10%, transparent),
+    0 0 calc(var(--cc-scale) * 6px) color-mix(in srgb, var(--aura) 55%, transparent);
+}
+/* Feet (sprite row 53) rest on the middle of the top face. */
+.cc-stage__figure {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--cc-ped-y) + var(--cc-scale) * 3px);
+  transform: translateX(-50%);
+  line-height: 0;
+  transition: filter .35s ease, opacity .35s ease;
+}
+.cc-stage__figure.is-placeholder { filter: var(--cc-silhouette); opacity: var(--cc-silhouette-alpha); }
+.cc-stage__figure.is-placeholder > canvas { animation: none; filter: none; }
+
+/* Name box under the stage (Detalles). */
+.cc-name { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 2px 16px 18px; }
+.cc-name__label { font-size: 12px; font-weight: 650; letter-spacing: .06em; color: var(--muted); }
+.cc-name__input {
+  width: min(22rem, 100%);
+  height: 48px;
+  padding: 0 16px;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 20px;
+  border-radius: 12px;
+  border: 1px solid var(--line-strong);
+  background: color-mix(in srgb, var(--bg-elev) 88%, transparent);
+  box-shadow: var(--shadow-2);
+}
+.cc-name__input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow-2); }
+
+/* ---------- Panels ---------- */
+.cc-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  box-shadow: var(--shadow-1);
+}
+.cc-panel__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 28px; }
+.cc-panel__title { font-family: var(--font-display); font-size: 18px; font-weight: 560; letter-spacing: -.01em; color: var(--ink); }
+.cc-panel__meta { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.cc-field { display: flex; flex-direction: column; gap: 5px; font-size: 12px; font-weight: 600; color: var(--ink-2); }
+.cc-field input, .cc-field select { height: 36px; padding: 0 10px; font-size: 13px; font-weight: 500; }
+.cc-search { position: relative; display: block; }
+.cc-search > svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--faint); pointer-events: none; }
+.cc-search > input { width: 100%; height: 36px; padding: 0 10px 0 32px; font-size: 13px; }
+
+/* Shared tile: race portraits and class emblems. */
+.cc-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 6px 6px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  transition: transform .12s ease, border-color .15s, background .15s, box-shadow .15s, color .15s;
+}
+.cc-tile:hover { transform: translateY(-1px); border-color: var(--line-strong); background: var(--surface-3); color: var(--ink); }
+.cc-tile[aria-pressed="true"] {
+  color: var(--ink);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface-2));
+  box-shadow: 0 0 0 1px var(--accent), 0 8px 22px -10px var(--accent-line);
+}
+.cc-tile__name {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 2.4em;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  /* Whole words only: a word is split just when it cannot fit the tile on its own. */
+  overflow-wrap: break-word;
+}
+.cc-tile__badge {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 99px;
+  font-size: 10px;
+  font-weight: 650;
+  color: var(--ink-2);
+  background: color-mix(in srgb, var(--bg-elev) 85%, transparent);
+  box-shadow: 0 0 0 1px var(--line-strong);
+}
+
+/* Races */
+.cc-body-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cc-body-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  height: 62px;
+  padding: 2px 10px 2px 2px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: left;
+  color: var(--ink-2);
+  transition: border-color .15s, background .15s, box-shadow .15s, color .15s;
+}
+.cc-body-btn > canvas { flex-shrink: 0; }
+.cc-body-btn:hover { border-color: var(--line-strong); background: var(--surface-3); color: var(--ink); }
+.cc-body-btn[aria-pressed="true"] { color: var(--ink); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface-2)); box-shadow: 0 0 0 1px var(--accent); }
+.cc-race-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  align-content: start;
+  gap: 8px;
+  max-height: 21rem;
+  margin: -4px;
+  padding: 4px;
+}
+.cc-race-grid > [role="status"], .cc-class-grid > [role="status"] { grid-column: 1 / -1; }
+/* The race grid scrolls on every layout: fade the bottom so a cut row reads as "more below". */
+.cc-race-grid { overflow-y: auto; scrollbar-width: thin; padding-bottom: 20px; mask-image: linear-gradient(to bottom, black calc(100% - 28px), transparent); }
+.cc-race-tile__portrait {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 9px;
+  background: radial-gradient(circle at 50% 30%, var(--surface-3), var(--surface) 80%);
+  box-shadow: inset 0 0 0 1px var(--line), inset 0 -14px 18px -14px var(--cc-vignette);
+}
+.cc-tile[aria-pressed="true"] .cc-race-tile__portrait {
+  background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--accent) 24%, var(--surface-3)), var(--surface) 80%);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+
+/* Classes */
+.cc-class-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+  align-content: start;
+  gap: 8px;
+  margin: -4px;
+  padding: 4px;
+}
+.cc-class-tile { --cls-ring: var(--cls); padding-top: 8px; }
+:root[data-theme="light"] .cc-class-tile { --cls-ring: color-mix(in srgb, var(--cls) 72%, var(--ink)); }
+.cc-class-tile__emblem {
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--cls) 14%, var(--surface-3)), var(--surface) 78%);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  transition: box-shadow .2s, background .2s;
+}
+.cc-class-tile:hover .cc-class-tile__emblem { box-shadow: inset 0 0 0 1px var(--cls-ring); }
+.cc-class-tile[aria-pressed="true"] {
+  border-color: var(--cls-ring);
+  background: color-mix(in srgb, var(--cls) 10%, var(--surface-2));
+  box-shadow: 0 0 0 1px var(--cls-ring), 0 8px 24px -10px var(--cls);
+}
+.cc-class-tile[aria-pressed="true"] .cc-class-tile__emblem {
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--cls) 34%, var(--surface-3)), var(--surface) 80%);
+  box-shadow: inset 0 0 0 2px var(--cls-ring), 0 0 20px -2px var(--cls);
+}
+
+/* Race and class cards */
+.cc-detail { display: flex; flex-direction: column; flex-shrink: 0; gap: 6px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); font-size: 12.5px; }
+.cc-detail--empty { padding: 14px 12px; text-align: center; color: var(--muted); }
+.cc-detail__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; }
+.cc-detail__title { flex-shrink: 0; font-family: var(--font-display); font-size: 16px; font-weight: 560; color: var(--ink); }
+.cc-detail__book { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10.5px; color: var(--muted); }
+.cc-book-select { flex: 0 1 auto; min-width: 0; max-width: 72%; height: 28px; padding: 0 6px; font-size: 11.5px; font-weight: 550; text-overflow: ellipsis; }
+.cc-facts { display: grid; gap: 3px; }
+.cc-fact { display: grid; grid-template-columns: 6.25rem minmax(0, 1fr); gap: 8px; }
+.cc-fact dt { color: var(--muted); }
+.cc-fact dd { min-width: 0; color: var(--ink); overflow-wrap: break-word; }
+.cc-more > summary { display: flex; align-items: center; gap: 6px; padding: 2px 0; cursor: pointer; list-style: none; font-size: 12px; font-weight: 650; color: var(--accent); }
+.cc-more > summary::-webkit-details-marker { display: none; }
+.cc-more > summary::after { content: ""; width: 6px; height: 6px; margin-top: -3px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg); transition: transform .15s; }
+.cc-more[open] > summary::after { margin-top: 3px; transform: rotate(-135deg); }
+.cc-more__body { display: flex; flex-direction: column; gap: 6px; max-height: 14rem; margin-top: 6px; padding-right: 4px; overflow-y: auto; scrollbar-width: thin; color: var(--ink-2); white-space: pre-line; }
+
+/* ---------- Personalización ---------- */
+.cc-rows { display: flex; flex-direction: column; gap: 8px; margin: -2px; padding: 2px; }
+.cc-row { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); align-items: center; column-gap: 10px; }
+.cc-row__label { font-size: 12.5px; font-weight: 600; line-height: 1.2; color: var(--ink-2); }
+.cc-stepper {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) 38px;
+  height: 44px;
+  border-radius: 11px;
+  border: 1px solid var(--line-strong);
+  background: linear-gradient(to bottom, var(--surface-2), var(--surface));
+  box-shadow: var(--shadow-1);
+}
+.cc-stepper button:focus-visible { outline-offset: -3px; }
+.cc-stepper__arrow { display: grid; place-items: center; border-radius: 10px; color: var(--muted); transition: color .15s, background .15s, transform .1s; }
+.cc-stepper__arrow:hover { color: var(--accent); background: var(--accent-soft); }
+.cc-stepper__arrow:active { transform: scale(.92); }
+.cc-stepper__value { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-width: 0; border-inline: 1px solid var(--line); }
+.cc-stepper__text { max-width: 100%; padding: 0 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.cc-stepper__count { font-family: var(--font-mono); font-size: 10px; letter-spacing: .04em; color: var(--faint); }
+.cc-stepper__value--color { flex-direction: row; gap: 8px; transition: background .15s; }
+.cc-stepper__value--color:hover, .cc-stepper__value--color[aria-expanded="true"] { background: var(--surface-3); }
+.cc-stepper__value--color .cc-stepper__text { padding: 0; }
+.cc-stepper__caret { flex-shrink: 0; color: var(--muted); transition: transform .15s; }
+.cc-stepper__caret.is-open { transform: rotate(180deg); }
+.cc-swatch { flex-shrink: 0; width: 20px; height: 20px; border-radius: 6px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 22%, transparent), 0 1px 2px color-mix(in srgb, var(--bg) 60%, transparent); }
+
+.cc-popover {
+  position: relative;
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid var(--line-strong);
+  background: var(--bg-elev);
+  box-shadow: var(--shadow-2);
+  animation: cc-pop .16s ease-out;
+}
+/* Notch pointing at the centre of the control. */
+.cc-popover::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: calc(50% + 3.25rem);
+  width: 10px;
+  height: 10px;
+  transform: rotate(45deg);
+  border-left: 1px solid var(--line-strong);
+  border-top: 1px solid var(--line-strong);
+  background: var(--bg-elev);
+}
+@keyframes cc-pop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.cc-swatch-grid { display: grid; grid-template-columns: repeat(var(--cols, 8), minmax(0, 1fr)); gap: 6px; }
+.cc-swatch-option { aspect-ratio: 1; border-radius: 8px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 20%, transparent); transition: transform .1s ease, box-shadow .15s; }
+.cc-swatch-option:hover { transform: scale(1.08); }
+.cc-swatch-option[aria-selected="true"] { box-shadow: 0 0 0 2px var(--bg-elev), 0 0 0 4px var(--accent); }
+.cc-custom-color {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 10px 0 6px;
+  border-radius: 8px;
+  border: 1px dashed var(--line-strong);
+  font-size: 12.5px;
+  font-weight: 550;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.cc-custom-color:hover { color: var(--ink); background: var(--surface-2); }
+.cc-custom-color.is-active { border-style: solid; border-color: var(--accent); color: var(--ink); }
+.cc-custom-color:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cc-custom-color__chip { width: 22px; height: 22px; border-radius: 6px; background: conic-gradient(from 0deg, red, yellow, lime, cyan, blue, magenta, red); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 22%, transparent); }
+.cc-custom-color > input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+
+/* Token preview */
+.cc-token { --ring: var(--aura); align-items: center; text-align: center; }
+/* Pale class colours (paladin, cleric) need a darker ring on light surfaces. */
+:root[data-theme="light"] .cc-token { --ring: color-mix(in srgb, var(--aura) 72%, var(--ink)); }
+.cc-token > .cc-panel__head { align-self: stretch; }
+.cc-token__disc {
+  display: grid;
+  place-items: center;
+  width: 120px;
+  height: 120px;
+  margin-top: 4px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--aura) 33%, var(--surface-3));
+  box-shadow: 0 0 0 3px var(--ring), 0 0 28px -6px var(--aura), var(--shadow-2);
+}
+.cc-token__hint { font-size: 12px; color: var(--muted); }
+.cc-token__card { display: flex; align-items: center; gap: 10px; align-self: stretch; padding: 8px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); text-align: left; }
+.cc-token__portrait { display: grid; place-items: center; flex-shrink: 0; width: 52px; height: 52px; overflow: hidden; border-radius: 9px; border: 1px solid var(--line); background: radial-gradient(circle at 50% 35%, var(--surface-3), var(--surface) 80%); }
+.cc-token__name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 650; color: var(--ink); }
+.cc-token__meta { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--muted); }
+
+/* Detalles */
+.cc-align { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.cc-align__cell { min-height: 44px; padding: 4px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface-2); font-size: 11.5px; font-weight: 600; line-height: 1.15; color: var(--ink-2); transition: border-color .15s, background .15s, color .15s; }
+.cc-align__cell:hover { border-color: var(--line-strong); background: var(--surface-3); color: var(--ink); }
+.cc-align__cell[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); box-shadow: 0 0 0 1px var(--accent); }
+.cc-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cc-stat { padding: 10px 8px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); text-align: center; }
+.cc-stat dt { font-size: 10.5px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.cc-stat dd { font-family: var(--font-mono); font-size: 22px; font-weight: 600; color: var(--ink); }
+
+/* ---------- Bottom action bar ---------- */
+.cc-bar {
+  position: sticky;
+  bottom: 12px;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-height: var(--cc-bar-h);
+  /* Room on the right for the floating dice button of the shell. */
+  padding: 10px 76px 10px 12px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg-elev) 90%, transparent);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-2);
+}
+.cc-bar__start { justify-self: start; }
+.cc-bar__center { min-width: 0; }
+.cc-bar__end { justify-self: end; }
+.cc-bar__hint { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; font-size: 11.5px; color: var(--muted); }
+.cc-back { height: 40px; padding: 0 14px; }
+.cc-primary { height: 44px; padding: 0 20px; border-radius: 11px; font-size: 14.5px; font-weight: 650; box-shadow: 0 10px 26px -12px var(--accent-line); }
+.cc-steps-wrap { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
+.cc-steps { display: flex; align-items: center; }
+.cc-steps > li { display: flex; align-items: center; }
+.cc-steps > li + li::before { content: ""; width: 14px; height: 1px; margin: 0 2px; background: var(--line-strong); }
+.cc-step { display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 10px 0 4px; border-radius: 99px; font-size: 12.5px; font-weight: 600; color: var(--muted); transition: background .15s, color .15s; }
+.cc-step:hover:not(:disabled) { color: var(--ink); background: var(--surface-2); }
+.cc-step:disabled { opacity: .45; }
+.cc-step__dot { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font-family: var(--font-mono); font-size: 11px; background: var(--surface-3); color: var(--ink-2); }
+.cc-step.is-done .cc-step__dot { background: var(--ok-soft); color: var(--ok); }
+.cc-step[aria-current="step"] { color: var(--ink); background: var(--accent-soft); }
+.cc-step[aria-current="step"] .cc-step__dot { background: var(--accent); color: var(--accent-ink); }
+
+/* ---------- Stacked layout (narrow screens): stage first, panels under it ---------- */
+/* While customizing on a phone the stage sticks under the top bar, so every change stays in view.
+   21rem leaves room for at least x4 (short races stay legible); the outline masks the rows
+   scrolling behind its rounded corners. */
+.cc[data-step="custom"] .cc-stage { position: sticky; top: 64px; z-index: 10; height: clamp(21rem, 42svh, 23rem); outline: 10px solid var(--bg); }
+
+@media (max-width: 767px) {
+  /* Phones: the bar is fixed above the shell's bottom nav. The creator runs to the bottom of the
+     page (cancelling the shell's paddings: main 7rem, nav 66 px) and reserves the bar plus the nav
+     plus a gap, so the end of every step can be scrolled above the bar. */
+  .cc {
+    --cc-mobile-nav: 66px;
+    margin-bottom: calc(-7rem - var(--cc-mobile-nav));
+    padding-bottom: calc(var(--cc-bar-h) + var(--cc-mobile-nav) + 16px + env(safe-area-inset-bottom));
+  }
+  .cc-bar {
+    position: fixed;
+    left: 16px;
+    right: 16px;
+    bottom: calc(var(--cc-mobile-nav) + 8px + env(safe-area-inset-bottom));
+    height: var(--cc-bar-h);
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 8px 62px 8px 8px;
+  }
+  /* Pagination dots: the step names stay readable to assistive tech. */
+  .cc-steps { gap: 2px; }
+  .cc-steps > li + li::before { display: none; }
+  .cc-step, .cc-step[aria-current="step"] { min-height: 28px; padding: 0 3px; background: none; }
+  .cc-step__dot { width: 8px; height: 8px; font-size: 0; transition: width .2s; }
+  .cc-step__dot > svg { display: none; }
+  .cc-step.is-done .cc-step__dot { background: var(--ok); }
+  .cc-step[aria-current="step"] .cc-step__dot { width: 20px; border-radius: 99px; }
+  .cc-back { width: 40px; padding: 0; }
+  .cc-back__text, .cc-bar__hint { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .cc-primary { padding: 0 14px; font-size: 14px; }
+  .cc-primary > svg { display: none; }
+}
+@container cc (max-width: 879px) {
+  .cc-steps > li + li::before { width: 6px; }
+  .cc-step { padding: 0 3px; }
+  .cc-step:not([aria-current="step"]) .cc-step__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+@container cc (max-width: 520px) {
+  .cc-step .cc-step__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+
+/* ---------- Three columns (WoW layout) ---------- */
+@container cc (min-width: 880px) {
+  .cc-layout {
+    display: grid;
+    grid-template-columns: minmax(16rem, 19rem) minmax(0, 1fr) minmax(15rem, 18rem);
+    grid-template-areas: "start stage end";
+  }
+  .cc[data-step="custom"] .cc-layout { grid-template-columns: minmax(20rem, 24rem) minmax(0, 1fr) minmax(14rem, 16.5rem); }
+  .cc[data-step="abilities"] .cc-layout { grid-template-columns: minmax(0, 1.3fr) minmax(19rem, 1fr); grid-template-areas: "start stage"; }
+  .cc[data-step="abilities"] .cc-side--end { display: none; }
+  .cc[data-step="details"] .cc-layout { grid-template-columns: minmax(16rem, 20rem) minmax(0, 1fr) minmax(15rem, 18rem); }
+  .cc-stage, .cc[data-step="custom"] .cc-stage { grid-area: stage; position: relative; top: auto; height: auto; min-height: 30rem; outline: none; }
+  .cc-side--start { grid-area: start; }
+  .cc-side--end { grid-area: end; }
+  .cc-slot:not([hidden]), .cc-races, .cc-classes, .cc-custom, .cc-abilities { flex: 1 1 auto; min-height: 0; }
+  .cc-race-grid { flex: 1 1 auto; min-height: 7rem; max-height: 26rem; overflow-y: auto; }
+  .cc-class-grid { flex: 0 1 auto; min-height: 6rem; overflow-y: auto; }
+  /* Scrolling grids fade out at the bottom so a cut row reads as "more below". */
+  .cc-class-grid { scrollbar-width: thin; padding-bottom: 20px; mask-image: linear-gradient(to bottom, black calc(100% - 28px), transparent); }
+  .cc-rows { flex: 1 1 auto; min-height: 0; }
+  .cc-abilities > .cc-scroll { flex: 1 1 auto; min-height: 0; }
+
+  /* One screen, like the WoW creator: the columns fill the viewport under the shell
+     and scroll inside their panels. */
+  @media (min-height: 620px) {
+    .cc-layout { height: calc(100dvh - 56px - 28px - var(--cc-bar-h) - 12px - 16px); grid-template-rows: minmax(0, 1fr); }
+    .cc-race-grid { max-height: none; }
+  }
+}
