@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log"
 	"net/http"
 
 	"dnd-campaign-manager/internal/domain"
@@ -224,6 +225,7 @@ func (h *CharacterHandler) AddSpell(c *gin.Context) {
 
 	spell, err := h.charSvc.AddSpell(c.Request.Context(), charID, &req)
 	if err != nil {
+		log.Printf("character %d: add spell %q: %v", charID, req.Name, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to add spell"})
 		return
 	}

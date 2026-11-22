@@ -129,12 +129,14 @@ type CharacterWithOwner struct {
 	Username string `db:"username" json:"username"`
 }
 
+// SpellSlot is serialized in snake_case like the rest of the API: without json tags the
+// frontend received Level/Total/Used and rendered every slot as "NaN".
 type SpellSlot struct {
-	ID          int64 `db:"id"`
-	CharacterID int64 `db:"character_id"`
-	Level       int   `db:"level"`
-	Total       int   `db:"total"`
-	Used        int   `db:"used"`
+	ID          int64 `db:"id" json:"id"`
+	CharacterID int64 `db:"character_id" json:"character_id"`
+	Level       int   `db:"level" json:"level"`
+	Total       int   `db:"total" json:"total"`
+	Used        int   `db:"used" json:"used"`
 }
 
 func (s *SpellSlot) Remaining() int {
