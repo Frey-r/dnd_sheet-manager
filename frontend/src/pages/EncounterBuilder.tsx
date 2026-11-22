@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { buildEncounter, MONSTER_TYPES } from '../services/srdService';
 import { combatApi } from '../services/api';
+import { useCampaign } from '../lib/useCampaign';
 import type { EncounterResult, EncounterSuggestion } from '../types/srd';
 
 export function EncounterBuilder() {
   const { campaignId } = useParams<{ campaignId: string }>();
   const navigate = useNavigate();
+  const { isFoundry } = useCampaign(campaignId);
   const [partySize, setPartySize] = useState<number>(4);
   const [partyLevel, setPartyLevel] = useState<number>(1);
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard' | 'deadly'>('medium');
@@ -43,7 +45,8 @@ export function EncounterBuilder() {
       // hp, AC e iniciativa se resuelven en el servidor desde srd_monsters.
       const combatants = suggestion.monsters.map((item) => ({ monster_id: item.monster_id, count: item.count }));
       await combatApi.addEncounter(campaignId!, combatants);
-      navigate(`/campaign/${campaignId}/combat`);
+      // Local campaigns use the built-in initiative tracker; /combat is the Foundry live view.
+      navigate(isFoundry ? `/campaign/${campaignId}/combat` : `/campaign/${campaignId}/gm/combat`);
     } catch {
       setError('No se pudo añadir el encuentro al combate.');
     }

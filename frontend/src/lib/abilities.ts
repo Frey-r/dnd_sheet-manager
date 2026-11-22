@@ -69,3 +69,73 @@ export function catalogText(s: string | null | undefined): string {
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
+
+const ABILITY_LABEL: Record<string, string> = { str: 'FUE', dex: 'DES', con: 'CON', int: 'INT', wis: 'SAB', cha: 'CAR' };
+
+/**
+ * Fixed ability bonuses of a catalogue race. 5etools stores them as a list of options
+ * ([{ dex: 2, choose: {...} }]); the old SRD seed used a flat object ({ dex: 2 }).
+ */
+export function raceAbilityBonuses(raw: unknown): Record<string, number> {
+  const parsed = parseCatalog<unknown>(raw, {});
+  const first = Array.isArray(parsed) ? parsed[0] : parsed;
+  const out: Record<string, number> = {};
+  if (first && typeof first === 'object') {
+    for (const [key, value] of Object.entries(first as Record<string, unknown>)) {
+      if (typeof value === 'number' && ABILITY_LABEL[key]) out[key] = value;
+    }
+  }
+  return out;
+}
+
+/** Human-readable bonus list, including "choose" options: ["DES +2", "elige 1 (+1): FUE, CON"]. */
+export function raceBonusLabels(raw: unknown): string[] {
+  const labels = Object.entries(raceAbilityBonuses(raw)).map(([k, v]) => `${ABILITY_LABEL[k]} ${v > 0 ? '+' : ''}${v}`);
+  const parsed = parseCatalog<unknown>(raw, {});
+  const first = Array.isArray(parsed) ? parsed[0] : parsed;
+  const choose = first && typeof first === 'object' ? (first as Record<string, unknown>).choose : undefined;
+  if (choose && typeof choose === 'object') {
+    const c = choose as { from?: unknown[]; count?: number; amount?: number; weighted?: { from?: unknown[]; weights?: number[] } };
+    if (Array.isArray(c.from)) {
+      const from = c.from.map((a) => ABILITY_LABEL[String(a)] ?? String(a)).join(', ');
+      labels.push(`elige ${c.count ?? 1} (+${c.amount ?? 1}): ${from}`);
+    } else if (c.weighted && Array.isArray(c.weighted.weights)) {
+      labels.push(`reparte ${c.weighted.weights.map((w) => `+${w}`).join(' y ')} entre las que elijas`);
+    }
+  }
+  return labels;
+}
+
+/** Plain text of a 5etools "entries" tree (strings, nested entries and list items). */
+export function entriesText(value: unknown): string {
+  if (typeof value === 'string') return catalogText(value);
+  if (Array.isArray(value)) return value.map(entriesText).filter(Boolean).join('\n');
+  if (value && typeof value === 'object') {
+    const o = value as Record<string, unknown>;
+    const parts: string[] = [];
+    if (Array.isArray(o.entries)) parts.push(entriesText(o.entries));
+    if (Array.isArray(o.items)) parts.push(o.items.map((i) => `• ${entriesText(i)}`).join('\n'));
+    if (typeof o.entry === 'string') parts.push(catalogText(o.entry));
+    return parts.filter(Boolean).join('\n');
+  }
+  return '';
+}
+
+const SIZE_LABEL: Record<string, string> = { T: 'Diminuto', S: 'Pequeño', M: 'Mediano', L: 'Grande', H: 'Enorme', G: 'Gargantuesco', V: 'Variable' };
+
+/** Catalogue size code ("M") or word ("Medium") as a Spanish label. */
+export function sizeLabel(size: string | null | undefined): string {
+  const s = (size ?? '').trim();
+  if (!s) return '';
+  return SIZE_LABEL[s.toUpperCase()] ?? SIZE_LABEL[s.charAt(0).toUpperCase()] ?? s;
+}
+
+/** Ability codes ("int", ["str","dex"], '["wis","cha"]') as Spanish short labels: ["INT"], ["FUE","DES"]. */
+export function abilityLabels(raw: unknown): string[] {
+  const parsed = parseCatalog<unknown>(raw, []);
+  const list = Array.isArray(parsed) ? parsed : typeof parsed === 'string' ? [parsed] : [];
+  return list.map((x) => {
+    const key = String(x).trim().toLowerCase().slice(0, 3);
+    return ABILITY_LABEL[key] ?? String(x).toUpperCase();
+  }).filter(Boolean);
+}

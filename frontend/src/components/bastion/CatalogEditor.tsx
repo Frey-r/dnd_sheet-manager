@@ -1,5 +1,6 @@
 /* GM editor of the campaign's facility catalogue and Bastion events table (market-bastions.md §6.3). */
 import { useState } from 'react';
+import { DecimalInput } from '../ui/DecimalInput';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getApiError } from '../../services/errors';
 import { ErrorState, LoadingState } from '../ui/Feedback';
@@ -96,7 +97,7 @@ export function CatalogEditor({ campaignId }: { campaignId: string }) {
                 <input className={`${field} h-9 font-mono`} placeholder="4d6" value={ev.reward_dice} onChange={(e) => setEvent(i, { reward_dice: e.target.value })} />
               </label>
               <label className={`${label} sm:col-span-2`}>Valor por punto (po)
-                <input type="number" min={0} step="0.01" className={`${field} h-9 font-mono`} value={cpToGP(ev.reward_mult_cp)} onChange={(e) => setEvent(i, { reward_mult_cp: gpToCP(Number(e.target.value) || 0) })} />
+                <DecimalInput min={0} step="0.01" className={`${field} h-9 font-mono`} value={cpToGP(ev.reward_mult_cp)} onValueChange={(gp) => setEvent(i, { reward_mult_cp: gpToCP(gp) })} />
               </label>
             </li>
           ))}
@@ -168,7 +169,7 @@ function FacilityForm({ facility: f, onChange, onRemove }: { facility: CatalogEn
               <input type="number" min={1} max={52} className={`${field} h-9 font-mono`} value={o.turns} onChange={(e) => setOption(i, { turns: Number(e.target.value) })} />
             </label>
             <label className={label}>Coste (po)
-              <input type="number" min={0} step="0.01" className={`${field} h-9 font-mono`} value={cpToGP(o.cost_cp)} onChange={(e) => setOption(i, { cost_cp: gpToCP(Number(e.target.value) || 0) })} />
+              <DecimalInput min={0} step="0.01" className={`${field} h-9 font-mono`} value={cpToGP(o.cost_cp)} onValueChange={(gp) => setOption(i, { cost_cp: gpToCP(gp) })} />
             </label>
             <label className={`${label} sm:col-span-2`}>Resultado
               <select className={`${field} h-9`} value={o.kind} onChange={(e) => setOption(i, { kind: e.target.value as OptionKind })}>
@@ -196,7 +197,7 @@ function OptionResult({ option: o, onChange }: { option: BastionOption; onChange
           <input type="number" min={1} className={`${field} h-9 font-mono`} value={o.qty ?? 1} onChange={(e) => onChange({ qty: Number(e.target.value) })} />
         </label>
         <label className={label}>Valor c/u (po)
-          <input type="number" min={0} step="0.01" className={`${field} h-9 font-mono`} value={cpToGP(o.value_cp ?? 0)} onChange={(e) => onChange({ value_cp: gpToCP(Number(e.target.value) || 0) })} />
+          <DecimalInput min={0} step="0.01" className={`${field} h-9 font-mono`} value={cpToGP(o.value_cp ?? 0)} onValueChange={(gp) => onChange({ value_cp: gpToCP(gp) })} />
         </label>
         <label className={label}>Tipo
           <input className={`${field} h-9`} placeholder="potion, gear…" value={o.item_type ?? ''} onChange={(e) => onChange({ item_type: e.target.value })} />
@@ -214,7 +215,7 @@ function OptionResult({ option: o, onChange }: { option: BastionOption; onChange
           <input className={`${field} h-9 font-mono`} placeholder="1d6" value={o.gold_dice ?? ''} onChange={(e) => onChange({ gold_dice: e.target.value })} />
         </label>
         <label className={`${label} sm:col-span-2`}>Oro por punto (po)
-          <input type="number" min={0} step="0.01" className={`${field} h-9 font-mono`} value={cpToGP(o.gold_mult_cp ?? 0)} onChange={(e) => onChange({ gold_mult_cp: gpToCP(Number(e.target.value) || 0) })} />
+          <DecimalInput min={0} step="0.01" className={`${field} h-9 font-mono`} value={cpToGP(o.gold_mult_cp ?? 0)} onValueChange={(gp) => onChange({ gold_mult_cp: gpToCP(gp) })} />
         </label>
       </>
     );

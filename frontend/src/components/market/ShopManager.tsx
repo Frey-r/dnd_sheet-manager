@@ -1,5 +1,6 @@
 /* GM management of shops and their stock (market-bastions.md §3). */
 import { useEffect, useState } from 'react';
+import { DecimalInput } from '../ui/DecimalInput';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { npcApi } from '../../services/api';
 import { vttApi, vttPlayApi } from '../../services/vttApi';
@@ -251,7 +252,7 @@ function ItemForm({ initial, onSave, onCancel, busy }: { initial: ShopItemInput;
           <input type="number" min={0} className={`${field} h-9`} disabled={unlimited} value={unlimited ? '' : d.stock ?? 1} onChange={(e) => setD({ ...d, stock: Math.max(0, Number(e.target.value)) })} />
         </label>
         <label className="flex items-end gap-2 pb-2 text-[13px]"><input type="checkbox" checked={unlimited} onChange={(e) => setD({ ...d, stock: e.target.checked ? -1 : 1 })} />Sin límite</label>
-        <label className={label}>Peso (lb)<input type="number" min={0} step="0.1" className={`${field} h-9`} value={d.weight ?? 0} onChange={(e) => setD({ ...d, weight: Number(e.target.value) })} /></label>
+        <label className={label}>Peso (lb)<DecimalInput min={0} step="0.1" className={`${field} h-9`} value={d.weight ?? 0} onValueChange={(weight) => setD({ ...d, weight })} /></label>
       </div>
       <label className={label}>Descripción<textarea className={`${field} min-h-[60px] py-2`} value={d.description ?? ''} onChange={(e) => setD({ ...d, description: e.target.value })} /></label>
       <label className="flex items-center gap-2 text-[13px]"><input type="checkbox" checked={Boolean(d.attunement_required)} onChange={(e) => setD({ ...d, attunement_required: e.target.checked })} />Requiere sintonía</label>

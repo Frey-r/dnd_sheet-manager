@@ -11,8 +11,13 @@ export function BastionTurnNotice({ campaignId }: { campaignId: string }) {
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const onRealtime = (event: Event) => {
-      const message = (event as CustomEvent<{ type?: string }>).detail;
+      const message = (event as CustomEvent<{ type?: string; timestamp?: number }>).detail;
       if (message?.type !== 'BASTION_TURN') return;
+      // The event is stored, so a reconnect replays it: only announce turns from the last
+      // two minutes. Live frames carry seconds and replayed ones milliseconds.
+      const ts = Number(message.timestamp ?? 0);
+      const ms = ts < 1e12 ? ts * 1000 : ts;
+      if (!ms || Date.now() - ms > 120_000) return;
       setVisible(true);
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => setVisible(false), 15_000);

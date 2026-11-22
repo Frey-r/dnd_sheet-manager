@@ -16,7 +16,7 @@ import { ClassDetail, RaceDetail } from '../components/character/creator/Catalog
 import { ClassStep } from '../components/character/creator/ClassStep';
 import { RaceStep } from '../components/character/creator/RaceStep';
 import { PixelAvatar } from '../components/avatar/PixelAvatar';
-import { abilityMod, parseCatalog, signed, suggestedIncreases } from '../lib/abilities';
+import { abilityMod, raceAbilityBonuses, signed, suggestedIncreases } from '../lib/abilities';
 import { defaultAppearance, normalizeAppearance, resolveRaceVisual, splitSource, type Appearance } from '../lib/avatar';
 
 const ALIGNMENTS = ['Legal bueno', 'Neutral bueno', 'Caótico bueno', 'Legal neutral', 'Neutral', 'Caótico neutral', 'Legal malvado', 'Neutral malvado', 'Caótico malvado'];
@@ -39,7 +39,7 @@ export function CreateCharacterPage() {
 
   const races = useQuery({ queryKey: ['srd-races'], queryFn: async () => (await listRaces()).data ?? [], staleTime: 300_000 });
   const classes = useQuery({ queryKey: ['srd-classes'], queryFn: async () => (await listClasses()).data ?? [], staleTime: 300_000 });
-  const suggestion = useMemo(() => suggestedIncreases(parseCatalog<Record<string, number>>(race?.ability_bonuses, {})), [race]);
+  const suggestion = useMemo(() => suggestedIncreases(raceAbilityBonuses(race?.ability_bonuses)), [race]);
   const visual = useMemo(() => resolveRaceVisual(race?.name ?? 'Human', race?.size), [race]);
 
   const chooseRace = (next: SRDRace) => {
