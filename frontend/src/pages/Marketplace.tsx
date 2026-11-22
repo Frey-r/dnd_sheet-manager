@@ -6,6 +6,7 @@ import { useCampaign } from '../lib/useCampaign';
 import { marketApi, type Shop } from '../services/marketApi';
 import { ShopView } from '../components/market/ShopView';
 import { ShopManager } from '../components/market/ShopManager';
+import { itemCount } from '../lib/plural';
 
 export function Marketplace() {
   const { campaignId = '' } = useParams<{ campaignId: string }>();
@@ -66,7 +67,7 @@ function ShopCard({ shop, active, onClick }: { shop: Shop; active: boolean; onCl
       <span className={`material-symbols-outlined ${shop.available ? 'text-gold' : 'text-faint'}`}>{shop.icon || 'storefront'}</span>
       <span className="min-w-0 flex-1">
         <span className="block truncate font-semibold">{shop.name}</span>
-        <span className={`block truncate text-[12.5px] ${shop.available ? 'text-ok' : 'text-muted'}`}>{shop.available ? `Abierta · ${shop.item_count} objetos` : shop.reason}</span>
+        <span className={`block truncate text-[12.5px] ${shop.available ? 'text-ok' : 'text-muted'}`}>{shop.available ? `Abierta · ${itemCount(shop.item_count)}` : shop.reason}</span>
       </span>
     </button>
   );

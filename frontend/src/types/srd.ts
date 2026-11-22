@@ -243,6 +243,8 @@ export interface SRDRace {
   traits: { name: string; description: string }[];
   languages: string[];
   subraces: { name: string; description: string; ability_bonuses?: Record<string, number> }[];
+  /** Skills the race always grants (JSON array as sent by the API, e.g. '["perception"]'). */
+  skill_proficiencies?: string[] | string;
   description: string;
   is_srd: boolean;
 }

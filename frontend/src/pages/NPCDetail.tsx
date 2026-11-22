@@ -8,10 +8,12 @@ import { ABILITIES, abilityMod, signed } from '../lib/abilities';
 import { ErrorState, LoadingState } from '../components/ui/Feedback';
 
 type Stats = { ac?: number; hp?: number; speed?: number; str?: number; dex?: number; con?: number; int?: number; wis?: number; cha?: number };
-type NPC = { id: number; name: string; role: string; status: string; description: string; stats: Stats | null };
+type NPC = { id: number; name: string; role: string; status: string; description: string; stats: Stats | null; image_url?: string };
 type Draft = { name: string; role: string; status: string; description: string; stats: Record<string, string> };
 const STAT_KEYS = ['ac', 'hp', 'speed', 'str', 'dex', 'con', 'int', 'wis', 'cha'] as const;
 const STAT_LABELS: Record<string, string> = { ac: 'CA', hp: 'PV', speed: 'Velocidad' };
+const RELATIONS: Record<string, string> = { ally: 'Aliado', enemy: 'Enemigo', neutral: 'Neutral' };
+const relationLabel = (value: string) => RELATIONS[value] ?? (value || '—');
 const field = 'w-full rounded bg-surface-subtle border border-border-low-contrast px-3 h-10';
 
 const toDraft = (npc: NPC): Draft => ({ name: npc.name, role: npc.role, status: npc.status, description: npc.description, stats: Object.fromEntries(STAT_KEYS.map((key) => [key, npc.stats?.[key] != null ? String(npc.stats[key]) : ''])) });
@@ -61,7 +63,7 @@ export function NPCDetail() {
   return <div className="min-h-screen"><header className="h-16 border-b border-border-low-contrast px-4 flex items-center gap-3"><Link to={`/campaign/${campaignId}/gm/npcs`} aria-label="Volver"><span className="material-symbols-outlined">arrow_back</span></Link><h1 className="font-headline-md font-bold">{name}</h1></header>
     <main className="max-w-5xl mx-auto p-4 md:p-8 grid md:grid-cols-3 gap-6">
       <section className="space-y-4">
-        <div className="border border-border-low-contrast rounded-xl p-6 text-center"><div className="w-24 h-24 mx-auto rounded-full bg-primary-container text-on-primary-container flex items-center justify-center text-4xl font-bold">{name.charAt(0)}</div><h2 className="font-headline-md mt-3">{name}</h2><p className="text-secondary">{role || '—'} · {status || '—'}</p></div>
+        <div className="border border-border-low-contrast rounded-xl p-6 text-center">{current.image_url ? <img src={current.image_url} alt={`Retrato de ${name}`} className="w-24 h-24 mx-auto rounded-full object-cover bg-card-3" /> : <div className="w-24 h-24 mx-auto rounded-full bg-primary-container text-on-primary-container flex items-center justify-center text-4xl font-bold">{name.charAt(0)}</div>}<h2 className="font-headline-md mt-3">{name}</h2><p className="text-secondary">{role || '—'} · {relationLabel(status)}</p></div>
         <div className="grid grid-cols-3 gap-2">{([['ac', 'CA'], ['hp', 'PV'], ['speed', 'Velocidad']] as const).map(([key, label]) => <div key={key} className="text-center border rounded-lg p-3"><span className="font-stat-number text-2xl">{show(stats[key])}</span><p className="text-xs text-secondary">{label}</p></div>)}</div>
         <div className="grid grid-cols-3 gap-2">{ABILITIES.map(([key, short]) => <div key={key} className="text-center border rounded p-2"><span className="text-xs text-secondary">{short}</span><p className="font-stat-number">{show(stats[key])}</p>{stats[key] != null && <p className="text-xs text-secondary">{signed(abilityMod(stats[key]))}</p>}</div>)}</div>
       </section>
@@ -72,7 +74,7 @@ export function NPCDetail() {
             <div className="grid sm:grid-cols-3 gap-3">
               <label className="text-sm font-label-bold">Nombre<input className={field} value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} required /></label>
               <label className="text-sm font-label-bold">Rol<input className={field} value={draft.role} onChange={(event) => setDraft({ ...draft, role: event.target.value })} /></label>
-              <label className="text-sm font-label-bold">Estado<input className={field} value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value })} /></label>
+              <label className="text-sm font-label-bold">Relación<select className={field} value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value })}>{Object.entries(RELATIONS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}{!RELATIONS[draft.status] && draft.status && <option value={draft.status}>{draft.status}</option>}</select></label>
             </div>
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">{STAT_KEYS.map((key) => <label key={key} className="text-sm font-label-bold">{STAT_LABELS[key] ?? ABILITIES.find(([ability]) => ability === key)?.[1]}<input type="number" min={0} className={field} value={draft.stats[key]} onChange={(event) => setDraft({ ...draft, stats: { ...draft.stats, [key]: event.target.value } })} /></label>)}</div>
             <label className="text-sm font-label-bold block">Descripción y notas<textarea rows={6} className="w-full rounded bg-surface-subtle border border-border-low-contrast p-3" value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} /></label>

@@ -4,7 +4,7 @@ export function MapGallery() {
   return <CampaignResourcePanel kind="maps" title="Mapas" linkBase="maps" addLabel="Nuevo mapa" fields={[
     { name: 'name', label: 'Nombre' },
     { name: 'location', label: 'Ubicación' },
-    { name: 'image_url', label: 'URL de la imagen', type: 'url' },
+    { name: 'image_url', label: 'Imagen', type: 'image' },
     { name: 'description', label: 'Descripción', type: 'textarea' },
   ]} />;
 }

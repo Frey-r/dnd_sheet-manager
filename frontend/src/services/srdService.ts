@@ -144,6 +144,13 @@ export const MONSTER_TYPES = [
   'Monstrosity', 'Ooze', 'Plant', 'Undead',
 ] as const;
 
+/** Spanish labels for MONSTER_TYPES; the API keeps the English lowercase value. */
+export const MONSTER_TYPE_LABELS: Record<(typeof MONSTER_TYPES)[number], string> = {
+  Aberration: 'Aberración', Beast: 'Bestia', Celestial: 'Celestial', Construct: 'Constructo', Dragon: 'Dragón',
+  Elemental: 'Elemental', Fey: 'Feérico', Fiend: 'Infernal', Giant: 'Gigante', Humanoid: 'Humanoide',
+  Monstrosity: 'Monstruosidad', Ooze: 'Cieno', Plant: 'Planta', Undead: 'Muerto viviente',
+};
+
 export const MONSTER_SIZES = [
   'Tiny', 'Small', 'Medium', 'Large', 'Huge', 'Gargantuan',
 ] as const;

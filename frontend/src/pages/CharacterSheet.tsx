@@ -10,11 +10,13 @@ import { getApiError } from '../services/errors';
 import { ErrorState, LoadingState } from '../components/ui/Feedback';
 import { CharacterTabs } from '../components/character/CharacterTabs';
 import { HpPanel } from '../components/character/HpPanel';
+import { usePassivePerception } from '../lib/raceSkills';
 
 export function CharacterSheet() {
   const { campaignId, characterId = '' } = useParams<{ campaignId: string; characterId: string }>();
   const client = useQueryClient();
   const { data: character, isLoading: loading, error: loadError, refetch } = useQuery({ queryKey: ['character', characterId], queryFn: () => characterApi.get(characterId).then((response) => response.data as Character) });
+  const passive = usePassivePerception(character);
   const hp = useMutation({ mutationFn: (value: { current_hp: number; temp_hp: number }) => characterApi.updateHP(characterId, value), onSuccess: () => client.invalidateQueries({ queryKey: ['character', characterId] }) });
 
   if (loading) {
@@ -105,7 +107,7 @@ export function CharacterSheet() {
                 <span className="material-symbols-outlined text-sm text-primary">circle</span>
                 <span className="font-body-md text-on-surface">Percepción pasiva</span>
               </div>
-              <span className="font-headline-md text-body-md text-on-surface font-semibold">{character.passive_perception}</span>
+              <span className="font-headline-md text-body-md text-on-surface font-semibold" title={passive.racial ? 'Incluye la competencia racial en Percepción' : undefined}>{passive.value}</span>
             </div>
           </div>
         </section>

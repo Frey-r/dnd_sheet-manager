@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, Link } from 'react-router-dom';
 import { campaignApi, characterApi } from '../services/api';
 import type { CampaignMember, Character } from '../types';
@@ -6,11 +7,43 @@ import { PixelAvatar } from '../components/avatar/PixelAvatar';
 import { splitSource } from '../lib/avatar';
 import { getApiError } from '../services/errors';
 import { ErrorState, LoadingState } from '../components/ui/Feedback';
+import { useCampaign } from '../lib/useCampaign';
 
 const pct = (c: Character) => (c.max_hp > 0 ? Math.max(0, Math.min(100, (c.current_hp / c.max_hp) * 100)) : 0);
+const QUICK_GOLD = [-10, -1, 1, 10, 100];
+
+/** GM-only gold editor: set an exact amount or adjust it with quick buttons. */
+function GoldEditor({ character, onSaved }: { character: Character; onSaved: () => Promise<unknown> }) {
+  const [draft, setDraft] = useState(String(character.gold));
+  const save = useMutation({
+    mutationFn: (gold: number) => characterApi.update(character.id, { gold: Math.max(0, Math.round(gold)) }),
+    onSuccess: () => onSaved(),
+  });
+  const parsed = Number(draft);
+  const valid = draft.trim() !== '' && Number.isFinite(parsed) && parsed >= 0;
+  return (
+    <div className="mt-3 rounded-lg border border-line bg-card-2 p-2.5">
+      <form className="flex items-center gap-2" onSubmit={(event) => { event.preventDefault(); if (valid) save.mutate(parsed); }}>
+        <label className="flex items-center gap-2 font-label-sm text-secondary">Oro
+          <input type="number" min={0} step={1} value={draft} onChange={(event) => setDraft(event.target.value)} aria-label={`Oro de ${character.name}`} className="h-8 w-24 rounded bg-surface-subtle border-border-low-contrast px-2 text-sm" />
+        </label>
+        <span className="text-xs text-muted">po</span>
+        <button type="submit" disabled={!valid || save.isPending || parsed === character.gold} className="mc-btn mc-btn-sm ml-auto">{save.isPending ? 'Guardando…' : 'Fijar'}</button>
+      </form>
+      <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label={`Ajuste rápido de oro de ${character.name}`}>
+        {QUICK_GOLD.map((delta) => (
+          <button key={delta} type="button" disabled={save.isPending || character.gold + delta < 0} onClick={() => save.mutate(character.gold + delta)} className="mc-btn mc-btn-sm">{delta > 0 ? `+${delta}` : `−${Math.abs(delta)}`}</button>
+        ))}
+      </div>
+      {save.error && <div className="mt-2"><ErrorState message={getApiError(save.error, 'No se pudo actualizar el oro')} /></div>}
+    </div>
+  );
+}
 
 export function PartyRoster() {
   const { campaignId } = useParams<{ campaignId: string }>();
+  const client = useQueryClient();
+  const { isGM } = useCampaign(campaignId);
   const { data: members = [], isLoading: loading, error, refetch } = useQuery({
     queryKey: ['party-roster', campaignId],
     enabled: Boolean(campaignId),
@@ -63,6 +96,13 @@ export function PartyRoster() {
                       <span className="font-label-sm">PV {m.character.current_hp}/{m.character.max_hp}</span>
                       <span className="font-label-sm text-secondary">CA {m.character.ac}</span>
                     </div>
+                    {isGM ? (
+                      <GoldEditor key={`${m.character.id}-${m.character.gold}`} character={m.character}
+                        onSaved={() => Promise.all([
+                          client.invalidateQueries({ queryKey: ['party-roster', campaignId] }),
+                          client.invalidateQueries({ queryKey: ['character', String(m.character?.id)] }),
+                        ])} />
+                    ) : <div className="font-label-sm text-secondary mt-1">Oro: {m.character.gold} po</div>}
                   </>
                 )}
               </div>

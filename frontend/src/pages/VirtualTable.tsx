@@ -32,6 +32,20 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 const inputCls = 'h-9 w-full px-2.5 text-[13.5px]';
 
+/**
+ * Text input that keeps a local draft while focused and commits on blur/Enter, so a
+ * server refresh (scene save, map upload, realtime event) never clobbers what is being typed.
+ */
+function DraftTextInput({ value, onCommit, className }: { value: string; onCommit: (value: string) => void; className?: string }) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const commit = () => {
+    if (draft !== null && draft.trim() && draft !== value) onCommit(draft.trim());
+    setDraft(null);
+  };
+  return <input className={className} value={draft ?? value} onFocus={() => setDraft(value)} onChange={(e) => setDraft(e.target.value)} onBlur={commit}
+    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); } }} />;
+}
+
 export function VirtualTable() {
   const { campaignId = '' } = useParams();
   const qc = useQueryClient();
@@ -75,12 +89,20 @@ export function VirtualTable() {
 
   // ---------- Mutations ----------
   const saveTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  // Debounced changes are merged, so a quick second edit (e.g. a map upload right after a
+  // rename) does not drop the first one.
+  const pendingScene = useRef<{ id: number; data: Partial<VTTScene> } | null>(null);
   const saveScene = (data: Partial<VTTScene>) => {
     if (!scene) return;
     patchScene((s) => ({ ...s, ...data }));
     clearTimeout(saveTimer.current);
+    const pending = pendingScene.current?.id === scene.id ? pendingScene.current.data : {};
+    pendingScene.current = { id: scene.id, data: { ...pending, ...data } };
     saveTimer.current = setTimeout(() => {
-      vttApi.updateScene(campaignId, scene.id, data).catch((err) => { flash(getErrorMessage(err), true); void qc.invalidateQueries({ queryKey: sceneKey }); });
+      const next = pendingScene.current;
+      pendingScene.current = null;
+      if (!next) return;
+      vttApi.updateScene(campaignId, next.id, next.data).catch((err) => { flash(getErrorMessage(err), true); void qc.invalidateQueries({ queryKey: sceneKey }); });
     }, 350);
   };
   const onWalls = (walls: Wall[]) => saveScene({ walls });
@@ -333,7 +355,7 @@ export function VirtualTable() {
 
               {scene && panel === 'scene' && (
                 <section className="flex flex-col gap-3 p-4">
-                  <Field label="Nombre"><input className={inputCls} value={scene.name} onChange={(e) => saveScene({ name: e.target.value })} /></Field>
+                  <Field label="Nombre"><DraftTextInput key={scene.id} className={inputCls} value={scene.name} onCommit={(name) => saveScene({ name })} /></Field>
                   <Field label="Mapa (PNG, JPG o WebP, máx. 15 MB)">
                     <input type="file" accept="image/png,image/jpeg,image/webp" className="text-[12.5px] text-muted file:mr-3 file:rounded-md file:border file:border-line-strong file:bg-card-2 file:px-3 file:py-1.5 file:text-ink" onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadMap(f); }} />
                   </Field>
@@ -423,7 +445,7 @@ export function VirtualTable() {
                       <div className="flex items-center gap-2"><b className="grow truncate">{selected.name}</b>
                         <button type="button" className="mc-btn mc-btn-sm" onClick={() => addToInitiative(selected)} title="Añadir a la iniciativa"><span className="material-symbols-outlined text-[16px]">swords</span></button>
                         <button type="button" className="mc-btn mc-btn-sm mc-btn-danger" onClick={() => deleteToken(selected.id)} aria-label="Eliminar ficha"><span className="material-symbols-outlined text-[16px]">delete</span></button></div>
-                      <Field label="Nombre"><input className={inputCls} value={selected.name} onChange={(e) => updateToken(selected.id, { name: e.target.value })} /></Field>
+                      <Field label="Nombre"><DraftTextInput key={selected.id} className={inputCls} value={selected.name} onCommit={(name) => updateToken(selected.id, { name })} /></Field>
                       <div className="grid grid-cols-3 gap-2">
                         <Field label="PG"><input type="number" className={inputCls} value={selected.hp} disabled={!!selected.character_id} onChange={(e) => updateToken(selected.id, { hp: Number(e.target.value) })} /></Field>
                         <Field label="PG máx."><input type="number" className={inputCls} value={selected.max_hp} disabled={!!selected.character_id} onChange={(e) => updateToken(selected.id, { max_hp: Number(e.target.value) })} /></Field>

@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { npcApi } from '../../services/api';
 import { vttApi, vttPlayApi } from '../../services/vttApi';
 import { searchEquipment, searchMagicItems } from '../../services/srdService';
+import { itemCount } from '../../lib/plural';
 import {
   ITEM_TYPES, RARITIES, RARITY_PRICE_CP, cpToGP, formatCP, gpToCP, marketApi, rarityLabel, srdCostCP, typeLabel,
   type Availability, type Shop, type ShopInput, type ShopItemInput,
@@ -36,7 +37,7 @@ export function ShopManager({ campaignId }: { campaignId: string }) {
             <span className="material-symbols-outlined text-gold">{s.icon || 'storefront'}</span>
             <span className="min-w-0 flex-1">
               <span className="block truncate font-semibold">{s.name}</span>
-              <span className="block truncate text-[12.5px] text-muted">{availabilityText(s)} · {s.item_count} objetos</span>
+              <span className="block truncate text-[12.5px] text-muted">{availabilityText(s)} · {itemCount(s.item_count)}</span>
             </span>
           </button>
         ))}

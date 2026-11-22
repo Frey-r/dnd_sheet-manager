@@ -2,13 +2,14 @@ import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { eventApi, mapApi, noteApi, npcApi } from '../../services/api';
+import { vttApi } from '../../services/vttApi';
 import { getApiError } from '../../services/errors';
 import { ErrorState, LoadingState, EmptyState } from '../ui/Feedback';
 import { Markdown } from '../ui/Markdown';
 
 export type Resource = { id: number; [key: string]: unknown };
 export type FieldOption = { value: string; label: string };
-type Field = { name: string; label: string; type?: 'text' | 'textarea' | 'date' | 'time' | 'url' | 'number' | 'select'; options?: FieldOption[] };
+type Field = { name: string; label: string; type?: 'text' | 'textarea' | 'date' | 'time' | 'url' | 'number' | 'select' | 'image'; options?: FieldOption[] };
 type Props = { kind: 'npcs' | 'maps' | 'events' | 'notes'; title: string; fields: Field[]; linkBase?: string; addLabel?: string };
 
 const NPC_STATUS: Record<string, { label: string; className: string }> = {
@@ -16,6 +17,8 @@ const NPC_STATUS: Record<string, { label: string; className: string }> = {
   enemy: { label: 'Enemigo', className: 'bg-bad-soft text-bad' },
   neutral: { label: 'Neutral', className: 'bg-card-3 text-muted' },
 };
+const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 const DEFAULT_ADD_LABEL: Record<Props['kind'], string> = { npcs: 'Añadir NPC', maps: 'Nuevo mapa', events: 'Añadir Evento', notes: 'Nueva nota' };
 
 function valueAt(resource: Resource | null, path: string) {
@@ -36,6 +39,7 @@ export function CampaignResourcePanel({ kind, title, fields, linkBase, addLabel 
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [uploading, setUploading] = useState<string | null>(null);
   const api = { npcs: npcApi, maps: mapApi, events: eventApi, notes: noteApi }[kind];
   const titleField = kind === 'npcs' || kind === 'maps' ? 'name' : 'title';
   const list = useQuery({ queryKey: [kind, campaignId], queryFn: () => api.list(campaignId).then((response) => response.data as Resource[]) });
@@ -65,6 +69,31 @@ export function CampaignResourcePanel({ kind, title, fields, linkBase, addLabel 
     setFormOpen(true);
     setError('');
   };
+  const uploadImage = async (fieldName: string, file: File) => {
+    if (!IMAGE_TYPES.includes(file.type)) { setError('Formato no admitido: sube una imagen PNG, JPG o WebP.'); return; }
+    if (file.size > MAX_IMAGE_BYTES) { setError('La imagen supera los 15 MB.'); return; }
+    setUploading(fieldName);
+    setError('');
+    try {
+      const url = await vttApi.upload(campaignId, file);
+      setForm((current) => ({ ...current, [fieldName]: url }));
+    } catch (reason) {
+      setError(getApiError(reason, 'No se pudo subir la imagen'));
+    } finally {
+      setUploading(null);
+    }
+  };
+  const imageInput = (field: Field) => <div className="mt-1 space-y-2">
+    <div className="flex gap-2">
+      <input type="text" inputMode="url" aria-label={`URL de ${field.label.toLowerCase()}`} placeholder="https://… o sube un archivo" value={form[field.name] || ''} onChange={(event) => setForm({ ...form, [field.name]: event.target.value })} className="min-w-0 flex-1 rounded bg-surface-subtle border-border-low-contrast" />
+      <label className={`mc-btn shrink-0 cursor-pointer ${uploading ? 'pointer-events-none opacity-50' : ''}`}>
+        <span className="material-symbols-outlined text-[18px]" aria-hidden="true">upload</span>{uploading === field.name ? 'Subiendo…' : 'Subir'}
+        <input type="file" accept={IMAGE_TYPES.join(',')} className="sr-only" disabled={uploading !== null} aria-label={`Subir archivo para ${field.label}`}
+          onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void uploadImage(field.name, file); }} />
+      </label>
+    </div>
+    {form[field.name] && <img src={form[field.name]} alt="Vista previa" className="h-24 w-24 rounded-lg object-cover bg-card-3 border border-line" />}
+  </div>;
   const remove = useMutation({ mutationFn: (id: number) => api.delete(campaignId, id), onSuccess: () => void list.refetch(), onError: (reason) => setError(getApiError(reason)) });
 
   const shown = useMemo(() => {
@@ -121,11 +150,11 @@ export function CampaignResourcePanel({ kind, title, fields, linkBase, addLabel 
       <form onSubmit={(event) => { event.preventDefault(); mutation.mutate(); }} className="bg-surface w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl p-5 space-y-4">
         <h2 className="font-headline-md">{editing ? 'Editar' : 'Crear'} · {title}</h2>
         {error && <ErrorState message={error} />}
-        {fields.map((field) => <label key={field.name} className="block font-label-bold text-sm">{field.label}
+        {fields.map((field) => field.type === 'image' ? <div key={field.name} role="group" aria-label={field.label} className="block font-label-bold text-sm">{field.label}{imageInput(field)}</div> : <label key={field.name} className="block font-label-bold text-sm">{field.label}
           {field.type === 'textarea' ? <textarea value={form[field.name] || ''} onChange={(event) => setForm({ ...form, [field.name]: event.target.value })} rows={5} className="mt-1 w-full rounded bg-surface-subtle border-border-low-contrast" /> : field.type === 'select' ? <select value={form[field.name]} onChange={(event) => setForm({ ...form, [field.name]: event.target.value })} className="mt-1 w-full rounded bg-surface-subtle border-border-low-contrast">{field.options?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select> : <input required={field.name === titleField || field.name === 'event_date'} min={field.type === 'number' ? 0 : undefined} type={field.type || 'text'} value={form[field.name] || ''} onChange={(event) => setForm({ ...form, [field.name]: event.target.value })} className="mt-1 w-full rounded bg-surface-subtle border-border-low-contrast" />}
         </label>)}
         {kind === 'notes' && <p className="text-xs text-secondary">Admite Markdown básico: # títulos, **negrita**, *cursiva*, - listas y [enlaces](https://…).</p>}
-        <div className="flex justify-end gap-2"><button type="button" onClick={() => setFormOpen(false)} className="px-4 py-2 border rounded-lg">Cancelar</button><button type="submit" disabled={mutation.isPending} className="px-4 py-2 bg-primary-container text-on-primary-container rounded-lg font-label-bold">Guardar</button></div>
+        <div className="flex justify-end gap-2"><button type="button" onClick={() => setFormOpen(false)} className="px-4 py-2 border rounded-lg">Cancelar</button><button type="submit" disabled={mutation.isPending || uploading !== null} className="px-4 py-2 bg-primary-container text-on-primary-container rounded-lg font-label-bold">Guardar</button></div>
       </form>
     </div>}
   </div>;

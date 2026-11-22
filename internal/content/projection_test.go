@@ -82,3 +82,37 @@ func TestMonsterHP(t *testing.T) {
 		}
 	}
 }
+
+func TestFixedSkillProficiencies(t *testing.T) {
+	cases := []struct {
+		name  string
+		value any
+		want  []string
+	}{
+		{"PHB elf keen senses", []any{map[string]any{"perception": true}}, []string{"perception"}},
+		{"several fixed, sorted", []any{map[string]any{"stealth": true, "Intimidation": true}}, []string{"intimidation", "stealth"}},
+		{"choice only (XPHB elf)", []any{map[string]any{"choose": map[string]any{"from": []any{"insight", "perception", "survival"}}}}, []string{}},
+		{"fixed plus choice", []any{map[string]any{"perception": true, "choose": map[string]any{"from": []any{"arcana"}, "count": float64(1)}}}, []string{"perception"}},
+		{"any n", []any{map[string]any{"any": float64(2)}}, []string{}},
+		{"first option only", []any{map[string]any{"athletics": true}, map[string]any{"acrobatics": true}}, []string{"athletics"}},
+		{"missing", nil, []string{}},
+		{"malformed", "perception", []string{}},
+	}
+	for _, c := range cases {
+		got := fixedSkillProficiencies(c.value)
+		if got == nil {
+			t.Errorf("%s: got nil, want non-nil slice", c.name)
+			continue
+		}
+		if len(got) != len(c.want) {
+			t.Errorf("%s: got %v, want %v", c.name, got, c.want)
+			continue
+		}
+		for i := range got {
+			if got[i] != c.want[i] {
+				t.Errorf("%s: got %v, want %v", c.name, got, c.want)
+				break
+			}
+		}
+	}
+}

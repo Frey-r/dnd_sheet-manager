@@ -5,6 +5,7 @@ import { characterApi, contentApi, itemApi } from '../services/api';
 import type { Character, InventoryItem } from '../types';
 import { getApiError } from '../services/errors';
 import { ErrorState, LoadingState } from '../components/ui/Feedback';
+import { CharacterTabs } from '../components/character/CharacterTabs';
 
 type ContentItem = { id: number; name: string; source: string; is_srd: boolean; data?: Record<string, unknown> };
 
@@ -69,7 +70,7 @@ export function InventoryTab() {
       <div className="flex items-center gap-3"><Link to={`/campaign/${campaignId}/character/${characterId}`} aria-label="Volver"><span className="material-symbols-outlined text-primary">arrow_back</span></Link><h1 className="font-headline-md font-bold">Inventario</h1></div>
       <button type="button" onClick={() => setAdding(true)} className="bg-primary-container text-on-primary-container rounded-lg px-4 py-2 font-label-bold">Añadir objeto</button>
     </header>
-    <nav className="bg-surface border-b border-border-low-contrast px-4 flex gap-4 overflow-x-auto"><Link to={`/campaign/${campaignId}/character/${characterId}`} className="py-3 text-secondary whitespace-nowrap">Stats</Link><Link to={`/campaign/${campaignId}/character/${characterId}/spells`} className="py-3 text-secondary whitespace-nowrap">Spells</Link><span className="py-3 border-b-2 border-primary text-primary font-label-bold">Inventory</span><Link to={`/campaign/${campaignId}/character/${characterId}/bio`} className="py-3 text-secondary">Bio</Link></nav>
+    <CharacterTabs campaignId={campaignId} characterId={characterId} active="inventory" />
     <main className="flex-1 px-4 py-6 max-w-3xl mx-auto w-full space-y-6">
       {error && <ErrorState message={error} />}
       {character.data && <section className="bg-surface-container-lowest border border-border-low-contrast rounded-xl p-4 flex justify-between items-center"><span className="font-label-bold">Oro</span><input aria-label="Oro" type="number" min={0} key={character.data.gold} defaultValue={character.data.gold} onBlur={(event) => mutation.mutate(() => characterApi.update(characterId, { gold: Number(event.target.value) }))} className="w-28 rounded bg-surface-subtle border-border-low-contrast" /></section>}

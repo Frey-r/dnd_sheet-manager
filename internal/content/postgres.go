@@ -157,7 +157,7 @@ func projectLegacy(ctx context.Context, tx *sql.Tx, contentID int64, entity Enti
 		// The spell planner reads srd_class_spell_slots; project the class table into it.
 		return projectClassProgression(ctx, tx, classID, data)
 	case "race":
-		_, err := tx.ExecContext(ctx, `INSERT INTO srd_races(name,speed,size,ability_bonuses,traits,languages,subraces,description,is_srd,source,content_entity_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT(name,source) DO UPDATE SET speed=EXCLUDED.speed,size=EXCLUDED.size,ability_bonuses=EXCLUDED.ability_bonuses,traits=EXCLUDED.traits,languages=EXCLUDED.languages,description=EXCLUDED.description,is_srd=EXCLUDED.is_srd,content_entity_id=EXCLUDED.content_entity_id`, entity.Name, firstNumber(data["speed"], 30), firstString(data["size"], "M"), jsonValue(data["ability"]), jsonValue(data["entries"]), jsonValue(data["languageProficiencies"]), jsonValue(data["subraces"]), flatText(data["entries"]), entity.IsSRD, entity.Source, contentID)
+		_, err := tx.ExecContext(ctx, `INSERT INTO srd_races(name,speed,size,ability_bonuses,traits,languages,subraces,description,is_srd,source,content_entity_id,skill_proficiencies) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ON CONFLICT(name,source) DO UPDATE SET speed=EXCLUDED.speed,size=EXCLUDED.size,ability_bonuses=EXCLUDED.ability_bonuses,traits=EXCLUDED.traits,languages=EXCLUDED.languages,description=EXCLUDED.description,is_srd=EXCLUDED.is_srd,content_entity_id=EXCLUDED.content_entity_id,skill_proficiencies=EXCLUDED.skill_proficiencies`, entity.Name, firstNumber(data["speed"], 30), firstString(data["size"], "M"), jsonValue(data["ability"]), jsonValue(data["entries"]), jsonValue(data["languageProficiencies"]), jsonValue(data["subraces"]), flatText(data["entries"]), entity.IsSRD, entity.Source, contentID, jsonValue(fixedSkillProficiencies(data["skillProficiencies"])))
 		return err
 	case "subclass":
 		_, err := tx.ExecContext(ctx, `INSERT INTO srd_subclasses(class_name,name,description,is_srd,source,content_entity_id) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(class_name,name,source) DO UPDATE SET description=EXCLUDED.description,is_srd=EXCLUDED.is_srd,content_entity_id=EXCLUDED.content_entity_id`, flatText(data["className"]), entity.Name, flatText(data["entries"]), entity.IsSRD, entity.Source, contentID)
@@ -193,6 +193,25 @@ func projectLegacy(ctx context.Context, tx *sql.Tx, contentID int64, entity Enti
 		return err
 	}
 	return nil
+}
+
+// fixedSkillProficiencies returns the skills a 5etools `skillProficiencies` list always grants
+// (e.g. [{"perception": true}] -> ["perception"]). The list holds alternative options; the
+// first one is used and choices ({"choose": ...}, {"any": n}) are skipped. Never nil.
+func fixedSkillProficiencies(value any) []string {
+	skills := []string{}
+	options, _ := value.([]any)
+	if len(options) == 0 {
+		return skills
+	}
+	first, _ := options[0].(map[string]any)
+	for key, granted := range first {
+		if granted == true {
+			skills = append(skills, strings.ToLower(key))
+		}
+	}
+	sort.Strings(skills)
+	return skills
 }
 
 func searchText(value any) string {

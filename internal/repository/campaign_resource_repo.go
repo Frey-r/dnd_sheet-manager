@@ -19,7 +19,7 @@ type resourceDefinition struct {
 }
 
 var campaignResources = map[string]resourceDefinition{
-	"npcs":   {table: "campaign_npcs", fields: []string{"name", "role", "status", "description", "stats"}, jsonFields: map[string]bool{"stats": true}},
+	"npcs":   {table: "campaign_npcs", fields: []string{"name", "role", "status", "description", "stats", "image_url"}, jsonFields: map[string]bool{"stats": true}},
 	"maps":   {table: "campaign_maps", fields: []string{"name", "location", "image_url", "description", "pins"}, jsonFields: map[string]bool{"pins": true}},
 	"events": {table: "campaign_events", fields: []string{"title", "description", "event_date", "event_time", "related_npcs", "related_locations"}, jsonFields: map[string]bool{"related_npcs": true, "related_locations": true}},
 	"notes":  {table: "campaign_notes", fields: []string{"title", "content"}},

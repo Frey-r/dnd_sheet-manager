@@ -18,6 +18,7 @@ import { RaceStep } from '../components/character/creator/RaceStep';
 import { PixelAvatar } from '../components/avatar/PixelAvatar';
 import { abilityMod, raceAbilityBonuses, signed, suggestedIncreases } from '../lib/abilities';
 import { defaultAppearance, normalizeAppearance, resolveRaceVisual, splitSource, type Appearance } from '../lib/avatar';
+import { versionedRaceName } from '../lib/raceSkills';
 
 const ALIGNMENTS = ['Legal bueno', 'Neutral bueno', 'Caótico bueno', 'Legal neutral', 'Neutral', 'Caótico neutral', 'Legal malvado', 'Neutral malvado', 'Caótico malvado'];
 const STEPS = ['Raza', 'Apariencia', 'Clase', 'Características', 'Detalles'] as const;
@@ -80,7 +81,7 @@ export function CreateCharacterPage() {
     const f = abilities.final, b = abilities.base;
     try {
       const response = await characterApi.create({
-        name: name.trim(), race: race.name, class: klass.name, campaign_id: Number(campaignId),
+        name: name.trim(), race: versionedRaceName(race), class: klass.name, campaign_id: Number(campaignId),
         background: background.trim(), alignment,
         str_score: f.str, dex_score: f.dex, con_score: f.con, int_score: f.int, wis_score: f.wis, cha_score: f.cha,
         ...(abilities.rollId ? { stat_roll_id: abilities.rollId, base_scores: [b.str, b.dex, b.con, b.int, b.wis, b.cha] } : {}),

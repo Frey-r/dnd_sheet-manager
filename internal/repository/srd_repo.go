@@ -556,7 +556,7 @@ func (r *SRDRepository) GetClassByName(name string) (*domain.SRDClass, error) {
 func (r *SRDRepository) ListRaces() ([]domain.SRDRace, error) {
 	races := []domain.SRDRace{}
 	err := r.db.Select(&races, `SELECT id, name, source, speed, size, ability_bonuses::text, traits::text,
-		languages::text, subraces::text, description, is_srd, created_at
+		languages::text, subraces::text, skill_proficiencies::text, description, is_srd, created_at
 		FROM srd_races ORDER BY name ASC, source ASC`)
 	if err != nil {
 		return nil, fmt.Errorf("list races: %w", err)
@@ -568,7 +568,7 @@ func (r *SRDRepository) ListRaces() ([]domain.SRDRace, error) {
 func (r *SRDRepository) GetRaceByName(name string) (*domain.SRDRace, error) {
 	var race domain.SRDRace
 	err := r.db.Get(&race, `SELECT id, name, source, speed, size, ability_bonuses::text, traits::text,
-		languages::text, subraces::text, description, is_srd, created_at
+		languages::text, subraces::text, skill_proficiencies::text, description, is_srd, created_at
 		FROM srd_races WHERE LOWER(name) = LOWER($1)
 		ORDER BY `+editionPreference+` LIMIT 1`, name)
 	if err != nil {

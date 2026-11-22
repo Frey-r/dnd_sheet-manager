@@ -5,6 +5,8 @@ import { getApiError } from '../services/errors';
 import { ErrorState, LoadingState } from '../components/ui/Feedback';
 import { CharacterTabs } from '../components/character/CharacterTabs';
 import type { Character, CharacterFeature } from '../types';
+import { usePassivePerception } from '../lib/raceSkills';
+import { splitSource } from '../lib/avatar';
 
 const TYPE_LABEL: Record<string, string> = { class: 'Clase', racial: 'Racial', feat: 'Dote' };
 const REST_LABEL: Record<string, string> = { short: 'descanso corto', long: 'descanso largo' };
@@ -15,6 +17,7 @@ export function FeaturesTab() {
   const featuresQuery = useQuery({ queryKey: ['features', characterId], queryFn: () => characterApi.features(characterId).then((response) => (response.data ?? []) as CharacterFeature[]) });
   const character = characterQuery.data;
   const features = featuresQuery.data ?? [];
+  const passive = usePassivePerception(character);
 
   if (characterQuery.isLoading) return <LoadingState label="Cargando rasgos…" />;
   if (characterQuery.error || !character) return <div className="p-8"><ErrorState message={getApiError(characterQuery.error, 'No se pudo cargar el personaje')} onRetry={() => void characterQuery.refetch()} /></div>;
@@ -34,7 +37,7 @@ export function FeaturesTab() {
 
       <main className="flex-1 overflow-y-auto p-4 md:p-10">
         <div className="flex flex-wrap gap-2 mb-6">
-          <span className="px-2 py-1 bg-surface-variant text-on-surface rounded font-label-sm">{character.race} {character.class} Nv {character.level}</span>
+          <span className="px-2 py-1 bg-surface-variant text-on-surface rounded font-label-sm">{splitSource(character.race).base} {splitSource(character.class).base} Nv {character.level}</span>
           {character.background && <span className="px-2 py-1 bg-surface-variant text-on-surface rounded font-label-sm">{character.background}</span>}
         </div>
 
@@ -45,7 +48,7 @@ export function FeaturesTab() {
               <div className="flex flex-col gap-3">
                 <div className="flex justify-between items-center bg-surface-subtle p-3 rounded border border-border-low-contrast">
                   <span className="font-body-md text-on-surface">Percepción pasiva</span>
-                  <span className="font-headline-md text-on-background">{character.passive_perception}</span>
+                  <span className="font-headline-md text-on-background" title={passive.racial ? 'Incluye la competencia racial en Percepción' : undefined}>{passive.value}</span>
                 </div>
               </div>
             </div>

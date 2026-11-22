@@ -47,7 +47,8 @@ export function EventsCalendar() {
   const firstWeekday = (new Date(cursor.year, cursor.month, 1).getDay() + 6) % 7;
   const daysInMonth = new Date(cursor.year, cursor.month + 1, 0).getDate();
   const cells = [...Array<null>(firstWeekday).fill(null), ...Array.from({ length: daysInMonth }, (_, index) => index + 1)];
-  const monthLabel = new Date(cursor.year, cursor.month, 1).toLocaleDateString('es', { month: 'long', year: 'numeric' });
+  const rawMonthLabel = new Date(cursor.year, cursor.month, 1).toLocaleDateString('es', { month: 'long', year: 'numeric' });
+  const monthLabel = rawMonthLabel.charAt(0).toUpperCase() + rawMonthLabel.slice(1);
   const shift = (delta: number) => { const next = new Date(cursor.year, cursor.month + delta, 1); setCursor({ year: next.getFullYear(), month: next.getMonth() }); };
   const dayEvents = byDay.get(selected) ?? [];
   const edit = (event: CampaignEvent) => {
@@ -67,7 +68,7 @@ export function EventsCalendar() {
         <section className="mc-card p-4" aria-label="Calendario">
           <div className="flex items-center justify-between mb-3">
             <button type="button" aria-label="Mes anterior" onClick={() => shift(-1)} className="mc-btn mc-btn-icon"><span className="material-symbols-outlined">chevron_left</span></button>
-            <h2 className="font-headline-md capitalize">{monthLabel}</h2>
+            <h2 className="font-headline-md">{monthLabel}</h2>
             <button type="button" aria-label="Mes siguiente" onClick={() => shift(1)} className="mc-btn mc-btn-icon"><span className="material-symbols-outlined">chevron_right</span></button>
           </div>
           <div className="grid grid-cols-7 gap-1 text-center text-xs text-muted mb-1">{WEEKDAYS.map((day) => <span key={day}>{day}</span>)}</div>
