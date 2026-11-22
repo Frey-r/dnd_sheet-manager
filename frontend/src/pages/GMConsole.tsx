@@ -1,6 +1,13 @@
+import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { combatApi } from '../services/api';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { combatApi, noteApi } from '../services/api';
+import { buildEncounter, searchMonsters } from '../services/srdService';
+import { getApiError } from '../services/errors';
+import { activeCombatantIndex } from '../lib/combat';
+import { HPBar } from '../components/ui/HPBar';
+import { ErrorState } from '../components/ui/Feedback';
+import type { EncounterSuggestion } from '../types/srd';
 import { vttApi } from '../services/vttApi';
 import { useCampaign } from '../lib/useCampaign';
 import { requestRoll } from '../lib/dice';
@@ -15,7 +22,7 @@ const TOOLS: [string, string, string, string][] = [
   ['gm/encounter-builder', 'bolt', 'Encuentros', 'Presupuesto de XP'],
   ['gm/party', 'groups', 'Grupo', 'XP, oro e inspiración'],
   ['gm/npcs', 'theater_comedy', 'NPCs', 'Elenco y secretos'],
-  ['gm/bestiary', 'pets', 'Bestiario', 'SRD y homebrew'],
+  ['gm/bestiary', 'pets', 'Bestiario', 'Libros oficiales y homebrew'],
   ['gm/maps', 'map', 'Mapas', 'Galería de la campaña'],
   ['gm/events', 'calendar_month', 'Eventos', 'Sesiones y mundo'],
   ['gm/notes', 'edit_note', 'Notas', 'Privadas, sin IA'],
@@ -23,12 +30,6 @@ const TOOLS: [string, string, string, string][] = [
   ['gm/bot', 'smart_toy', 'Bot asistente', 'Automatizaciones'],
   ['chat', 'campaign', 'Avisos', 'Mensaje a la mesa'],
 ];
-
-function hpTone(hp: number, max: number) {
-  if (max <= 0) return 'var(--faint)';
-  const p = hp / max;
-  return hp <= 0 || p < 0.3 ? 'var(--bad)' : p < 0.6 ? 'var(--warn)' : 'var(--ok)';
-}
 
 export function GMConsole() {
   const { campaignId = '' } = useParams();
@@ -39,7 +40,44 @@ export function GMConsole() {
   const c = `/campaign/${campaignId}`;
   const alerts = characters.filter((ch) => ch.max_hp > 0 && (ch.current_hp <= 0 || ch.current_hp / ch.max_hp < 0.3));
   const fighters = combat.data?.combatants ?? [];
-  const current = fighters[combat.data?.turn ?? 0];
+  const current = fighters[activeCombatantIndex(combat.data?.turn, fighters.length)];
+  const client = useQueryClient();
+  const [noteText, setNoteText] = useState('');
+  const [notice, setNotice] = useState<{ text: string; bad?: boolean } | null>(null);
+  const [encounter, setEncounter] = useState<EncounterSuggestion | null>(null);
+
+  const quickNote = useMutation({
+    mutationFn: () => {
+      const text = noteText.trim();
+      const firstLine = text.split(/\r?\n/)[0];
+      return noteApi.create(campaignId, { title: firstLine.length > 60 ? `${firstLine.slice(0, 57)}…` : firstLine, content: text });
+    },
+    onSuccess: () => { setNoteText(''); setNotice({ text: 'Nota guardada.' }); void client.invalidateQueries({ queryKey: ['notes', campaignId] }); },
+    onError: (reason) => setNotice({ text: getApiError(reason), bad: true }),
+  });
+  const randomEncounter = useMutation({
+    mutationFn: async () => {
+      const level = characters.length ? Math.max(1, Math.round(characters.reduce((sum, ch) => sum + ch.level, 0) / characters.length)) : 1;
+      const result = await buildEncounter({ party_size: Math.max(1, characters.length), party_level: level, difficulty: 'medium' });
+      if (!result.suggestions.length) throw new Error('No hay encuentros posibles para este grupo.');
+      return result.suggestions[Math.floor(Math.random() * result.suggestions.length)];
+    },
+    onSuccess: (suggestion) => { setEncounter(suggestion); setNotice(null); },
+    onError: (reason) => setNotice({ text: reason instanceof Error && !('response' in reason) ? reason.message : getApiError(reason, 'No se pudo generar el encuentro'), bad: true }),
+  });
+  const startEncounter = useMutation({
+    mutationFn: async (suggestion: EncounterSuggestion) => {
+      for (const item of suggestion.monsters) {
+        const found = await searchMonsters({ query: item.name, limit: 1 });
+        const hp = found.data?.[0]?.hp ?? 10;
+        for (let i = 0; i < item.count; i++) {
+          await combatApi.addCombatant(campaignId, { name: item.count > 1 ? `${item.name} ${i + 1}` : item.name, initiative: Math.floor(Math.random() * 20) + 1, hp, max_hp: hp, is_player: false });
+        }
+      }
+    },
+    onSuccess: () => { setEncounter(null); setNotice({ text: 'Encuentro añadido al combate.' }); void client.invalidateQueries({ queryKey: ['combat', campaignId] }); },
+    onError: (reason) => setNotice({ text: getApiError(reason, 'No se pudo añadir el encuentro'), bad: true }),
+  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -51,10 +89,25 @@ export function GMConsole() {
         </div>
         <div className="flex flex-wrap gap-2">
           <button type="button" className="mc-btn" onClick={() => requestRoll('1d20', 'Tirada secreta del DM', true)}><span className="material-symbols-outlined text-[18px]">visibility_off</span>Tirada secreta</button>
+          <button type="button" className="mc-btn" disabled={randomEncounter.isPending} onClick={() => randomEncounter.mutate()}><span className="material-symbols-outlined text-[18px]">casino</span>{randomEncounter.isPending ? 'Generando…' : 'Encuentro aleatorio'}</button>
           <Link className="mc-btn" to={`${c}/gm/notes`}><span className="material-symbols-outlined text-[18px]">edit_note</span>Nota de sesión</Link>
           <Link className="mc-btn mc-btn-primary" to={`${c}/table`}><span className="material-symbols-outlined text-[18px]">grid_on</span>Abrir la mesa</Link>
         </div>
       </div>
+
+      {notice && (notice.bad ? <ErrorState message={notice.text} /> : <div role="status" className="rounded-lg border border-line-strong bg-card px-4 py-2.5 text-[13.5px]">{notice.text}</div>)}
+      {encounter && (
+        <section className="mc-card flex flex-wrap items-center gap-3 p-4" aria-label="Encuentro aleatorio">
+          <div className="grow">
+            <div className="mc-eyebrow">Encuentro aleatorio · {encounter.actual_difficulty}</div>
+            <p className="mt-1 text-[14px]">{encounter.monsters.map((m) => `${m.count}× ${m.name} (VD ${m.cr})`).join(', ')}</p>
+            <p className="text-xs text-muted">{encounter.total_xp.toLocaleString()} XP · {encounter.monster_count} criaturas</p>
+          </div>
+          <button type="button" className="mc-btn" onClick={() => randomEncounter.mutate()} disabled={randomEncounter.isPending}>Otro</button>
+          <button type="button" className="mc-btn mc-btn-primary" onClick={() => startEncounter.mutate(encounter)} disabled={startEncounter.isPending}>{startEncounter.isPending ? 'Añadiendo…' : 'Añadir al combate'}</button>
+          <button type="button" className="mc-btn mc-btn-ghost" onClick={() => setEncounter(null)}>Descartar</button>
+        </section>
+      )}
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="flex min-w-0 flex-col gap-5">
@@ -66,7 +119,6 @@ export function GMConsole() {
             ) : (
               <div className="grid gap-3 sm:grid-cols-2">
                 {characters.map((ch) => {
-                  const pct = ch.max_hp ? Math.max(0, Math.min(100, (ch.current_hp / ch.max_hp) * 100)) : 0;
                   const danger = ch.max_hp > 0 && (ch.current_hp <= 0 || ch.current_hp / ch.max_hp < 0.3);
                   return (
                     <Link key={ch.id} to={`${c}/character/${ch.id}`} className={`mc-card flex flex-col gap-3 p-3.5 transition-transform hover:-translate-y-0.5 ${danger ? '!border-[color:var(--bad)]' : ''}`}>
@@ -77,7 +129,7 @@ export function GMConsole() {
                       </div>
                       <div>
                         <div className="mb-1 flex justify-between text-xs text-muted"><span>PG</span><span><b className="font-mono text-ink">{ch.current_hp}</b> / {ch.max_hp}{ch.temp_hp ? <span className="text-info"> +{ch.temp_hp}</span> : null}</span></div>
-                        <div className="h-1.5 overflow-hidden rounded-full bg-card-3"><div className="h-full rounded-full transition-[width]" style={{ width: `${pct}%`, background: hpTone(ch.current_hp, ch.max_hp) }} /></div>
+                        <HPBar hp={ch.current_hp} max={ch.max_hp} label={`PV de ${ch.name}`} thin />
                       </div>
                       <div className="flex gap-4 text-xs text-muted"><span>CA <b className="font-mono text-ink">{ch.ac}</b></span></div>
                     </Link>
@@ -101,7 +153,7 @@ export function GMConsole() {
                 <span className={`h-2 w-2 rounded-full ${f.is_player ? 'bg-ok' : 'bg-bad'}`} />
                 <span className="grow truncate">{f.name}</span>
                 <span className="font-mono text-xs text-muted">{f.hp}/{f.max_hp}</span>
-                <div className="h-1.5 w-20 overflow-hidden rounded-full bg-card-3"><div className="h-full rounded-full" style={{ width: `${f.max_hp ? Math.max(0, Math.min(100, (f.hp / f.max_hp) * 100)) : 0}%`, background: hpTone(f.hp, f.max_hp) }} /></div>
+                <HPBar hp={f.hp} max={f.max_hp} label={`PV de ${f.name}`} thin className="w-20" />
               </div>
             ))}
           </section>
@@ -135,6 +187,13 @@ export function GMConsole() {
             <div className="mt-2 font-mono text-[32px] font-semibold tracking-[.18em]">{campaign?.join_code ?? '······'}</div>
             <p className="text-[12.5px] text-muted">Se introduce en «Mis campañas → Unirse con código».</p>
             <button type="button" className="mc-btn mt-3 w-full" onClick={() => campaign && navigator.clipboard?.writeText(campaign.join_code)}><span className="material-symbols-outlined text-[18px]">content_copy</span>Copiar código</button>
+          </section>
+          <section className="mc-card p-4">
+            <div className="mc-eyebrow">Nota rápida</div>
+            <form className="mt-2 flex flex-col gap-2" onSubmit={(e) => { e.preventDefault(); if (noteText.trim()) quickNote.mutate(); }}>
+              <textarea aria-label="Nota rápida" rows={3} value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Apunta algo de la sesión… (admite Markdown)" className="w-full rounded px-3 py-2 text-[13.5px]" />
+              <button type="submit" className="mc-btn" disabled={!noteText.trim() || quickNote.isPending}>{quickNote.isPending ? 'Guardando…' : 'Guardar nota'}</button>
+            </form>
           </section>
           <StatRollsPanel campaignId={campaignId} />
           <section className="mc-card p-4">

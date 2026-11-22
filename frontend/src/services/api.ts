@@ -56,7 +56,7 @@ export const campaignApi = {
   list: () => api.get('/campaigns'),
   create: (data: { name: string; description: string; game_mode?: 'local' | 'foundry' }) => api.post('/campaigns', data),
   get: (id: number | string) => api.get(`/campaigns/${id}`),
-  update: (id: number | string, data: Partial<{ name: string; description: string; status: string }>) => api.put(`/campaigns/${id}`, data),
+  update: (id: number | string, data: Partial<{ name: string; description: string; status: string; bastion_sale_pct: number }>) => api.put(`/campaigns/${id}`, data),
   delete: (id: number | string) => api.delete(`/campaigns/${id}`),
   join: (id: number | string, joinCode: string) => api.post(`/campaigns/${id}/join`, { join_code: joinCode }),
   members: (campaignId: number | string) => api.get(`/campaigns/${campaignId}/members`),
@@ -88,7 +88,7 @@ export const messageApi = {
   list: (campaignId: number | string) => api.get(`/campaigns/${campaignId}/messages`),
   conversation: (campaignId: number | string, userId: number | string) => api.get(`/campaigns/${campaignId}/messages/${userId}`),
   send: (campaignId: number | string, data: { message_type: string; body: string; subject?: string; recipient_user_id?: number }) => api.post(`/campaigns/${campaignId}/messages`, data),
-  markRead: () => api.post('/messages/mark-read'),
+  markRead: (scope?: { campaignId: number | string; userId: number | string }) => api.post('/messages/mark-read', null, { params: scope ? { campaign_id: scope.campaignId, user_id: scope.userId } : undefined }),
 };
 export const marketApi = {
   list: (campaignId: number | string) => api.get(`/campaigns/${campaignId}/marketplace`),
@@ -133,6 +133,7 @@ export const loreApi = {
 export const combatApi = {
   getState: (campaignId: number | string) => api.get(`/campaigns/${campaignId}/combat`),
   addCombatant: (campaignId: number | string, data: Record<string, unknown>) => api.post(`/campaigns/${campaignId}/combat/combatants`, data),
+  addEncounter: (campaignId: number | string, combatants: Record<string, unknown>[]) => api.post(`/campaigns/${campaignId}/combat/encounter`, { combatants }),
   removeCombatant: (campaignId: number | string, combatantId: number | string) => api.delete(`/campaigns/${campaignId}/combat/combatants/${combatantId}`),
   nextTurn: (campaignId: number | string) => api.post(`/campaigns/${campaignId}/combat/next-turn`),
   updateHP: (campaignId: number | string, combatantId: number | string, data: { hp: number }) => api.put(`/campaigns/${campaignId}/combat/combatants/${combatantId}/hp`, data),
@@ -161,4 +162,14 @@ export const contentApi = {
   get: (id: number | string) => api.get(`/content/${id}`),
   categories: () => api.get('/content/categories'),
   sources: () => api.get('/content/sources'),
+};
+export const botApi = {
+  get: (campaignId: number | string) => api.get(`/campaigns/${campaignId}/bot`),
+  save: (campaignId: number | string, data: { enabled: boolean; personality: string; actions: Record<string, boolean> }) => api.put(`/campaigns/${campaignId}/bot`, data),
+  test: (campaignId: number | string, message: string) => api.post<{ reply: string }>(`/campaigns/${campaignId}/bot/test`, { message }),
+};
+export const homebrewApi = {
+  create: (data: Record<string, unknown>) => api.post('/srd/monsters', data),
+  update: (id: number | string, data: Record<string, unknown>) => api.put(`/srd/monsters/${id}`, data),
+  remove: (id: number | string) => api.delete(`/srd/monsters/${id}`),
 };

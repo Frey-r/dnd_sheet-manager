@@ -11,7 +11,7 @@ const SECTION: [RegExp, string][] = [
   [/\/trade$/, 'Intercambios'], [/\/reference$/, 'Compendio'], [/\/gm$/, 'Consola del DM'], [/\/gm\/party$/, 'Grupo'],
   [/\/gm\/encounter-builder$/, 'Generador de encuentros'], [/\/gm\/npcs/, 'NPCs'], [/\/gm\/bestiary/, 'Bestiario'],
   [/\/gm\/maps/, 'Mapas'], [/\/gm\/events$/, 'Eventos'], [/\/gm\/notes$/, 'Notas'], [/\/gm\/lore$/, 'Editor de lore'],
-  [/\/gm\/bot$/, 'Bot asistente'], [/\/gm\/spells-srd$/, 'Conjuros SRD'], [/^\/campaigns\/new$/, 'Nueva campaña'],
+  [/\/gm\/bot$/, 'Bot asistente'], [/\/gm\/spells-srd$/, 'Conjuros'], [/^\/campaigns\/new$/, 'Nueva campaña'],
   [/^\/campaigns$/, 'Mis campañas'], [/^\/settings$/, 'Ajustes'],
 ];
 

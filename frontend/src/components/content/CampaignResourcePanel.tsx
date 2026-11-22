@@ -1,25 +1,43 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { eventApi, mapApi, noteApi, npcApi } from '../../services/api';
 import { getApiError } from '../../services/errors';
 import { ErrorState, LoadingState, EmptyState } from '../ui/Feedback';
+import { Markdown } from '../ui/Markdown';
 
 export type Resource = { id: number; [key: string]: unknown };
-type Field = { name: string; label: string; type?: 'text' | 'textarea' | 'date' | 'time' | 'url' | 'number' | 'select'; options?: string[] };
-type Props = { kind: 'npcs' | 'maps' | 'events' | 'notes'; title: string; fields: Field[]; linkBase?: string };
+export type FieldOption = { value: string; label: string };
+type Field = { name: string; label: string; type?: 'text' | 'textarea' | 'date' | 'time' | 'url' | 'number' | 'select'; options?: FieldOption[] };
+type Props = { kind: 'npcs' | 'maps' | 'events' | 'notes'; title: string; fields: Field[]; linkBase?: string; addLabel?: string };
+
+const NPC_STATUS: Record<string, { label: string; className: string }> = {
+  ally: { label: 'Aliado', className: 'bg-ok-soft text-ok' },
+  enemy: { label: 'Enemigo', className: 'bg-bad-soft text-bad' },
+  neutral: { label: 'Neutral', className: 'bg-card-3 text-muted' },
+};
+const DEFAULT_ADD_LABEL: Record<Props['kind'], string> = { npcs: 'Añadir NPC', maps: 'Nuevo mapa', events: 'Añadir Evento', notes: 'Nueva nota' };
 
 function valueAt(resource: Resource | null, path: string) {
   return path.split('.').reduce<unknown>((value, key) => value && typeof value === 'object' ? (value as Record<string, unknown>)[key] : undefined, resource);
 }
+const text = (value: unknown) => typeof value === 'string' ? value : value == null ? '' : String(value);
 
-export function CampaignResourcePanel({ kind, title, fields, linkBase }: Props) {
+function dayKey(value: unknown) {
+  const date = new Date(text(value));
+  return Number.isNaN(date.getTime()) ? 'Sin fecha' : date.toLocaleDateString('es', { dateStyle: 'long' });
+}
+
+export function CampaignResourcePanel({ kind, title, fields, linkBase, addLabel }: Props) {
   const { campaignId = '' } = useParams();
   const [editing, setEditing] = useState<Resource | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const api = { npcs: npcApi, maps: mapApi, events: eventApi, notes: noteApi }[kind];
+  const titleField = kind === 'npcs' || kind === 'maps' ? 'name' : 'title';
   const list = useQuery({ queryKey: [kind, campaignId], queryFn: () => api.list(campaignId).then((response) => response.data as Resource[]) });
   const mutation = useMutation({
     mutationFn: () => {
@@ -48,30 +66,65 @@ export function CampaignResourcePanel({ kind, title, fields, linkBase }: Props) 
     setError('');
   };
   const remove = useMutation({ mutationFn: (id: number) => api.delete(campaignId, id), onSuccess: () => void list.refetch(), onError: (reason) => setError(getApiError(reason)) });
-  const titleField = kind === 'npcs' || kind === 'maps' ? 'name' : 'title';
+
+  const shown = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return (list.data ?? []).filter((resource) => (!query || text(resource[titleField]).toLowerCase().includes(query)) && (kind !== 'npcs' || statusFilter === 'all' || text(resource.status || 'neutral') === statusFilter));
+  }, [list.data, search, statusFilter, kind, titleField]);
+
+  const card = (resource: Resource) => {
+    const image = text(resource.image_url || resource.avatar_url);
+    const status = kind === 'npcs' ? NPC_STATUS[text(resource.status || 'neutral')] : undefined;
+    const body = text(resource.description || resource.content);
+    return <article key={resource.id} className="border border-border-low-contrast rounded-lg bg-surface-container-lowest p-4">
+      <div className="flex gap-3">
+        {image && <img src={image} alt="" loading="lazy" className="h-16 w-16 shrink-0 rounded-lg object-cover bg-card-3" />}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            {linkBase ? <Link to={`/campaign/${campaignId}/gm/${linkBase}/${resource.id}`} className="font-label-bold text-lg text-primary truncate">{text(resource[titleField])}</Link> : <h2 className="font-label-bold text-lg truncate">{text(resource[titleField])}</h2>}
+            {status && <span className={`mc-badge shrink-0 ${status.className}`}>{status.label}</span>}
+          </div>
+          <p className="text-sm text-secondary mt-1">{text(resource.role || resource.location || resource.event_date)}{resource.event_time ? ` ${text(resource.event_time)}` : ''}</p>
+        </div>
+      </div>
+      {kind === 'notes' ? <Markdown source={body} className="mt-2 text-sm" /> : <p className="text-sm text-on-surface-variant mt-2 line-clamp-4 whitespace-pre-wrap">{body}</p>}
+      <div className="flex gap-2 mt-3"><button type="button" onClick={() => open(resource)} className="text-sm text-primary">Editar</button><button type="button" disabled={remove.isPending} onClick={() => remove.mutate(resource.id)} className="text-sm text-hp-danger">Eliminar</button></div>
+    </article>;
+  };
+
+  const grouped = useMemo(() => {
+    if (kind !== 'notes') return [];
+    const sorted = [...shown].sort((a, b) => new Date(text(b.created_at)).getTime() - new Date(text(a.created_at)).getTime());
+    const groups = new Map<string, Resource[]>();
+    sorted.forEach((note) => { const key = dayKey(note.created_at); groups.set(key, [...(groups.get(key) ?? []), note]); });
+    return [...groups.entries()];
+  }, [shown, kind]);
 
   return <div className="min-h-screen">
     <header className="sticky top-0 z-40 bg-surface border-b border-border-low-contrast min-h-16 flex items-center justify-between px-4 py-2">
       <div className="flex items-center gap-2"><Link to={`/campaign/${campaignId}/gm`} aria-label="Volver"><span className="material-symbols-outlined text-primary">arrow_back</span></Link><h1 className="font-headline-md font-bold">{title}</h1></div>
-      <button type="button" onClick={() => open()} className="bg-primary-container text-on-primary-container px-4 py-2 rounded-lg font-label-bold">Añadir</button>
+      <button type="button" onClick={() => open()} className="bg-primary-container text-on-primary-container px-4 py-2 rounded-lg font-label-bold">{addLabel ?? DEFAULT_ADD_LABEL[kind]}</button>
     </header>
     <main className="p-4 md:p-10 max-w-6xl mx-auto space-y-4">
-      {error && <ErrorState message={error} />}
-      {list.isLoading ? <LoadingState /> : list.error ? <ErrorState message="No se pudo cargar el contenido" onRetry={() => void list.refetch()} /> : list.data?.length === 0 ? <EmptyState title="Todavía no hay contenido en esta sección" action={<button type="button" className="text-primary" onClick={() => open()}>Crear el primero</button>} /> : <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {list.data?.map((resource) => <article key={resource.id} className="border border-border-low-contrast rounded-lg bg-surface-container-lowest p-4">
-          {linkBase ? <Link to={`/campaign/${campaignId}/gm/${linkBase}/${resource.id}`} className="font-label-bold text-lg text-primary">{String(resource[titleField])}</Link> : <h2 className="font-label-bold text-lg">{String(resource[titleField])}</h2>}
-          <p className="text-sm text-secondary mt-1">{String(resource.role || resource.location || resource.event_date || '')}{resource.event_time ? ` ${String(resource.event_time)}` : ''}</p>
-          <p className="text-sm text-on-surface-variant mt-2 line-clamp-4 whitespace-pre-wrap">{String(resource.description || resource.content || '')}</p>
-          <div className="flex gap-2 mt-3"><button type="button" onClick={() => open(resource)} className="text-sm text-primary">Editar</button><button type="button" disabled={remove.isPending} onClick={() => remove.mutate(resource.id)} className="text-sm text-hp-danger">Eliminar</button></div>
-        </article>)}
-      </div>}
+      {error && !formOpen && <ErrorState message={error} />}
+      <div className="flex flex-wrap gap-2">
+        <input aria-label="Buscar por nombre" type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre…" className="flex-1 min-w-[180px] rounded bg-surface-subtle border-border-low-contrast" />
+        {kind === 'npcs' && <div className="mc-seg" role="group" aria-label="Filtrar por relación">
+          {[['all', 'Todos'], ...Object.entries(NPC_STATUS).map(([value, info]) => [value, info.label])].map(([value, label]) => <button key={value} type="button" aria-pressed={statusFilter === value} onClick={() => setStatusFilter(value)}>{label}</button>)}
+        </div>}
+      </div>
+      {list.isLoading ? <LoadingState /> : list.error ? <ErrorState message="No se pudo cargar el contenido" onRetry={() => void list.refetch()} /> : list.data?.length === 0 ? <EmptyState title="Todavía no hay contenido en esta sección" action={<button type="button" className="text-primary" onClick={() => open()}>Crear el primero</button>} /> : shown.length === 0 ? <EmptyState title="Ningún resultado coincide con la búsqueda" /> : kind === 'notes' ? <div className="space-y-6">
+        {grouped.map(([day, notes]) => <section key={day}><h2 className="mc-eyebrow mb-2">{day}</h2><div className="grid md:grid-cols-2 gap-4">{notes.map(card)}</div></section>)}
+      </div> : <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">{shown.map(card)}</div>}
     </main>
     {formOpen && <div className="fixed inset-0 z-50 bg-black/50 p-4 flex items-center justify-center">
       <form onSubmit={(event) => { event.preventDefault(); mutation.mutate(); }} className="bg-surface w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl p-5 space-y-4">
         <h2 className="font-headline-md">{editing ? 'Editar' : 'Crear'} · {title}</h2>
+        {error && <ErrorState message={error} />}
         {fields.map((field) => <label key={field.name} className="block font-label-bold text-sm">{field.label}
-          {field.type === 'textarea' ? <textarea value={form[field.name] || ''} onChange={(event) => setForm({ ...form, [field.name]: event.target.value })} rows={5} className="mt-1 w-full rounded bg-surface-subtle border-border-low-contrast" /> : field.type === 'select' ? <select value={form[field.name]} onChange={(event) => setForm({ ...form, [field.name]: event.target.value })} className="mt-1 w-full rounded bg-surface-subtle border-border-low-contrast">{field.options?.map((option) => <option key={option}>{option}</option>)}</select> : <input required={field.name === titleField || field.name === 'event_date'} min={field.type === 'number' ? 0 : undefined} type={field.type || 'text'} value={form[field.name] || ''} onChange={(event) => setForm({ ...form, [field.name]: event.target.value })} className="mt-1 w-full rounded bg-surface-subtle border-border-low-contrast" />}
+          {field.type === 'textarea' ? <textarea value={form[field.name] || ''} onChange={(event) => setForm({ ...form, [field.name]: event.target.value })} rows={5} className="mt-1 w-full rounded bg-surface-subtle border-border-low-contrast" /> : field.type === 'select' ? <select value={form[field.name]} onChange={(event) => setForm({ ...form, [field.name]: event.target.value })} className="mt-1 w-full rounded bg-surface-subtle border-border-low-contrast">{field.options?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select> : <input required={field.name === titleField || field.name === 'event_date'} min={field.type === 'number' ? 0 : undefined} type={field.type || 'text'} value={form[field.name] || ''} onChange={(event) => setForm({ ...form, [field.name]: event.target.value })} className="mt-1 w-full rounded bg-surface-subtle border-border-low-contrast" />}
         </label>)}
+        {kind === 'notes' && <p className="text-xs text-secondary">Admite Markdown básico: # títulos, **negrita**, *cursiva*, - listas y [enlaces](https://…).</p>}
         <div className="flex justify-end gap-2"><button type="button" onClick={() => setFormOpen(false)} className="px-4 py-2 border rounded-lg">Cancelar</button><button type="submit" disabled={mutation.isPending} className="px-4 py-2 bg-primary-container text-on-primary-container rounded-lg font-label-bold">Guardar</button></div>
       </form>
     </div>}

@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { searchMonsters, MONSTER_TYPES, MONSTER_SIZES } from '../services/srdService';
+import { HomebrewMonsterForm } from '../components/content/HomebrewMonsterForm';
+import { CRBadge } from '../components/ui/CRBadge';
 import type { MonsterListItem, MonsterFilters } from '../types/srd';
 
 export function Bestiary() {
@@ -10,6 +12,7 @@ export function Bestiary() {
   const [total, setTotal] = useState(0);
   const [filters, setFilters] = useState<MonsterFilters>({ limit: 24, offset: 0 });
   const [search, setSearch] = useState('');
+  const [creating, setCreating] = useState(false);
 
   const fetchCreatures = useCallback(async (f: MonsterFilters) => {
     setLoading(true);
@@ -25,6 +28,7 @@ export function Bestiary() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga inicial al montar
     fetchCreatures(filters);
   }, [filters, fetchCreatures]);
 
@@ -70,11 +74,12 @@ export function Bestiary() {
           <Link to={`/campaign/${campaignId}/gm`} className="p-2 rounded-full hover:bg-surface-container transition-colors">
             <span className="material-symbols-outlined text-primary">arrow_back</span>
           </Link>
-          <h1 className="font-headline-md text-on-surface font-bold">Bestiary</h1>
+          <h1 className="font-headline-md text-on-surface font-bold">Bestiario</h1>
           <span className="bg-tertiary-fixed text-on-tertiary-fixed font-label-bold text-[10px] px-2 py-0.5 rounded-full">
-            {total} creatures
+            {total} criaturas
           </span>
         </div>
+        <button type="button" onClick={() => setCreating(true)} className="px-4 py-2 bg-primary-container text-on-primary-container rounded-lg font-label-bold">Nueva criatura</button>
       </header>
 
       <div className="sticky top-16 z-30 bg-surface px-4 py-3 border-b border-border-low-contrast space-y-3">
@@ -84,7 +89,7 @@ export function Bestiary() {
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-secondary text-lg">search</span>
             <input
               type="text"
-              placeholder="Search monsters by name..."
+              placeholder="Buscar monstruos por nombre…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -95,7 +100,7 @@ export function Bestiary() {
             onClick={handleSearch}
             className="px-4 py-2 bg-primary text-on-primary rounded-lg font-label-bold hover:bg-primary/90 transition-colors"
           >
-            Search
+            Buscar
           </button>
         </div>
 
@@ -137,7 +142,7 @@ export function Bestiary() {
       <main className="flex-1 p-4 md:p-10 max-w-5xl mx-auto w-full">
         {loading ? (
           <div className="min-h-[50vh] flex items-center justify-center">
-            <div className="font-body-lg text-secondary">Cargando bestiario SRD...</div>
+            <div className="font-body-lg text-secondary">Cargando bestiario...</div>
           </div>
         ) : (
           <>
@@ -157,23 +162,19 @@ export function Bestiary() {
                       <p className="font-label-sm text-on-surface-variant capitalize">{c.type}</p>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      <span className="bg-tertiary-fixed text-on-tertiary-fixed font-label-bold text-[10px] px-2 py-0.5 rounded-full uppercase">
-                        CR {c.cr}
+                      <CRBadge cr={c.cr} />
+                      <span className={`font-label-bold text-[8px] px-1.5 py-0.5 rounded-full ${c.is_homebrew ? 'bg-tertiary-fixed text-on-tertiary-fixed' : 'bg-primary-fixed text-on-primary-fixed'}`} title={c.is_homebrew ? 'Criatura propia' : `Libro: ${c.source}`}>
+                        {c.is_homebrew ? 'Propia' : c.source}
                       </span>
-                      {c.is_srd && (
-                        <span className="bg-primary-fixed text-on-primary-fixed font-label-bold text-[8px] px-1.5 py-0.5 rounded-full">
-                          SRD
-                        </span>
-                      )}
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-2 bg-surface-subtle rounded border border-border-low-contrast p-sm">
                     <div className="text-center">
-                      <span className="font-label-sm text-secondary block">AC</span>
+                      <span className="font-label-sm text-secondary block">CA</span>
                       <span className="font-label-bold text-on-surface">{c.ac}</span>
                     </div>
                     <div className="text-center">
-                      <span className="font-label-sm text-secondary block">HP</span>
+                      <span className="font-label-sm text-secondary block">PV</span>
                       <span className="font-label-bold text-hp-danger">{c.hp}</span>
                     </div>
                     <div className="text-center">
@@ -216,6 +217,7 @@ export function Bestiary() {
           </>
         )}
       </main>
+      {creating && <HomebrewMonsterForm onClose={() => setCreating(false)} onSaved={() => { setCreating(false); void fetchCreatures(filters); }} />}
     </div>
   );
 }

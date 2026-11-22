@@ -4,7 +4,7 @@ export function NPCManager() {
   return <CampaignResourcePanel kind="npcs" title="NPCs" linkBase="npcs" fields={[
     { name: 'name', label: 'Nombre' },
     { name: 'role', label: 'Oficio o rol' },
-    { name: 'status', label: 'Relación', type: 'select', options: ['neutral', 'ally', 'enemy'] },
+    { name: 'status', label: 'Relación', type: 'select', options: [{ value: 'neutral', label: 'Neutral' }, { value: 'ally', label: 'Aliado' }, { value: 'enemy', label: 'Enemigo' }] },
     { name: 'stats.ac', label: 'Clase de armadura', type: 'number' },
     { name: 'stats.hp', label: 'Puntos de golpe', type: 'number' },
     { name: 'stats.speed', label: 'Velocidad', type: 'number' },

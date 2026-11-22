@@ -13,7 +13,7 @@ const API_URL = import.meta.env.VITE_API_URL || '/api';
 const API_BASE = `${API_URL}/srd`;
 
 // Helper to build query string from filters
-function toQueryString(filters: any): string {
+function toQueryString(filters: object): string {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(filters)) {
     if (value !== undefined && value !== null && value !== '') {

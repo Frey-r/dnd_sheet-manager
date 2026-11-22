@@ -28,7 +28,9 @@ export function ClassStep({ classes, loading, klass, onChoose }: {
         {list.map((c) => {
           const color = auraForClass(c.name) ?? 'transparent';
           const active = klass?.id === c.id;
-          const { base, source } = splitSource(c.name);
+          const parsed = splitSource(c.name);
+          const base = parsed.base;
+          const source = parsed.source || c.source || '';
           return (
             <button
               key={c.id}

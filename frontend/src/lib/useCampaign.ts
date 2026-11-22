@@ -10,6 +10,7 @@ export interface CampaignSummary {
   gm_user_id: number;
   status: string;
   game_mode: 'local' | 'foundry' | string;
+  bastion_sale_pct?: number;
 }
 
 export interface CharacterSummary {

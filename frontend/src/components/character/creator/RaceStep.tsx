@@ -32,7 +32,7 @@ export function RaceStep({ races, loading, race, onChoose }: {
       {current && current.entries.length > 1 && (
         <label className="flex flex-col gap-1 text-[12.5px] font-medium text-ink-2">Versión o libro de {current.base}
           <select value={race?.id ?? ''} onChange={(e) => { const r = current.entries.find((x) => x.id === Number(e.target.value)); if (r) onChoose(r); }} className="h-9 px-2">
-            {current.entries.map((e) => <option key={e.id} value={e.id}>{splitSource(e.name).source || 'Catálogo'}{e.is_srd ? ' · SRD' : ''}</option>)}
+            {current.entries.map((e) => <option key={e.id} value={e.id}>{splitSource(e.name).source || e.source || 'Catálogo'}{e.is_srd ? ' · SRD' : ''}</option>)}
           </select>
         </label>
       )}

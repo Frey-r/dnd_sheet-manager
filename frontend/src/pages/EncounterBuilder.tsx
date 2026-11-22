@@ -30,8 +30,8 @@ export function EncounterBuilder() {
         max_monster_count: maxMonsters || undefined,
       });
       setResult(data);
-    } catch (err: any) {
-      setError(err.message || 'Failed to calculate encounter suggestions.');
+    } catch (err) {
+      setError((err as Error).message || 'Failed to calculate encounter suggestions.');
       setResult(null);
     } finally {
       setLoading(false);
@@ -40,21 +40,12 @@ export function EncounterBuilder() {
 
   const handleAddToCombat = async (suggestion: EncounterSuggestion) => {
     try {
-      for (const item of suggestion.monsters) {
-        for (let i = 0; i < item.count; i++) {
-          const suffix = item.count > 1 ? ` ${i + 1}` : '';
-          await combatApi.addCombatant(campaignId!, {
-            name: `${item.name}${suffix}`,
-            initiative: Math.floor(Math.random() * 20) + 1, // roll random initiative
-            hp: 10, // placeholder, combat tracker lets GM edit this
-            max_hp: 10,
-            is_player: false,
-          });
-        }
-      }
+      // hp, AC e iniciativa se resuelven en el servidor desde srd_monsters.
+      const combatants = suggestion.monsters.map((item) => ({ monster_id: item.monster_id, count: item.count }));
+      await combatApi.addEncounter(campaignId!, combatants);
       navigate(`/campaign/${campaignId}/combat`);
     } catch {
-      setError('Failed to add suggestions to combat tracker.');
+      setError('No se pudo añadir el encuentro al combate.');
     }
   };
 

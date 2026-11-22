@@ -31,6 +31,7 @@ export function SRDSpellBrowser() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga inicial al montar
     fetchSpells(filters);
   }, [filters, fetchSpells]);
 
@@ -106,7 +107,7 @@ export function SRDSpellBrowser() {
           <Link to={`/campaign/${campaignId}/gm`} className="p-2 rounded-full hover:bg-surface-container transition-colors">
             <span className="material-symbols-outlined text-primary">arrow_back</span>
           </Link>
-          <h1 className="font-headline-md text-on-surface font-bold">SRD Spell Book</h1>
+          <h1 className="font-headline-md text-on-surface font-bold">Libro de conjuros</h1>
           <span className="bg-primary-fixed text-on-primary-fixed font-label-bold text-[10px] px-2.5 py-0.5 rounded-full">
             {total} spells
           </span>

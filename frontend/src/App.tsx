@@ -25,6 +25,7 @@ import { Bestiary } from './pages/Bestiary';
 import { BotManager } from './pages/BotManager';
 import { LoreEditor } from './pages/LoreEditor';
 import { Marketplace } from './pages/Marketplace';
+import { Bastions } from './pages/Bastions';
 import { Messages } from './pages/Messages';
 import { LoreSearch } from './pages/LoreSearch';
 import { Trade } from './pages/Trade';
@@ -92,6 +93,7 @@ export default function App() {
       <Route path="campaign/:campaignId/table" element={<VirtualTable />} />
       <Route path="campaign/:campaignId/combat" element={<GMGuard><FoundryCombat /></GMGuard>} />
       <Route path="campaign/:campaignId/market" element={<Marketplace />} />
+      <Route path="campaign/:campaignId/bastions" element={<Bastions />} />
       <Route path="campaign/:campaignId/chat" element={<Messages />} />
       <Route path="campaign/:campaignId/lore" element={<LoreSearch />} />
       <Route path="campaign/:campaignId/trade" element={<Trade />} />

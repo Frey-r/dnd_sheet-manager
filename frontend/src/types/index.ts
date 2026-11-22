@@ -45,6 +45,8 @@ export interface Campaign {
   gm_user_id: number;
   status: 'active' | 'paused';
   game_mode: 'local' | 'foundry';
+  /** Share of value_cp paid for Bastion goods (0–100, default 100). */
+  bastion_sale_pct: number;
   created_at: string;
   updated_at: string;
 }
@@ -234,6 +236,8 @@ export interface LoreEntry {
   created_at: string;
   updated_at: string;
   vectorized?: boolean;
+  /** Derivado en el backend: la entrada ya tiene embedding y el Oráculo puede encontrarla. */
+  is_vectorized?: boolean;
 }
 
 // GM entities

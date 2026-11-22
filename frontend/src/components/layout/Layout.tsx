@@ -5,6 +5,8 @@ import { SideNav } from './SideNav';
 import { TopAppBar } from './TopAppBar';
 import { DiceRoller } from './DiceRoller';
 import { OfferDesk } from '../market/OfferDesk';
+import { GMLootNotices } from './GMLootNotices';
+import { BastionTurnNotice } from './BastionTurnNotice';
 import { useCampaign } from '../../lib/useCampaign';
 import { applyTheme, currentTheme, type Theme } from '../../lib/theme';
 
@@ -38,6 +40,8 @@ export function Layout() {
       <BottomNav campaignId={campaignId} myCharacterId={myCharacter?.id} isGM={isGM} isFoundry={isFoundry} />
       {campaignId && <DiceRoller isGM={isGM} />}
       {campaignId && isGM && <OfferDesk campaignId={campaignId} />}
+      {campaignId && isGM && <GMLootNotices campaignId={campaignId} />}
+      {campaignId && !isGM && <BastionTurnNotice campaignId={campaignId} />}
     </div>
   );
 }

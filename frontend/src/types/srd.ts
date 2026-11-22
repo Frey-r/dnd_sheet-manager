@@ -37,6 +37,11 @@ export interface SRDMonster {
   skills: Record<string, number>;
   proficiency_bonus: number;
   is_srd: boolean;
+  /** Book code from the 5etools catalog (e.g. "XMM") or "Homebrew". */
+  source: string;
+  /** Set only for user-made homebrew; imported content is read-only. */
+  created_by: number | null;
+  is_homebrew: boolean;
 }
 
 export interface MonsterAction {
@@ -57,6 +62,8 @@ export interface MonsterListItem {
   hp: number;
   ac: number;
   is_srd: boolean;
+  source: string;
+  is_homebrew: boolean;
 }
 
 export interface MonsterFilters {
@@ -181,6 +188,8 @@ export interface MagicItemFilters {
 export interface SRDClass {
   id: number;
   name: string;
+  /** 5etools book code (e.g. "XPHB", "PHB"). */
+  source?: string;
   hit_die: number;
   primary_ability: string;
   saving_throws: string[];
@@ -226,6 +235,8 @@ export interface SRDClassSpellSlot {
 export interface SRDRace {
   id: number;
   name: string;
+  /** 5etools book code (e.g. "XPHB", "PHB"). */
+  source?: string;
   speed: number;
   size: string;
   ability_bonuses: Record<string, number>;
@@ -282,6 +293,7 @@ export interface PartyBudget {
 }
 
 export interface MonsterSuggestion {
+  monster_id: number;
   name: string;
   cr: string;
   xp: number;

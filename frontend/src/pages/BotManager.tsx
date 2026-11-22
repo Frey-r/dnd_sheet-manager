@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
+import axios from 'axios';
 import { useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../services/api';
+import { botApi } from '../services/api';
 import { getApiError } from '../services/errors';
 
 type Actions = Record<string, boolean>;
@@ -24,13 +25,53 @@ function parseActions(raw: unknown): Actions {
   return {};
 }
 
+const TEST_MAX = 500;
+
+// Prueba el bot guardado de la campaña (personalidad y módulos activos) con un mensaje libre.
+function BotTester({ campaignId }: { campaignId: string }) {
+  const [message, setMessage] = useState('');
+  const [reply, setReply] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const send = async (e: FormEvent) => {
+    e.preventDefault();
+    const text = message.trim();
+    if (!text || loading) return;
+    setLoading(true); setError(''); setReply('');
+    try {
+      setReply((await botApi.test(campaignId, text)).data.reply);
+    } catch (err) {
+      const unavailable = axios.isAxiosError(err) && err.response?.status === 503;
+      setError(unavailable ? 'El modelo de lenguaje no está disponible ahora mismo. Inténtalo más tarde.' : getApiError(err));
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <section className="mc-card p-4" aria-label="Probar bot">
+      <h2 className="mb-1 text-sm font-semibold">Probar bot</h2>
+      <p className="mb-3 text-[12.5px] text-muted">Escribe un mensaje y mira cómo responde con la configuración guardada (guarda antes los cambios).</p>
+      <form onSubmit={send} className="flex gap-2">
+        <input className="grow px-3 py-2" value={message} maxLength={TEST_MAX} aria-label="Mensaje de prueba" placeholder="Ej.: ¿Cuánto tiempo me queda en mi turno?"
+          onChange={(e) => setMessage(e.target.value)} />
+        <button type="submit" className="mc-btn mc-btn-primary" disabled={loading || !message.trim()}>{loading ? 'Pensando…' : 'Enviar'}</button>
+      </form>
+      <p className="mt-1 text-right font-mono text-xs text-muted">{message.length} / {TEST_MAX}</p>
+      {loading && <p role="status" className="mt-2 text-[13px] text-muted">El bot está redactando una respuesta…</p>}
+      {error && <p role="alert" className="mt-2 rounded-lg border border-[color:var(--bad)] bg-bad-soft px-3 py-2 text-[13.5px] text-bad">{error}</p>}
+      {reply && <div className="mt-3 flex items-start gap-2.5"><span className="material-symbols-outlined text-[22px] text-muted">smart_toy</span>
+        <p className="whitespace-pre-wrap rounded-2xl rounded-tl-sm border border-line bg-card-2 px-3.5 py-2.5 text-[13.5px]">{reply}</p></div>}
+    </section>
+  );
+}
+
 export function BotManager() {
   const { campaignId = '' } = useParams();
   const qc = useQueryClient();
   const query = useQuery({
     queryKey: ['bot', campaignId],
     queryFn: async () => {
-      const d = (await api.get(`/campaigns/${campaignId}/bot`)).data as Partial<BotSettings> & { actions?: unknown };
+      const d = (await botApi.get(campaignId)).data as Partial<BotSettings> & { actions?: unknown };
       return { enabled: Boolean(d.enabled), personality: String(d.personality ?? ''), actions: parseActions(d.actions) } as BotSettings;
     },
   });
@@ -41,7 +82,7 @@ export function BotManager() {
   const save = async () => {
     if (!form) return;
     try {
-      await api.put(`/campaigns/${campaignId}/bot`, form);
+      await botApi.save(campaignId, form);
       setStatus({ text: 'Configuración guardada.' });
       void qc.invalidateQueries({ queryKey: ['bot', campaignId] });
     } catch (e) { setStatus({ text: getApiError(e), bad: true }); }
@@ -73,6 +114,8 @@ export function BotManager() {
             onChange={(e) => setForm({ ...form, personality: e.target.value })} /></label>
         <p className="mt-1 text-right font-mono text-xs text-muted">{form.personality.length} / 2000</p>
       </section>
+
+      <BotTester campaignId={campaignId} />
 
       <section className="mc-card overflow-hidden">
         <h2 className="border-b border-line px-4 py-3 text-sm font-semibold">Automatizaciones</h2>

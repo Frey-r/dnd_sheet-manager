@@ -26,8 +26,8 @@ export function RegisterPage() {
       const res = await authApi.register({ username, email, password });
       login(res.data.user, res.data.token, res.data.refresh_token);
       navigate('/campaigns');
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al registrarse');
+    } catch (err) {
+      setError((err as { response?: { data?: { error?: string } } }).response?.data?.error || 'Error al registrarse');
     } finally {
       setLoading(false);
     }

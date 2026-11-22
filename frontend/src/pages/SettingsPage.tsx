@@ -21,6 +21,7 @@ export function SettingsPage() {
   const { user, setUser, logout } = useAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState(user?.username ?? '');
+  const [avatarUrl, setAvatarUrl] = useState(user?.avatar_url ?? '');
   const [pw, setPw] = useState({ current: '', next: '', confirm: '' });
   const [totp, setTotp] = useState<{ secret: string; url: string } | null>(null);
   const [code, setCode] = useState('');
@@ -29,9 +30,11 @@ export function SettingsPage() {
   const say = (text: string, bad = false) => { setMsg({ text, bad }); setTimeout(() => setMsg(null), 4000); };
 
   const saveProfile = async () => {
+    const avatar = avatarUrl.trim();
+    if (avatar && !/^(https?:\/\/|\/)/i.test(avatar)) return say('La URL del avatar debe empezar por http://, https:// o /.', true);
     try {
-      await authApi.updateProfile({ username: username.trim() });
-      if (user) setUser({ ...user, username: username.trim() });
+      await authApi.updateProfile({ username: username.trim(), avatar_url: avatar });
+      if (user) setUser({ ...user, username: username.trim(), avatar_url: avatar });
       say('Perfil guardado.');
     } catch (e) { say(getApiError(e), true); }
   };
@@ -71,14 +74,15 @@ export function SettingsPage() {
 
       <Section title="Perfil" desc="Así te ven el DM y el resto de jugadores.">
         <div className="flex items-center gap-4">
-          <span className="grid h-16 w-16 place-items-center rounded-2xl bg-accent-soft font-display text-2xl font-semibold text-accent">{(user?.username ?? '?').slice(0, 2).toUpperCase()}</span>
+          {user?.avatar_url ? <img src={user.avatar_url} alt="Tu avatar" className="h-16 w-16 rounded-2xl object-cover" /> : <span className="grid h-16 w-16 place-items-center rounded-2xl bg-accent-soft font-display text-2xl font-semibold text-accent">{(user?.username ?? '?').slice(0, 2).toUpperCase()}</span>}
           <div className="grid grow gap-3 sm:grid-cols-2">
             <label className="flex flex-col gap-1 text-[12.5px] font-medium text-ink-2">Nombre de usuario<input className={input} value={username} onChange={(e) => setUsername(e.target.value)} /></label>
             <label className="flex flex-col gap-1 text-[12.5px] font-medium text-ink-2">Correo (solo lectura)<input className={`${input} text-muted`} value={user?.email ?? ''} readOnly /></label>
+            <label className="flex flex-col gap-1 text-[12.5px] font-medium text-ink-2 sm:col-span-2">URL del avatar (opcional)<input className={input} type="url" inputMode="url" placeholder="https://…" value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} /></label>
           </div>
         </div>
         <div className="mt-3 flex items-center gap-3"><span className="mc-badge">{ROLE[user?.role ?? 'player']}</span>
-          <button type="button" className="mc-btn mc-btn-primary ml-auto" onClick={saveProfile} disabled={!username.trim() || username.trim() === user?.username}>Guardar cambios</button></div>
+          <button type="button" className="mc-btn mc-btn-primary ml-auto" onClick={saveProfile} disabled={!username.trim() || (username.trim() === user?.username && avatarUrl.trim() === (user?.avatar_url ?? ''))}>Guardar cambios</button></div>
       </Section>
 
       <Section title="Contraseña" desc="Mínimo 8 caracteres. Cerrará tus otras sesiones.">

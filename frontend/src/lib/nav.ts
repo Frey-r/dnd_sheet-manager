@@ -11,6 +11,7 @@ export function campaignNav(campaignId: string, myCharacterId: number | undefine
     { to: `${c}/lore`, icon: 'auto_awesome', label: 'Oráculo de lore' },
     { to: `${c}/chat`, icon: 'forum', label: 'Mensajería' },
     { to: `${c}/market`, icon: 'storefront', label: 'Mercado' },
+    { to: `${c}/bastions`, icon: 'castle', label: 'Bastiones' },
     { to: `${c}/trade`, icon: 'swap_horiz', label: 'Intercambios' },
     { to: `${c}/reference`, icon: 'menu_book', label: 'Compendio' },
   ];

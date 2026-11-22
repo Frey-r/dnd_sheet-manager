@@ -1,25 +1,23 @@
-import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { characterApi } from '../services/api';
+import { getApiError } from '../services/errors';
+import { ErrorState, LoadingState } from '../components/ui/Feedback';
+import { CharacterTabs } from '../components/character/CharacterTabs';
 import type { Character, CharacterFeature } from '../types';
 
+const TYPE_LABEL: Record<string, string> = { class: 'Clase', racial: 'Racial', feat: 'Dote' };
+const REST_LABEL: Record<string, string> = { short: 'descanso corto', long: 'descanso largo' };
+
 export function FeaturesTab() {
-  const { campaignId, characterId } = useParams<{ campaignId: string; characterId: string }>();
-  const [character, setCharacter] = useState<Character | null>(null);
-  const [features, setFeatures] = useState<CharacterFeature[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { campaignId, characterId = '' } = useParams<{ campaignId: string; characterId: string }>();
+  const characterQuery = useQuery({ queryKey: ['character', characterId], queryFn: () => characterApi.get(characterId).then((response) => response.data as Character) });
+  const featuresQuery = useQuery({ queryKey: ['features', characterId], queryFn: () => characterApi.features(characterId).then((response) => (response.data ?? []) as CharacterFeature[]) });
+  const character = characterQuery.data;
+  const features = featuresQuery.data ?? [];
 
-  useEffect(() => {
-    if (!characterId) return;
-    setLoading(true);
-    Promise.all([
-      characterApi.get(characterId).then(r => setCharacter(r.data)).catch(() => {}),
-      characterApi.features(characterId).then(r => setFeatures(r.data)).catch(() => {}),
-    ]).finally(() => setLoading(false));
-  }, [characterId]);
-
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="font-body-lg text-secondary">Cargando...</div></div>;
-  if (!character) return <div className="min-h-screen flex items-center justify-center"><div className="font-body-lg text-secondary">Personaje no encontrado</div></div>;
+  if (characterQuery.isLoading) return <LoadingState label="Cargando rasgos…" />;
+  if (characterQuery.error || !character) return <div className="p-8"><ErrorState message={getApiError(characterQuery.error, 'No se pudo cargar el personaje')} onRetry={() => void characterQuery.refetch()} /></div>;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -32,28 +30,21 @@ export function FeaturesTab() {
         </div>
       </header>
 
-      <nav className="bg-surface border-b border-border-low-contrast sticky top-16 z-30">
-        <div className="flex overflow-x-auto no-scrollbar px-4 gap-4">
-          <Link to={`/campaign/${campaignId}/character/${characterId}`} className="py-3 border-b-2 border-transparent text-secondary hover:text-on-surface font-label-bold whitespace-nowrap">Core Stats</Link>
-          <Link to={`/campaign/${campaignId}/character/${characterId}/features`} className="py-3 border-b-2 border-primary text-primary font-label-bold whitespace-nowrap">Features & Abilities</Link>
-          <Link to={`/campaign/${campaignId}/character/${characterId}/inventory`} className="py-3 border-b-2 border-transparent text-secondary hover:text-on-surface font-label-bold whitespace-nowrap">Inventory</Link>
-          <Link to={`/campaign/${campaignId}/character/${characterId}/spells`} className="py-3 border-b-2 border-transparent text-secondary hover:text-on-surface font-label-bold whitespace-nowrap">Spells</Link>
-        </div>
-      </nav>
+      <CharacterTabs campaignId={campaignId} characterId={characterId} active="features" />
 
       <main className="flex-1 overflow-y-auto p-4 md:p-10">
         <div className="flex flex-wrap gap-2 mb-6">
-          <span className="px-2 py-1 bg-surface-variant text-on-surface rounded font-label-sm">{character.race} {character.class} Lvl {character.level}</span>
+          <span className="px-2 py-1 bg-surface-variant text-on-surface rounded font-label-sm">{character.race} {character.class} Nv {character.level}</span>
           {character.background && <span className="px-2 py-1 bg-surface-variant text-on-surface rounded font-label-sm">{character.background}</span>}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
           <div className="md:col-span-4 flex flex-col gap-6">
             <div className="bg-surface-container-lowest border border-border-low-contrast rounded-lg p-4">
-              <h3 className="font-label-bold text-on-surface uppercase tracking-wider mb-4">Passive Senses</h3>
+              <h3 className="font-label-bold text-on-surface uppercase tracking-wider mb-4">Sentidos pasivos</h3>
               <div className="flex flex-col gap-3">
                 <div className="flex justify-between items-center bg-surface-subtle p-3 rounded border border-border-low-contrast">
-                  <span className="font-body-md text-on-surface">Passive Perception</span>
+                  <span className="font-body-md text-on-surface">Percepción pasiva</span>
                   <span className="font-headline-md text-on-background">{character.passive_perception}</span>
                 </div>
               </div>
@@ -61,19 +52,19 @@ export function FeaturesTab() {
           </div>
 
           <div className="md:col-span-8 flex flex-col gap-6">
-            {features.length > 0 ? (
+            {featuresQuery.error ? <ErrorState message={getApiError(featuresQuery.error, 'No se pudieron cargar los rasgos')} onRetry={() => void featuresQuery.refetch()} /> : featuresQuery.isLoading ? <LoadingState /> : features.length > 0 ? (
               <section>
-                <h3 className="font-label-bold text-on-surface uppercase tracking-wider border-b border-border-low-contrast pb-2 mb-4">Features & Abilities</h3>
+                <h3 className="font-label-bold text-on-surface uppercase tracking-wider border-b border-border-low-contrast pb-2 mb-4">Rasgos y habilidades</h3>
                 <div className="flex flex-col gap-4">
                   {features.map((f) => (
                     <div key={f.id} className="bg-surface-container-lowest border border-border-low-contrast rounded-lg p-4 border-l-4 border-l-primary">
                       <div className="flex justify-between items-start mb-2">
                         <h4 className="font-body-lg text-on-background font-bold">{f.name}</h4>
-                        <span className="px-2 py-1 bg-surface-variant text-secondary rounded text-[10px] uppercase font-bold">{f.type}</span>
+                        <span className="px-2 py-1 bg-surface-variant text-secondary rounded text-[10px] uppercase font-bold">{TYPE_LABEL[f.type] ?? f.type}</span>
                       </div>
                       <p className="font-body-md text-on-surface-variant">{f.description}</p>
                       {f.uses_per_rest != null && f.uses_per_rest > 0 && (
-                        <div className="mt-2 font-label-sm text-secondary">Uses: {f.uses_per_rest} per {f.rest_type || 'rest'}</div>
+                        <div className="mt-2 font-label-sm text-secondary">Usos: {f.uses_per_rest} por {REST_LABEL[f.rest_type] ?? 'descanso'}</div>
                       )}
                     </div>
                   ))}
@@ -82,7 +73,7 @@ export function FeaturesTab() {
             ) : (
               <div className="text-center py-10">
                 <span className="material-symbols-outlined text-4xl text-outline mb-3 block">auto_awesome</span>
-                <p className="font-body-lg text-secondary">No features configured</p>
+                <p className="font-body-lg text-secondary">Este personaje aún no tiene rasgos.</p>
               </div>
             )}
           </div>
