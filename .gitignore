@@ -54,3 +54,5 @@ ehthumbs.db
 .claude/
 .agents/
 skills-lock.json
+.harness/harness.db*
+.harness/cache/

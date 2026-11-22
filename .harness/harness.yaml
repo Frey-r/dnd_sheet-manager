@@ -1,0 +1,7 @@
+# Perfil del harness 528hz (schema/harness.schema.json)
+version: 1
+enabled: true
+nivel: N1
+modo: mejora
+idioma: es
+comandos: {}
