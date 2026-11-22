@@ -199,4 +199,6 @@ type VTTCombatant struct {
 	Dashed         bool   `db:"dashed" json:"dashed"`
 	Pending        bool   `db:"pending" json:"pending"`
 	Name           string `db:"name" json:"name"`
+	// Hidden mirrors the token's hidden flag; players get the combatant masked (vtt.md).
+	Hidden bool `db:"hidden" json:"-"`
 }

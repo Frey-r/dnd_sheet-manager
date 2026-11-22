@@ -2,7 +2,12 @@ package service
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"math"
+	"strings"
 
 	"dnd-campaign-manager/internal/domain"
 	"dnd-campaign-manager/internal/repository"
@@ -11,6 +16,7 @@ import (
 var (
 	ErrCharacterNotOwned = errors.New("character not owned by this user")
 	ErrNoSpellSlots      = errors.New("no spell slots available")
+	ErrInvalidSpellSlot  = errors.New("invalid spell slot level or total")
 )
 
 type CharacterService struct {
@@ -18,6 +24,112 @@ type CharacterService struct {
 	campaignRepo *repository.CampaignRepository
 	itemRepo     *repository.ItemRepository
 	statRolls    *repository.StatRollRepository
+	content      contentGetter
+	catalog      characterCatalog
+}
+
+// contentGetter reads one catalog entry; *repository.ContentRepository satisfies it.
+type contentGetter interface {
+	Get(ctx context.Context, id int64) (*domain.ContentEntity, error)
+}
+
+// characterCatalog is the read-only catalog lookup used to build characters;
+// *repository.SRDRepository satisfies it (srd-integration.md).
+type characterCatalog interface {
+	GetClassByName(name string) (*domain.SRDClass, error)
+	GetRaceByName(name string) (*domain.SRDRace, error)
+	SpellRefByContent(ctx context.Context, contentID int64) (*int64, error)
+	EquipmentRefByContent(ctx context.Context, contentID int64) (*int64, error)
+}
+
+// WithCatalog enables catalog checks on creation, catalog spell-slot progression and the
+// srd_ref_id link of spells and items picked from the compendium.
+func (s *CharacterService) WithCatalog(c characterCatalog) *CharacterService {
+	s.catalog = c
+	return s
+}
+
+// catalogWarnings returns non-blocking notes when the class or race is not in the catalog;
+// the character is still created as homebrew.
+func (s *CharacterService) catalogWarnings(class, race string) []string {
+	if s.catalog == nil {
+		return nil
+	}
+	var warnings []string
+	if _, err := s.catalog.GetClassByName(class); errors.Is(err, sql.ErrNoRows) {
+		warnings = append(warnings, fmt.Sprintf("La clase «%s» no está en el catálogo; se crea como clase propia.", class))
+	}
+	// The creator stores versioned names ("Elf (XPHB)"); the catalog row is named "Elf".
+	if _, err := s.catalog.GetRaceByName(race); errors.Is(err, sql.ErrNoRows) && !s.knownBaseRace(race) {
+		warnings = append(warnings, fmt.Sprintf("La raza «%s» no está en el catálogo; se crea como raza propia.", race))
+	}
+	return warnings
+}
+
+// knownBaseRace reports whether the race without its " (SOURCE)" suffix is in the catalog.
+func (s *CharacterService) knownBaseRace(race string) bool {
+	race = strings.TrimSpace(race)
+	open := strings.LastIndex(race, " (")
+	if open <= 0 || !strings.HasSuffix(race, ")") {
+		return false
+	}
+	_, err := s.catalog.GetRaceByName(race[:open])
+	return err == nil
+}
+
+// ProficiencyBonusForLevel is the 5e character proficiency bonus (+2 at 1-4, +3 at 5-8 ... +6 at 17-20).
+func ProficiencyBonusForLevel(level int) int {
+	return 2 + (min(max(level, 1), 20)-1)/4
+}
+
+// catalogSlotTotals returns the slot totals for levels 1-9 of a catalog class at a character
+// level, and false when the class has no row for that level.
+func catalogSlotTotals(class *domain.SRDClass, level int) ([9]int, bool) {
+	if class == nil {
+		return [9]int{}, false
+	}
+	for _, row := range class.SpellSlots {
+		if row.ClassLevel == level {
+			return [9]int{row.Slot1, row.Slot2, row.Slot3, row.Slot4, row.Slot5, row.Slot6, row.Slot7, row.Slot8, row.Slot9}, true
+		}
+	}
+	return [9]int{}, false
+}
+
+// spellSlotTotals prefers the catalog progression of the class and falls back to the fixed
+// level-1 table for classes the catalog does not know.
+func (s *CharacterService) spellSlotTotals(class string, level int) ([9]int, bool) {
+	if s.catalog != nil {
+		if found, err := s.catalog.GetClassByName(class); err == nil {
+			if totals, ok := catalogSlotTotals(found, level); ok {
+				return totals, true
+			}
+		}
+	}
+	_, casting, level1 := ClassRule(class)
+	if casting == "" || level != 1 {
+		return [9]int{}, false
+	}
+	return [9]int{level1}, true
+}
+
+// WithContent lets items added from the compendium take their value from the catalog entry.
+func (s *CharacterService) WithContent(c contentGetter) *CharacterService {
+	s.content = c
+	return s
+}
+
+// CatalogValueCP returns the price of a 5etools item entry in copper (5etools stores `value`
+// in cp already), or nil when the entry has no numeric positive value.
+func CatalogValueCP(data json.RawMessage) *int64 {
+	var entry struct {
+		Value *float64 `json:"value"`
+	}
+	if len(data) == 0 || json.Unmarshal(data, &entry) != nil || entry.Value == nil || *entry.Value <= 0 {
+		return nil
+	}
+	v := int64(math.Round(*entry.Value))
+	return &v
 }
 
 // WithStatRolls enables verification of rolled ability scores.
@@ -96,45 +208,56 @@ func (s *CharacterService) Create(ctx context.Context, userID int64, req *domain
 	}
 
 	// Initialize spell slots for spellcasters
-	s.initializeSpellSlots(ctx, char.ID, char.Class)
+	s.initializeSpellSlots(ctx, char.ID, char.Class, char.Level)
+	char.Warnings = s.catalogWarnings(char.Class, char.Race)
 
 	return char, nil
 }
 
-func (s *CharacterService) initializeSpellSlots(ctx context.Context, charID int64, class string) {
-	// Level-1 slots by class (full casters 2, warlock 1, half casters 0).
-	_, casting, level1 := ClassRule(class)
-	if casting == "" {
+// initializeSpellSlots stores the slot totals of the class at a level (catalog progression,
+// with the fixed level-1 table as fallback), keeping slots already spent within the new totals.
+func (s *CharacterService) initializeSpellSlots(ctx context.Context, charID int64, class string, level int) {
+	totals, ok := s.spellSlotTotals(class, level)
+	if !ok {
 		return
 	}
-	for level := 1; level <= 9; level++ {
-		total := 0
-		if level == 1 {
-			total = level1
-		}
-		slot := &domain.SpellSlot{
-			CharacterID: charID,
-			Level:       level,
-			Total:       total,
-			Used:        0,
-		}
-		s.charRepo.UpsertSpellSlot(ctx, slot)
+	for i, total := range totals {
+		_ = s.charRepo.SetSpellSlotTotal(ctx, charID, i+1, total)
 	}
 }
 
+// SetSpellSlotTotal lets the owner or the GM change a slot total (srd-integration.md: the
+// player MAY modify the totals).
+func (s *CharacterService) SetSpellSlotTotal(ctx context.Context, charID int64, level, total int) ([]domain.SpellSlot, error) {
+	if level < 1 || level > 9 || total < 0 || total > 9 {
+		return nil, ErrInvalidSpellSlot
+	}
+	if err := s.charRepo.SetSpellSlotTotal(ctx, charID, level, total); err != nil {
+		return nil, err
+	}
+	return s.charRepo.GetSpellSlots(ctx, charID)
+}
+
 func (s *CharacterService) Authorize(ctx context.Context, charID, userID int64) (bool, error) {
+	isGM, _, err := s.AuthorizeInCampaign(ctx, charID, userID)
+	return isGM, err
+}
+
+// AuthorizeInCampaign is Authorize plus the character's campaign id, which is returned even
+// when access is denied so the 403 can be audited against that campaign (security.md).
+func (s *CharacterService) AuthorizeInCampaign(ctx context.Context, charID, userID int64) (bool, int64, error) {
 	char, err := s.charRepo.GetByID(ctx, charID)
 	if err != nil || char == nil {
-		return false, ErrNotFound
+		return false, 0, ErrNotFound
 	}
 	role, err := s.campaignRepo.GetMemberRole(ctx, char.CampaignID, userID)
 	if err != nil || role == "" {
-		return false, ErrForbidden
+		return false, char.CampaignID, ErrForbidden
 	}
 	if role != domain.RoleGM && char.UserID != userID {
-		return false, ErrForbidden
+		return false, char.CampaignID, ErrForbidden
 	}
-	return role == domain.RoleGM, nil
+	return role == domain.RoleGM, char.CampaignID, nil
 }
 
 // UpdateAppearance changes the avatar; only the owner or the campaign GM may do it.
@@ -184,10 +307,14 @@ func (s *CharacterService) Update(ctx context.Context, charID, userID int64, isG
 	}
 
 	// Apply updates
+	oldLevel, oldClass := char.Level, char.Class
 	applyCharacterUpdates(char, req)
 
 	if err := s.charRepo.Update(ctx, char); err != nil {
 		return nil, err
+	}
+	if char.Level != oldLevel || char.Class != oldClass {
+		s.initializeSpellSlots(ctx, char.ID, char.Class, char.Level)
 	}
 
 	return char, nil
@@ -205,6 +332,8 @@ func applyCharacterUpdates(c *domain.Character, req *domain.UpdateCharacterReque
 	}
 	if req.Level != nil {
 		c.Level = *req.Level
+		// The proficiency bonus follows the level table (srd-integration.md: level 5 -> +3).
+		c.ProficiencyBonus = ProficiencyBonusForLevel(c.Level)
 	}
 	if req.Background != nil {
 		c.Background = *req.Background
@@ -239,6 +368,9 @@ func applyCharacterUpdates(c *domain.Character, req *domain.UpdateCharacterReque
 	if req.TempHP != nil {
 		c.TempHP = *req.TempHP
 	}
+	// Current HP stays within [0, max HP] and temporary HP is never negative (characters.md).
+	c.CurrentHP = min(max(c.CurrentHP, 0), max(c.MaxHP, 0))
+	c.TempHP = max(c.TempHP, 0)
 	if req.AC != nil {
 		c.AC = *req.AC
 	}
@@ -252,7 +384,16 @@ func applyCharacterUpdates(c *domain.Character, req *domain.UpdateCharacterReque
 		c.XP = *req.XP
 	}
 	if req.Gold != nil {
-		c.Gold = *req.Gold
+		c.Gold = max(*req.Gold, 0)
+	}
+	if req.Silver != nil {
+		c.Silver = max(*req.Silver, 0)
+	}
+	if req.Copper != nil {
+		c.Copper = max(*req.Copper, 0)
+	}
+	if req.PhysicalDescription != nil {
+		c.PhysicalDescription = domain.EncodePhysicalDescription(*req.PhysicalDescription)
 	}
 	if req.PersonalityTraits != nil {
 		c.PersonalityTraits = *req.PersonalityTraits
@@ -358,6 +499,16 @@ func (s *CharacterService) AddSpell(ctx context.Context, charID int64, req *doma
 		Prepared:    req.Prepared != nil && *req.Prepared,
 		SRDRefID:    req.SRDRefID,
 	}
+	// A spell picked from the compendium links to its srd_spells row (srd-data.md: srd_ref_id).
+	if req.ContentEntityID != nil && s.catalog != nil {
+		ref, err := s.catalog.SpellRefByContent(ctx, *req.ContentEntityID)
+		if err != nil {
+			return nil, err
+		}
+		if ref != nil {
+			spell.SRDRefID = ref
+		}
+	}
 	if err := s.itemRepo.CreateSpell(ctx, spell); err != nil {
 		return nil, err
 	}
@@ -381,6 +532,23 @@ func (s *CharacterService) AddItem(ctx context.Context, charID int64, req *domai
 		item.Quantity = 1
 	}
 	item.IsTradeable = req.IsTradeable
+	if req.ContentID != nil && s.content != nil {
+		entity, err := s.content.Get(ctx, *req.ContentID)
+		if err != nil {
+			return nil, err
+		}
+		if entity != nil && (entity.Type == "item" || entity.Type == "baseitem" || entity.Type == "magicvariant") {
+			item.ValueCP = CatalogValueCP(entity.Data)
+		}
+	}
+	// srd_ref_id points at srd_equipment (its FK); magic items keep only value and text.
+	if req.ContentID != nil && item.SRDRefID == nil && s.catalog != nil {
+		ref, err := s.catalog.EquipmentRefByContent(ctx, *req.ContentID)
+		if err != nil {
+			return nil, err
+		}
+		item.SRDRefID = ref
+	}
 	if err := s.itemRepo.Create(ctx, item); err != nil {
 		return nil, err
 	}

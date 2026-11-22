@@ -8,10 +8,21 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// ForcedEventKey is the gin context key a handler sets to publish a typed event even though
+// the request answers with an error status.
+const ForcedEventKey = "realtime_event"
+
+// EventDetailsKey is the gin context key a handler sets (map[string]any) to add fields to the
+// typed event payload, e.g. the amounts of an accepted trade for the campaign audit trail.
+const EventDetailsKey = "realtime_event_details"
+
 func (h *Hub) Middleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Next()
-		if c.Writer.Status() < 200 || c.Writer.Status() >= 300 || (c.Request.Method != http.MethodPost && c.Request.Method != http.MethodPut && c.Request.Method != http.MethodDelete) {
+		// A handler may name a typed event for a failed request that still changed state, e.g.
+		// an accept that invalidated the trade (409) must tell the offeror (TRADE_INVALIDATED).
+		forced := c.GetString(ForcedEventKey)
+		if !shouldPublish(c.Writer.Status(), c.Request.Method, forced) {
 			return
 		}
 		path := c.Request.URL.Path
@@ -39,7 +50,8 @@ func (h *Hub) Middleware() gin.HandlerFunc {
 		}
 		userID, _ := c.Get("user_id")
 		actorID, _ := userID.(int64)
-		payload := map[string]any{"path": path, "method": c.Request.Method}
+		// actor_id lets clients skip notices about their own actions.
+		payload := map[string]any{"path": path, "method": c.Request.Method, "actor_id": actorID}
 		if err := h.Publish(c.Request.Context(), campaignID, actorID, "state.changed", payload); err != nil {
 			_ = c.Error(err)
 		}
@@ -47,12 +59,40 @@ func (h *Hub) Middleware() gin.HandlerFunc {
 		// state.changed the SPA relies on.
 		role, _ := c.Get("campaign_role")
 		roleStr, _ := role.(string)
-		if eventType := TypedEventName(c.Request.Method, path, roleStr); eventType != "" {
-			if err := h.Publish(c.Request.Context(), campaignID, actorID, eventType, payload); err != nil {
+		if eventType := typedEventFor(c.Writer.Status(), c.Request.Method, path, roleStr, forced); eventType != "" {
+			typed := payload
+			if details, ok := c.Get(EventDetailsKey); ok {
+				if extra, ok := details.(map[string]any); ok {
+					typed = make(map[string]any, len(payload)+len(extra))
+					for k, v := range extra {
+						typed[k] = v
+					}
+					typed["path"], typed["method"], typed["actor_id"] = path, c.Request.Method, actorID
+				}
+			}
+			if err := h.Publish(c.Request.Context(), campaignID, actorID, eventType, typed); err != nil {
 				_ = c.Error(err)
 			}
 		}
 	}
+}
+
+// shouldPublish reports whether a finished request produces realtime events: successful
+// mutations always do; a failed one only when its handler forced an event.
+func shouldPublish(status int, method, forced string) bool {
+	if method != http.MethodPost && method != http.MethodPut && method != http.MethodDelete {
+		return false
+	}
+	return (status >= 200 && status < 300) || forced != ""
+}
+
+// typedEventFor picks the typed event of a request: the forced one for a failed request,
+// otherwise the one mapped from the route.
+func typedEventFor(status int, method, path, role, forced string) string {
+	if status < 200 || status >= 300 {
+		return forced
+	}
+	return TypedEventName(method, path, role)
 }
 
 // TypedEventName maps a successful REST mutation to the typed realtime event of
@@ -92,6 +132,10 @@ func TypedEventName(method, path, campaignRole string) string {
 		// market-bastions.md §6.4: when the GM runs a Bastion turn "owners are notified".
 		if len(segments) == 5 && segments[3] == "bastions" && segments[4] == "turn" && method == http.MethodPost {
 			return "BASTION_TURN"
+		}
+		// resilience.md Message Contract: an Oracle query is a LORE_QUERY event.
+		if len(segments) == 5 && segments[3] == "lore" && segments[4] == "search" && method == http.MethodPost {
+			return "LORE_QUERY"
 		}
 		if len(segments) == 4 && segments[3] == "messages" && method == http.MethodPost {
 			if campaignRole == "gm" {

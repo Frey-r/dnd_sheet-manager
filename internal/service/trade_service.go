@@ -40,7 +40,7 @@ func (s *TradeService) CreateOffer(ctx context.Context, offerorCharID, userID in
 		return nil, ErrNotFound
 	}
 	role, err := s.campaignRepo.GetMemberRole(ctx, offeror.CampaignID, userID)
-	if err != nil || (role != domain.RoleGM && offeror.UserID != userID) {
+	if !mayActOnTrade(role, err, offeror.UserID, userID) {
 		return nil, ErrForbidden
 	}
 	return s.tradeRepo.CreateTransactional(ctx, offeror, recipient, req)
@@ -60,10 +60,17 @@ func (s *TradeService) authorizeOffer(ctx context.Context, tradeID, userID int64
 		return nil, ErrNotFound
 	}
 	role, err := s.campaignRepo.GetMemberRole(ctx, offer.CampaignID, userID)
-	if err != nil || (role != domain.RoleGM && character.UserID != userID) {
+	if !mayActOnTrade(role, err, character.UserID, userID) {
 		return nil, ErrForbidden
 	}
 	return offer, nil
+}
+
+// mayActOnTrade: only the campaign member who owns the character may create, accept, reject,
+// cancel or counter a trade. The GM sees every trade but is read-only (security.md), so the
+// GM role grants nothing here.
+func mayActOnTrade(role string, roleErr error, ownerID, userID int64) bool {
+	return roleErr == nil && role != "" && ownerID == userID
 }
 
 func (s *TradeService) AcceptTrade(ctx context.Context, tradeID, userID int64, isGM bool) (*domain.TradeOffer, error) {

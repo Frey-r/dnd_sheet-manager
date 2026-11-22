@@ -4,6 +4,10 @@ import { searchMonsters, MONSTER_TYPES, MONSTER_SIZES } from '../services/srdSer
 import { HomebrewMonsterForm } from '../components/content/HomebrewMonsterForm';
 import { CRBadge } from '../components/ui/CRBadge';
 import type { MonsterListItem, MonsterFilters } from '../types/srd';
+import { sizeLabel } from '../lib/abilities';
+
+// Challenge ratings offered by the CR range filter (srd-integration.md, Bestiary filters).
+const CR_OPTIONS: [number, string][] = [[0, '0'], [0.125, '1/8'], [0.25, '1/4'], [0.5, '1/2'], ...Array.from({ length: 30 }, (_, index): [number, string] => [index + 1, String(index + 1)])];
 
 export function Bestiary() {
   const { campaignId } = useParams<{ campaignId: string }>();
@@ -50,6 +54,10 @@ export function Bestiary() {
       size: prev.size === size ? undefined : size,
       offset: 0,
     }));
+  };
+
+  const handleCRFilter = (key: 'cr_min' | 'cr_max', value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value === '' ? undefined : Number(value), offset: 0 }));
   };
 
   const handleNextPage = () => {
@@ -121,6 +129,22 @@ export function Bestiary() {
           ))}
         </div>
 
+        {/* CR range */}
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          <label className="flex items-center gap-2">VD mínimo
+            <select aria-label="VD mínimo" value={filters.cr_min ?? ''} onChange={(e) => handleCRFilter('cr_min', e.target.value)} className="h-8 rounded bg-surface-container-lowest border border-border-low-contrast">
+              <option value="">Cualquiera</option>
+              {CR_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </label>
+          <label className="flex items-center gap-2">VD máximo
+            <select aria-label="VD máximo" value={filters.cr_max ?? ''} onChange={(e) => handleCRFilter('cr_max', e.target.value)} className="h-8 rounded bg-surface-container-lowest border border-border-low-contrast">
+              <option value="">Cualquiera</option>
+              {CR_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </label>
+        </div>
+
         {/* Size Filters */}
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
           {MONSTER_SIZES.map((size) => (
@@ -159,7 +183,7 @@ export function Bestiary() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-label-bold text-on-surface truncate">{c.name}</h3>
-                      <p className="font-label-sm text-on-surface-variant capitalize">{c.type}</p>
+                      <p className="font-label-sm text-on-surface-variant"><span className="capitalize">{c.type}</span>{c.size ? ` · ${sizeLabel(c.size)}` : ''}</p>
                     </div>
                     <div className="flex flex-col items-end gap-1">
                       <CRBadge cr={c.cr} />

@@ -30,6 +30,35 @@ func (r *MessageRepository) Create(ctx context.Context, m *domain.Message) error
 	).Scan(&m.ID, &m.CreatedAt)
 }
 
+// CreateBroadcast stores a GM announcement as one row per other campaign member in a
+// single statement (atomic), so every player sees it in their inbox and unread counts.
+// It fills m with the first stored row and returns how many members received it.
+func (r *MessageRepository) CreateBroadcast(ctx context.Context, m *domain.Message) (int, error) {
+	rows, err := r.db.QueryxContext(ctx, `
+		INSERT INTO messages (campaign_id, sender_user_id, recipient_user_id, message_type, subject, body, is_read)
+		SELECT $1, $2, cm.user_id, $3, $4, $5, false
+		FROM campaign_members cm WHERE cm.campaign_id = $1 AND cm.user_id <> $2
+		RETURNING id, recipient_user_id, created_at`,
+		m.CampaignID, m.SenderUserID, m.MessageType, m.Subject, m.Body)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+	count := 0
+	for rows.Next() {
+		var id, recipient int64
+		var created time.Time
+		if err := rows.Scan(&id, &recipient, &created); err != nil {
+			return count, err
+		}
+		if count == 0 {
+			m.ID, m.CreatedAt = id, created
+		}
+		count++
+	}
+	return count, rows.Err()
+}
+
 func (r *MessageRepository) GetByID(ctx context.Context, id int64) (*domain.Message, error) {
 	var m domain.Message
 	query := `SELECT * FROM messages WHERE id=$1`
@@ -222,10 +251,12 @@ func (r *LoreRepository) GetByCampaign(ctx context.Context, campaignID int64) ([
 	return entries, err
 }
 
-func (r *LoreRepository) GetByCharacter(ctx context.Context, characterID int64) ([]domain.LoreEntry, error) {
+// GetByCharacter lists a character's lore. Players (includeHidden=false) never get
+// gm_hidden_lore entries, even when they are attached to their own character.
+func (r *LoreRepository) GetByCharacter(ctx context.Context, characterID int64, includeHidden bool) ([]domain.LoreEntry, error) {
 	entries := []domain.LoreEntry{}
-	query := `SELECT ` + loreCols + ` FROM lore_entries WHERE character_id=$1 ORDER BY created_at`
-	err := r.db.SelectContext(ctx, &entries, query, characterID)
+	query := `SELECT ` + loreCols + ` FROM lore_entries WHERE character_id=$1 AND ($2 OR lore_tier <> 'gm_hidden_lore') ORDER BY created_at`
+	err := r.db.SelectContext(ctx, &entries, query, characterID, includeHidden)
 	return entries, err
 }
 
@@ -242,25 +273,34 @@ func vectorLiteral(vector []float32) string {
 
 func (r *LoreRepository) ListVisible(ctx context.Context, campaignID, userID int64, isGM bool) ([]domain.LoreEntry, error) {
 	entries := []domain.LoreEntry{}
-	query := `SELECT ` + loreCols + ` FROM lore_entries WHERE campaign_id=$1 AND ($2 OR lore_tier='campaign_plot' OR character_id IN (SELECT id FROM characters WHERE user_id=$3 AND campaign_id=$1)) ORDER BY chapter_order,title`
+	query := `SELECT ` + loreCols + ` FROM lore_entries WHERE campaign_id=$1 AND ($2 OR lore_tier='campaign_plot' OR (lore_tier <> 'gm_hidden_lore' AND character_id IN (SELECT id FROM characters WHERE user_id=$3 AND campaign_id=$1))) ORDER BY chapter_order,title`
 	err := r.db.SelectContext(ctx, &entries, query, campaignID, isGM, userID)
 	return entries, err
 }
 
-func (r *LoreRepository) SearchByTier(ctx context.Context, campaignID int64, tier domain.LoreTier, query []float32, limit int) ([]domain.LoreEntry, error) {
+// LoreSearchScope narrows a lore search. Tier "all" (GM only) searches every tier;
+// OwnerUserID > 0 keeps only entries attached to that user's characters.
+type LoreSearchScope struct {
+	CampaignID  int64
+	Tier        domain.LoreTier
+	OwnerUserID int64
+}
+
+func (r *LoreRepository) SearchByTier(ctx context.Context, scope LoreSearchScope, query []float32, limit int) ([]domain.LoreEntry, error) {
 	entries := []domain.LoreEntry{}
 	sqlQuery := `
 		SELECT ` + loreCols + ` FROM lore_entries
-		WHERE campaign_id=$1 AND lore_tier=$2 AND content_vector IS NOT NULL
-		ORDER BY content_vector <=> $3::vector
+		WHERE campaign_id=$1 AND (CAST($2 AS TEXT) = 'all' OR lore_tier = CAST($2 AS TEXT)) AND content_vector IS NOT NULL
+		  AND (CAST($5 AS BIGINT) = 0 OR character_id IN (SELECT id FROM characters WHERE user_id = CAST($5 AS BIGINT) AND campaign_id=$1))
+		ORDER BY content_vector <=> CAST($3 AS vector)
 		LIMIT $4`
-	err := r.db.SelectContext(ctx, &entries, sqlQuery, campaignID, tier, vectorLiteral(query), limit)
+	err := r.db.SelectContext(ctx, &entries, sqlQuery, scope.CampaignID, string(scope.Tier), vectorLiteral(query), limit, scope.OwnerUserID)
 	return entries, err
 }
 
 // SearchTextByTier is the no-AI fallback: Spanish full-text search over title and content,
 // matching any of the given words (already sanitized), best rank first.
-func (r *LoreRepository) SearchTextByTier(ctx context.Context, campaignID int64, tier domain.LoreTier, words []string, limit int) ([]domain.LoreEntry, error) {
+func (r *LoreRepository) SearchTextByTier(ctx context.Context, scope LoreSearchScope, words []string, limit int) ([]domain.LoreEntry, error) {
 	entries := []domain.LoreEntry{}
 	if len(words) == 0 {
 		return entries, nil
@@ -270,11 +310,12 @@ func (r *LoreRepository) SearchTextByTier(ctx context.Context, campaignID int64,
 		       foundry_uuid, is_foundry_orphan, created_at, updated_at
 		FROM lore_entries,
 		     to_tsquery('spanish', $3) AS q
-		WHERE campaign_id=$1 AND lore_tier=$2
+		WHERE campaign_id=$1 AND (CAST($2 AS TEXT) = 'all' OR lore_tier = CAST($2 AS TEXT))
+		  AND (CAST($5 AS BIGINT) = 0 OR character_id IN (SELECT id FROM characters WHERE user_id = CAST($5 AS BIGINT) AND campaign_id=$1))
 		  AND to_tsvector('spanish', coalesce(title, '') || ' ' || content_text) @@ q
 		ORDER BY ts_rank(to_tsvector('spanish', coalesce(title, '') || ' ' || content_text), q) DESC, chapter_order
 		LIMIT $4`
-	err := r.db.SelectContext(ctx, &entries, sqlQuery, campaignID, tier, strings.Join(words, " | "), limit)
+	err := r.db.SelectContext(ctx, &entries, sqlQuery, scope.CampaignID, string(scope.Tier), strings.Join(words, " | "), limit, scope.OwnerUserID)
 	return entries, err
 }
 

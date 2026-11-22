@@ -68,13 +68,14 @@ func (r *CharacterRepository) Update(ctx context.Context, c *domain.Character) e
 			str_score=$7, dex_score=$8, con_score=$9, int_score=$10, wis_score=$11, cha_score=$12,
 			max_hp=$13, current_hp=$14, temp_hp=$15, ac=$16, speed=$17, proficiency_bonus=$18,
 			inspiration=$19, xp=$20, gold=$21, personality_traits=$22, ideals=$23, bonds=$24,
-			flaws=$25, backstory_text=$26, notes=$27, spellcasting_ability=$28, updated_at=NOW()
+			flaws=$25, backstory_text=$26, notes=$27, spellcasting_ability=$28,
+			silver=$30, copper=$31, physical_description=COALESCE(NULLIF($32, ''), physical_description), updated_at=NOW()
 		WHERE id=$29`
 	_, err := r.db.ExecContext(ctx, query, c.Name, c.Race, c.Class, c.Level, c.Background, c.Alignment,
 		c.StrScore, c.DexScore, c.ConScore, c.IntScore, c.WisScore, c.ChaScore,
 		c.MaxHP, c.CurrentHP, c.TempHP, c.AC, c.Speed, c.ProficiencyBonus,
 		c.Inspiration, c.XP, c.Gold, c.PersonalityTraits, c.Ideals, c.Bonds,
-		c.Flaws, c.BackstoryText, c.Notes, c.SpellcastingAbility, c.ID,
+		c.Flaws, c.BackstoryText, c.Notes, c.SpellcastingAbility, c.ID, c.Silver, c.Copper, c.PhysicalDescription,
 	)
 	return err
 }
@@ -133,6 +134,15 @@ func (r *CharacterRepository) UpsertSpellSlot(ctx context.Context, slot *domain.
 		ON CONFLICT (character_id, level) DO UPDATE SET total=$3, used=$4
 		RETURNING id`
 	return r.db.QueryRowxContext(ctx, query, slot.CharacterID, slot.Level, slot.Total, slot.Used).Scan(&slot.ID)
+}
+
+// SetSpellSlotTotal sets the total of one slot level, keeping the used count within it.
+func (r *CharacterRepository) SetSpellSlotTotal(ctx context.Context, characterID int64, level, total int) error {
+	_, err := r.db.ExecContext(ctx, `INSERT INTO spell_slots (character_id, level, total, used)
+		VALUES ($1, $2, $3, 0)
+		ON CONFLICT (character_id, level) DO UPDATE SET total=$3, used=LEAST(spell_slots.used, $3)`,
+		characterID, level, total)
+	return err
 }
 
 func (r *CharacterRepository) UseSpellSlot(ctx context.Context, characterID int64, level int) error {

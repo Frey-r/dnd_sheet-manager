@@ -308,7 +308,22 @@ func (r *TradeRepository) ListForUser(ctx context.Context, userID int64) ([]doma
 	err := r.db.SelectContext(ctx, &offers, `SELECT DISTINCT t.* FROM trade_offers t JOIN characters a ON a.id=t.offeror_character_id
 		JOIN characters b ON b.id=t.recipient_character_id JOIN campaign_members cm ON cm.campaign_id=t.campaign_id
 		WHERE cm.user_id=$1 AND (a.user_id=$1 OR b.user_id=$1 OR cm.role='gm') ORDER BY t.created_at DESC`, userID)
-	return offers, err
+	if err != nil || len(offers) == 0 {
+		return offers, err
+	}
+	ids := []int64{}
+	for _, offer := range offers {
+		ids = append(ids, decodeIDs(offer.OfferedItemIDs)...)
+		ids = append(ids, decodeIDs(offer.RequestedItemIDs)...)
+	}
+	items := []domain.TradeItemRef{}
+	if len(ids) > 0 {
+		if err := r.db.SelectContext(ctx, &items, `SELECT id, name, COALESCE(quantity, 1) AS quantity FROM inventory_items WHERE id=ANY($1)`, pq.Array(ids)); err != nil {
+			return nil, err
+		}
+	}
+	domain.NameTradeItems(offers, items, decodeIDs)
+	return offers, nil
 }
 
 func (r *TradeRepository) Purchase(ctx context.Context, campaignID, itemID, characterID int64) error {

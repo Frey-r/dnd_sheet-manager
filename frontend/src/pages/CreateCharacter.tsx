@@ -36,6 +36,8 @@ export function CreateCharacterPage() {
   const [alignment, setAlignment] = useState('');
   const [abilities, setAbilities] = useState<AbilityState | null>(null);
   const [error, setError] = useState('');
+  // Non-blocking catalog notes from the server (class or race not in the catalog).
+  const [created, setCreated] = useState<{ id: number; warnings: string[] } | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const races = useQuery({ queryKey: ['srd-races'], queryFn: async () => (await listRaces()).data ?? [], staleTime: 300_000 });
@@ -90,7 +92,9 @@ export function CreateCharacterPage() {
       });
       void qc.invalidateQueries({ queryKey: ['characters', String(campaignId)] });
       void qc.invalidateQueries({ queryKey: ['stat-rolls', campaignId] });
-      navigate(`/campaign/${campaignId}/character/${response.data.id}`);
+      const warnings: string[] = response.data.warnings ?? [];
+      if (warnings.length) setCreated({ id: response.data.id, warnings });
+      else navigate(`/campaign/${campaignId}/character/${response.data.id}`);
     } catch (requestError) {
       setError(getApiError(requestError, 'No se pudo crear el personaje'));
     } finally { setSubmitting(false); }
@@ -127,6 +131,7 @@ export function CreateCharacterPage() {
       </div>
 
       {error && <ErrorState message={error} />}
+      {created && <section role="status" className="rounded-lg border border-warn bg-warn-soft p-4 space-y-2"><p className="font-label-bold">Personaje creado con avisos</p><ul className="list-disc pl-5 text-sm">{created.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul><button type="button" onClick={() => navigate(`/campaign/${campaignId}/character/${created.id}`)} className="bg-primary-container text-on-primary-container px-4 py-2 rounded-lg font-label-bold">Ir a la ficha</button></section>}
       {(races.error || classes.error) && <ErrorState message="No se pudo cargar el catálogo de razas y clases" />}
 
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.25fr)_auto_minmax(0,1fr)]">

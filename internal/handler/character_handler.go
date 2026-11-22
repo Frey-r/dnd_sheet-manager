@@ -3,6 +3,7 @@ package handler
 import (
 	"log"
 	"net/http"
+	"strconv"
 
 	"dnd-campaign-manager/internal/domain"
 	"dnd-campaign-manager/internal/middleware"
@@ -182,6 +183,33 @@ func (h *CharacterHandler) GetSpellSlots(c *gin.Context) {
 		return
 	}
 
+	c.JSON(http.StatusOK, slots)
+}
+
+// SetSpellSlotTotal changes the total of one spell-slot level (owner or GM; the character
+// middleware authorizes the route). Body: {"total": n}.
+func (h *CharacterHandler) SetSpellSlotTotal(c *gin.Context) {
+	var req struct {
+		Total *int `json:"total" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	level, err := strconv.Atoi(c.Param("level"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid slot level"})
+		return
+	}
+	slots, err := h.charSvc.SetSpellSlotTotal(c.Request.Context(), parseID(c.Param("id")), level, *req.Total)
+	if err != nil {
+		if err == service.ErrInvalidSpellSlot {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "nivel de 1 a 9 y total de 0 a 9"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update spell slot"})
+		return
+	}
 	c.JSON(http.StatusOK, slots)
 }
 

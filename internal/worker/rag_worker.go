@@ -24,7 +24,7 @@ type RAGJob struct {
 
 type RAGResult struct {
 	Answer  string
-	Sources []string
+	Sources []domain.LoreSource
 	Error   error
 }
 

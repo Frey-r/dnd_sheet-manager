@@ -64,6 +64,16 @@ func (p *VTTPlay) emit(ctx context.Context, campaignID int64, event string, payl
 	}
 }
 
+// BroadcastMoved sends an ephemeral vtt.token.moved (not stored in the event log).
+func (p *VTTPlay) BroadcastMoved(ctx context.Context, campaignID int64, payload any) {
+	if p.rt == nil {
+		return
+	}
+	if err := p.rt.Broadcast(ctx, campaignID, "vtt.token.moved", payload); err != nil {
+		log.Printf("vtt play: broadcast vtt.token.moved: %v", err)
+	}
+}
+
 // ---------- Exploration movement ----------
 
 // HandleMove processes a "vtt.move" WebSocket message from a player.
@@ -97,7 +107,7 @@ func (p *VTTPlay) HandleMove(ctx context.Context, userID, campaignID int64, raw 
 	p.mu.Unlock()
 
 	dt := math.Min(now.Sub(prev.at).Seconds(), 1.0)
-	allowed := ExplorationRatePxPerSec(scene, token.SpeedFt, token.Sneaking)*dt*1.25 + float64(scene.GridSizePx)*0.1
+	allowed := ExplorationRatePxPerSec(scene, p.TokenSpeed(ctx, token), token.Sneaking)*dt*1.25 + float64(scene.GridSizePx)*0.1
 	x, y := ClampStep(prev.x, prev.y, in.X, in.Y, allowed)
 	x = math.Max(0, math.Min(float64(scene.WidthPx), x))
 	y = math.Max(0, math.Min(float64(scene.HeightPx), y))
@@ -350,6 +360,17 @@ func (p *VTTPlay) Extend(ctx context.Context, c *domain.VTTCombat) error {
 	return nil
 }
 
+// TokenSpeed is the walking speed that paces a token: the linked character's current sheet
+// speed (so later sheet changes apply, vtt-modes.md), else the token's own speed_ft.
+func (p *VTTPlay) TokenSpeed(ctx context.Context, token *domain.VTTToken) int {
+	if token.CharacterID != nil {
+		if prof, err := p.repo.CharacterProfile(ctx, *token.CharacterID); err == nil && prof.Speed > 0 {
+			return prof.Speed
+		}
+	}
+	return token.SpeedFt
+}
+
 // CombatMove moves the active combatant within its movement budget (vtt-modes.md §5).
 func (p *VTTPlay) CombatMove(ctx context.Context, c *domain.VTTCombat, userID int64, isGM bool, tokenID int64, x, y float64, dash bool) (float64, float64, error) {
 	cur := p.current(c)
@@ -376,7 +397,7 @@ func (p *VTTPlay) CombatMove(ctx context.Context, c *domain.VTTCombat, userID in
 		if MovementBlocked(scene.Walls, token.X, token.Y, nx, ny) {
 			return 0, 0, errors.New("movement blocked by a wall")
 		}
-		budget := token.SpeedFt
+		budget := p.TokenSpeed(ctx, token)
 		if cur.Dashed || dash {
 			budget *= 2
 		}
@@ -393,7 +414,8 @@ func (p *VTTPlay) CombatMove(ctx context.Context, c *domain.VTTCombat, userID in
 	if token.Hidden {
 		p.moveHidden(ctx, token.CampaignID, token, map[string]any{"scene_id": scene.ID, "token_id": token.ID, "x": nx, "y": ny})
 	} else {
-		p.emit(ctx, token.CampaignID, "vtt.token.moved", map[string]any{"scene_id": scene.ID, "token_id": token.ID, "x": nx, "y": ny})
+		// Token moves are ephemeral (vtt-modes.md): the position itself is already persisted.
+		p.BroadcastMoved(ctx, token.CampaignID, map[string]any{"scene_id": scene.ID, "token_id": token.ID, "x": nx, "y": ny})
 	}
 	p.emit(ctx, token.CampaignID, "vtt.combat.updated", map[string]any{"scene_id": scene.ID, "combat_id": c.ID})
 	return nx, ny, nil

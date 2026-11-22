@@ -158,22 +158,24 @@ func (r *FoundryRepository) UpsertMap(ctx context.Context, m *domain.Map) error 
 	return err
 }
 
-// UpsertLore mirrors a journal entry. Returns the lore id and whether a new row
-// was inserted (so the caller can enqueue an embedding job for fresh content).
+// UpsertLore mirrors a journal entry. It returns the lore id and whether the entry needs a
+// (re-)embedding: true for a new row or when the journal text changed. A re-sync never touches
+// lore_tier, so a tier the GM changed in the app is kept (foundry-integration.md).
 func (r *FoundryRepository) UpsertLore(ctx context.Context, l *domain.LoreEntry) (int64, bool, error) {
 	query := `
+		WITH prev AS (SELECT content_text FROM lore_entries WHERE foundry_uuid = $5)
 		INSERT INTO lore_entries (campaign_id, content_text, lore_tier, title, foundry_uuid, is_foundry_orphan)
 		VALUES ($1,$2,$3,$4,$5,FALSE)
 		ON CONFLICT (foundry_uuid) WHERE foundry_uuid IS NOT NULL DO UPDATE SET
-			content_text=EXCLUDED.content_text, title=EXCLUDED.title, lore_tier=EXCLUDED.lore_tier,
+			content_text=EXCLUDED.content_text, title=EXCLUDED.title,
 			is_foundry_orphan=FALSE, updated_at=NOW()
-		RETURNING id, (xmax = 0) AS inserted`
+		RETURNING id, (xmax = 0 OR lore_entries.content_text IS DISTINCT FROM (SELECT content_text FROM prev)) AS needs_embedding`
 	var id int64
-	var inserted bool
+	var needsEmbedding bool
 	err := r.ext().QueryRowxContext(ctx, query,
 		l.CampaignID, l.ContentText, l.LoreTier, l.Title, l.FoundryUUID,
-	).Scan(&id, &inserted)
-	return id, inserted, err
+	).Scan(&id, &needsEmbedding)
+	return id, needsEmbedding, err
 }
 
 func (r *FoundryRepository) UpsertMonster(ctx context.Context, m *domain.SRDMonster) error {

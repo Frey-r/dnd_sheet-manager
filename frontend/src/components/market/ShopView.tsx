@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { characterApi } from '../../services/api';
 import {
-  HAGGLE_SKILLS, cpToGP, formatCP, gpToCP, marketApi, offersApi, rarityLabel, typeLabel, type ShopItem, type ShopOffer,
+  HAGGLE_SKILLS, cpToGP, formatCP, gpToCP, marketApi, offersApi, rarityClass, rarityLabel, typeLabel, type ShopItem, type ShopOffer,
 } from '../../services/marketApi';
 
 interface Props {
@@ -27,6 +27,7 @@ export function ShopView({ campaignId, shopId, characterId, onClose }: Props) {
   const [sellQty, setSellQty] = useState<Record<number, number>>({});
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
   const [filter, setFilter] = useState('');
+  const [category, setCategory] = useState('');
 
   useEffect(() => { try { localStorage.setItem(cartKey(campaignId, shopId), JSON.stringify(cart)); } catch { /* ignore */ } }, [cart, campaignId, shopId]);
 
@@ -58,7 +59,9 @@ export function ShopView({ campaignId, shopId, characterId, onClose }: Props) {
 
   const shop = data.data?.shop;
   const allItems = useMemo(() => data.data?.items ?? [], [data.data]);
-  const items = allItems.filter((i) => !filter || i.name.toLowerCase().includes(filter.toLowerCase()));
+  // Category chips list only the item types this shop actually stocks.
+  const categories = [...new Set(allItems.map((i) => i.item_type).filter(Boolean))];
+  const items = allItems.filter((i) => (!filter || i.name.toLowerCase().includes(filter.toLowerCase())) && (!category || i.item_type === category));
   const w = wallet.data;
   const walletCP = w ? w.gold * 100 + (w.silver ?? 0) * 10 + (w.copper ?? 0) : null;
   const canTrade = Boolean(shop?.available);
@@ -117,6 +120,9 @@ export function ShopView({ campaignId, shopId, characterId, onClose }: Props) {
         {tab === 'shop' && <input className="h-9 min-w-[140px] flex-1 rounded-lg border border-line bg-card-2 px-3 text-[14px] outline-none focus:border-accent" placeholder="Buscar en la tienda…" value={filter} onChange={(e) => setFilter(e.target.value)} />}
         {notice && <span role="status" className={`ml-auto text-[13px] ${notice.ok ? 'text-ok' : 'text-bad'}`}>{notice.text}</span>}
       </div>
+      {tab === 'shop' && categories.length > 1 && <div role="group" aria-label="Categorías" className="flex flex-wrap gap-2">
+        {['', ...categories].map((value) => <button key={value || 'all'} type="button" aria-pressed={category === value} onClick={() => setCategory(value)} className={`rounded-full border px-3 py-1 text-[13px] ${category === value ? 'border-accent bg-accent-soft text-accent' : 'border-line text-muted'}`}>{value ? typeLabel(value) : 'Todo'}</button>)}
+      </div>}
 
       {tab === 'shop' && (items.length === 0 ? (
         <div className="mc-card p-8 text-center text-muted">{allItems.length ? 'Nada coincide.' : 'La tienda no tiene existencias.'}</div>
@@ -129,7 +135,7 @@ export function ShopView({ campaignId, shopId, characterId, onClose }: Props) {
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="font-semibold">{it.name}</div>
-                    <div className="text-[12.5px] text-muted">{typeLabel(it.item_type)} · {rarityLabel(it.rarity)}{it.attunement_required ? ' · sintonía' : ''}{it.weight ? ` · ${it.weight} lb` : ''}</div>
+                    <div className="text-[12.5px] text-muted flex flex-wrap items-center gap-1">{typeLabel(it.item_type)} <span className={`mc-badge ${rarityClass(it.rarity)}`}>{rarityLabel(it.rarity || 'common')}</span>{it.attunement_required ? ' · sintonía' : ''}{it.weight ? ` · ${it.weight} lb` : ''}</div>
                   </div>
                   <div className="shrink-0 text-right">
                     <div className="font-mono text-[14px] text-gold">{formatCP(it.final_price_cp)}</div>

@@ -10,6 +10,13 @@ import (
 	"dnd-campaign-manager/internal/domain"
 )
 
+// ErrLoreBusy means every Oracle worker is busy and the queue is full (resilience.md):
+// the caller answers 503 RAG_BUSY instead of the "no AI" error.
+var ErrLoreBusy = errors.New("lore worker queue full")
+
+// DefaultLorePoolSize is the worker count when worker.pool_size is not configured.
+const DefaultLorePoolSize = 4
+
 type LoreQuery struct {
 	CampaignID  int64
 	CharacterID *int64
@@ -21,13 +28,14 @@ type LoreQuery struct {
 
 type LoreResult struct {
 	Answer  string
-	Sources []string
+	Sources []domain.LoreSource
 	Err     error
 }
 type loreWork struct {
 	ctx         context.Context
 	query       *LoreQuery
 	vectorizeID int64
+	prompt      string // raw LLM prompt (bot test); answered in LoreResult.Answer
 	result      chan LoreResult
 }
 
@@ -40,7 +48,7 @@ type LoreWorkerPool struct {
 func NewLoreWorkerPool(rag *RAGService, cfg config.WorkerConfig) *LoreWorkerPool {
 	size, depth := cfg.PoolSize, cfg.QueueDepth
 	if size < 1 {
-		size = 2
+		size = DefaultLorePoolSize
 	}
 	if depth < 1 {
 		depth = 32
@@ -59,6 +67,9 @@ func NewLoreWorkerPool(rag *RAGService, cfg config.WorkerConfig) *LoreWorkerPool
 							log.Printf("lore: vectorize entry %d: %v", job.vectorizeID, err)
 						}
 						cancel()
+					} else if job.prompt != "" {
+						answer, err := pool.rag.GenerateResponse(job.ctx, job.prompt)
+						job.result <- LoreResult{Answer: answer, Err: err}
 					} else if job.query != nil {
 						answer, sources, err := pool.rag.Query(job.ctx, job.query.CampaignID, job.query.CharacterID, job.query.UserID, job.query.IsGM, job.query.Tier, job.query.Text)
 						job.result <- LoreResult{Answer: answer, Sources: sources, Err: err}
@@ -77,7 +88,7 @@ func (p *LoreWorkerPool) Vectorize(id int64) error {
 	case p.jobs <- loreWork{vectorizeID: id}:
 		return nil
 	default:
-		return errors.New("lore worker queue full")
+		return ErrLoreBusy
 	}
 }
 
@@ -86,9 +97,27 @@ func (p *LoreWorkerPool) Query(ctx context.Context, query LoreQuery) <-chan Lore
 	select {
 	case p.jobs <- loreWork{ctx: ctx, query: &query, result: result}:
 	default:
-		result <- LoreResult{Err: errors.New("lore worker queue full")}
+		result <- LoreResult{Err: ErrLoreBusy}
 	}
 	return result
+}
+
+// GenerateResponse runs a raw LLM prompt through the same bounded pool as Oracle queries
+// (resilience.md: every LLM call goes through the worker pool). It returns ErrLoreBusy when
+// the queue is full and honours ctx while waiting for a worker.
+func (p *LoreWorkerPool) GenerateResponse(ctx context.Context, prompt string) (string, error) {
+	result := make(chan LoreResult, 1)
+	select {
+	case p.jobs <- loreWork{ctx: ctx, prompt: prompt, result: result}:
+	default:
+		return "", ErrLoreBusy
+	}
+	select {
+	case r := <-result:
+		return r.Answer, r.Err
+	case <-ctx.Done():
+		return "", ctx.Err()
+	}
 }
 
 func (p *LoreWorkerPool) Close() { close(p.done) }

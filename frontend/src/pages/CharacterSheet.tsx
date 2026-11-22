@@ -11,12 +11,14 @@ import { ErrorState, LoadingState } from '../components/ui/Feedback';
 import { CharacterTabs } from '../components/character/CharacterTabs';
 import { HpPanel } from '../components/character/HpPanel';
 import { usePassivePerception } from '../lib/raceSkills';
+import { useSkillRows } from '../lib/skills';
 
 export function CharacterSheet() {
   const { campaignId, characterId = '' } = useParams<{ campaignId: string; characterId: string }>();
   const client = useQueryClient();
   const { data: character, isLoading: loading, error: loadError, refetch } = useQuery({ queryKey: ['character', characterId], queryFn: () => characterApi.get(characterId).then((response) => response.data as Character) });
   const passive = usePassivePerception(character);
+  const skills = useSkillRows(character);
   const hp = useMutation({ mutationFn: (value: { current_hp: number; temp_hp: number }) => characterApi.updateHP(characterId, value), onSuccess: () => client.invalidateQueries({ queryKey: ['character', characterId] }) });
 
   if (loading) {
@@ -95,6 +97,23 @@ export function CharacterSheet() {
               </div>
             </div>
           ))}
+        </section>
+
+        <section aria-labelledby="skills-title" className="bg-surface border border-border-low-contrast rounded-xl overflow-hidden shadow-sm">
+          <div className="bg-surface-subtle px-4 py-3 border-b border-border-low-contrast flex items-center justify-between gap-2">
+            <h3 id="skills-title" className="font-label-bold text-on-surface uppercase tracking-wider">Habilidades</h3>
+            <span className="text-xs text-secondary">Toca para tirar · ● competencia racial</span>
+          </div>
+          <ul className="grid sm:grid-cols-2">
+            {skills.map((skill) => (
+              <li key={skill.key} className="border-b border-border-low-contrast">
+                <button type="button" onClick={() => requestRoll(`1d20${skill.mod >= 0 ? '+' : '-'}${Math.abs(skill.mod)}`, skill.label)} className="w-full flex items-center justify-between gap-2 px-4 py-2 text-left hover:bg-surface-container-lowest">
+                  <span className="flex items-center gap-2"><span aria-hidden="true" className={`h-2 w-2 rounded-full ${skill.proficient ? 'bg-primary' : 'border border-outline'}`} /><span className="font-body-md">{skill.label}</span><span className="text-xs text-secondary">{ABILITIES.find(([key]) => key === skill.ability)?.[1]}</span>{skill.proficient && <span className="sr-only">(competente)</span>}</span>
+                  <span className="font-label-bold">{formatMod(skill.mod)}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
         </section>
 
         <section className="bg-surface border border-border-low-contrast rounded-xl overflow-hidden shadow-sm">

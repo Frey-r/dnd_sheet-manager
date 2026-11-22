@@ -7,6 +7,23 @@ import { getMonster, abilityModifier, formatModifier } from '../services/srdServ
 import { CRBadge } from '../components/ui/CRBadge';
 import { useAuth } from '../lib/hooks';
 import type { SRDMonster, MonsterAction } from '../types/srd';
+import { catalogText, entriesText } from '../lib/abilities';
+
+/** Text of a stat-block entry: homebrew creatures use `desc`, catalog ones 5etools `entries`. */
+const actionText = (entry: MonsterAction) => entry.desc ? catalogText(entry.desc) : entriesText(entry.entries ?? '');
+
+/** One speed value: a number, or a 5etools `{number, condition}` object. */
+function speedValue(value: unknown): string {
+  if (typeof value === 'number' || typeof value === 'string') return `${value} ft.`;
+  if (value && typeof value === 'object') {
+    const o = value as { number?: number; condition?: string };
+    return `${o.number ?? ''} ft.${o.condition ? ` ${catalogText(o.condition)}` : ''}`;
+  }
+  return '';
+}
+
+/** Saves and skills are numbers (homebrew) or signed strings such as "+5" (catalog). */
+const bonus = (value: unknown) => typeof value === 'number' ? formatModifier(value) : String(value);
 
 function parseJSON<T>(value: string | T[] | null | undefined, fallback: T[]): T[] {
   if (!value) return fallback;
@@ -72,13 +89,8 @@ export function CreatureDetail() {
   const addToCombat = async () => {
     if (!campaignId) return;
     try {
-      await combatApi.addCombatant(campaignId, {
-        name: monster.name,
-        hp: monster.hp,
-        max_hp: monster.hp,
-        initiative: Math.floor(Math.random() * 20) + 1 + abilityModifier(monster.dex),
-        is_player: false,
-      });
+      // The server resolves HP, AC and initiative from the stat block (srd-integration.md, combat).
+      await combatApi.addEncounter(campaignId, [{ monster_id: monster.id, count: 1 }]);
       setAdded('Añadido al combate');
     } catch {
       setAdded('No se pudo añadir');
@@ -87,22 +99,23 @@ export function CreatureDetail() {
 
   const actions = parseJSON<MonsterAction>(monster.actions, []);
   const legendaryActions = parseJSON<MonsterAction>(monster.legendary_actions, []);
-  const legendaryCount = legendaryActions.map((entry) => /(\d+)\s+legendary actions?/i.exec(entry.desc)?.[1]).find(Boolean) ?? '3';
+  const legendaryCount = legendaryActions.map((entry) => /(\d+)\s+legendary actions?/i.exec(actionText(entry))?.[1]).find(Boolean) ?? '3';
   const reactions = parseJSON<MonsterAction>(monster.reactions, []);
-  const speed = parseJSONObj<Record<string, string | number>>(monster.speed as unknown as string, {});
-  const savingThrows = parseJSONObj<Record<string, number>>(monster.saving_throws as unknown as string, {});
-  const skills = parseJSONObj<Record<string, number>>(monster.skills as unknown as string, {});
+  const speed = parseJSONObj<Record<string, unknown>>(monster.speed as unknown as string, {});
+  const savingThrows = parseJSONObj<Record<string, unknown>>(monster.saving_throws as unknown as string, {});
+  const skills = parseJSONObj<Record<string, unknown>>(monster.skills as unknown as string, {});
 
   const speedStr = Object.entries(speed)
-    .map(([k, v]) => k === 'walk' ? `${v} ft.` : `${k} ${v} ft.`)
+    .filter(([k, v]) => k !== 'canHover' && typeof v !== 'boolean')
+    .map(([k, v]) => k === 'walk' ? speedValue(v) : `${k} ${speedValue(v)}`)
     .join(', ') || '30 ft.';
 
   const savesStr = Object.entries(savingThrows)
-    .map(([k, v]) => `${k.toUpperCase()} ${formatModifier(v)}`)
+    .map(([k, v]) => `${k.toUpperCase()} ${bonus(v)}`)
     .join(', ');
 
   const skillsStr = Object.entries(skills)
-    .map(([k, v]) => `${k} ${formatModifier(v)}`)
+    .map(([k, v]) => `${k} ${bonus(v)}`)
     .join(', ');
 
   return (
@@ -233,7 +246,7 @@ export function CreatureDetail() {
             {traits.map((trait, i) => (
               <div key={i} className="bg-surface-subtle p-md rounded border border-border-low-contrast">
                 <h4 className="font-label-bold text-primary mb-xs">{trait.name}</h4>
-                <p className="font-body-md text-on-surface">{trait.desc}</p>
+                <p className="font-body-md text-on-surface whitespace-pre-line">{actionText(trait)}</p>
               </div>
             ))}
           </section>
@@ -246,7 +259,7 @@ export function CreatureDetail() {
             {actions.map((action, i) => (
               <div key={i} className="bg-surface-subtle p-md rounded border border-border-low-contrast">
                 <h4 className="font-label-bold text-primary mb-xs">{action.name}</h4>
-                <p className="font-body-md text-on-surface">{action.desc}</p>
+                <p className="font-body-md text-on-surface whitespace-pre-line">{actionText(action)}</p>
               </div>
             ))}
           </section>
@@ -259,7 +272,7 @@ export function CreatureDetail() {
             {reactions.map((reaction, i) => (
               <div key={i} className="bg-surface-subtle p-md rounded border border-border-low-contrast">
                 <h4 className="font-label-bold text-primary mb-xs">{reaction.name}</h4>
-                <p className="font-body-md text-on-surface">{reaction.desc}</p>
+                <p className="font-body-md text-on-surface whitespace-pre-line">{actionText(reaction)}</p>
               </div>
             ))}
           </section>
@@ -275,7 +288,7 @@ export function CreatureDetail() {
             {legendaryActions.map((la, i) => (
               <div key={i} className="bg-surface-subtle p-md rounded border border-border-low-contrast">
                 <h4 className="font-label-bold text-primary mb-xs">{la.name}</h4>
-                <p className="font-body-md text-on-surface">{la.desc}</p>
+                <p className="font-body-md text-on-surface whitespace-pre-line">{actionText(la)}</p>
               </div>
             ))}
           </section>

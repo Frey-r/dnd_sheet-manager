@@ -40,7 +40,7 @@ export function HpPanel({ character, pending, onChange }: Props) {
         </div>
       </div>
       <div className="w-full h-3 bg-surface-container-high rounded-full overflow-hidden border border-border-low-contrast" role="progressbar" aria-valuemin={0} aria-valuemax={character.max_hp} aria-valuenow={character.current_hp} aria-label="Puntos de golpe">
-        <div className={`h-full rounded-full ${percent < 30 ? 'bg-hp-danger' : percent < 70 ? 'bg-gm-amber' : 'bg-success-active'}`} style={{ width: `${percent}%` }} />
+        <div className={`h-full rounded-full ${percent < 30 ? 'bg-hp-danger' : percent < 60 ? 'bg-gm-amber' : 'bg-success-active'}`} style={{ width: `${percent}%` }} />
       </div>
       <div className="flex flex-wrap gap-2 items-center">
         <input type="number" min={0} inputMode="numeric" aria-label="Cantidad de daño o curación" placeholder="Cantidad" value={amount} onChange={(event) => setAmount(event.target.value)} className="h-10 w-24 px-3" />

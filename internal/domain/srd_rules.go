@@ -21,6 +21,7 @@ type SRDRule struct {
 	ParentRuleID *int64    `db:"parent_rule_id" json:"parent_rule_id"`
 	IsSRD        bool      `db:"is_srd" json:"is_srd"`
 	CreatedAt    time.Time `db:"created_at" json:"created_at"`
+	Rank         float64   `db:"rank" json:"rank,omitempty"`
 }
 
 // RulesFilters holds search parameters for SRD rules.

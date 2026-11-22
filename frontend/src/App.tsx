@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Layout } from './components/layout/Layout';
+import { useCampaign } from './lib/useCampaign';
 import { LoginPage } from './pages/Login';
 import { RegisterPage } from './pages/Register';
 import { CampaignListPage } from './pages/CampaignList';
@@ -47,6 +48,16 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 }
 
+// The Foundry client view only exists in Foundry-mode campaigns (foundry-integration.md,
+// lan-deployment.md); local campaigns go back to the hub. Any member may open it there.
+function FoundryModeGuard({ children }: { children: React.ReactNode }) {
+  const { campaignId = '' } = useParams();
+  const { campaign, isFoundry, loading } = useCampaign(campaignId);
+  if (loading) return <div className="p-8 text-on-surface">Comprobando campaña…</div>;
+  if (!campaign || !isFoundry) return <Navigate to={`/campaign/${campaignId}`} replace />;
+  return children;
+}
+
 function GMGuard({ children }: { children: React.ReactNode }) {
   const { campaignId = '' } = useParams();
   const { user } = useAuth();
@@ -91,7 +102,7 @@ export default function App() {
       <Route path="campaign/:campaignId/gm/spells-srd" element={<GMGuard><SRDSpellBrowser /></GMGuard>} />
       <Route path="campaign/:campaignId/gm/encounter-builder" element={<GMGuard><EncounterBuilder /></GMGuard>} />
       <Route path="campaign/:campaignId/table" element={<VirtualTable />} />
-      <Route path="campaign/:campaignId/combat" element={<GMGuard><FoundryCombat /></GMGuard>} />
+      <Route path="campaign/:campaignId/combat" element={<FoundryModeGuard><FoundryCombat /></FoundryModeGuard>} />
       <Route path="campaign/:campaignId/market" element={<Marketplace />} />
       <Route path="campaign/:campaignId/bastions" element={<Bastions />} />
       <Route path="campaign/:campaignId/chat" element={<Messages />} />

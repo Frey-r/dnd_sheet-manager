@@ -48,8 +48,14 @@ func (h *CampaignResourceHandler) RegisterRoutes(auth *gin.RouterGroup) {
 	auth.POST("/campaigns/:id/bot/test", h.TestBot)
 }
 
+// List is GM-only like Get: NPC secrets, GM notes, events and maps are DM preparation material
+// and every screen that lists them sits behind the GM guard.
 func (h *CampaignResourceHandler) List(kind string) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if !middleware.IsGM(c) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "gm membership required"})
+			return
+		}
 		rows, err := h.repo.List(c.Request.Context(), parseID(c.Param("id")), kind)
 		h.respond(c, rows, err)
 	}

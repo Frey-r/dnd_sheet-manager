@@ -345,6 +345,25 @@ All character sheet views share: TopAppBar + sub-tab navigation (Stats | Spells 
 
 ---
 
+## 21. Compendium (`/campaign/:id/reference`, no mockup)
+
+Any campaign member can browse the imported 5etools catalogue (`content_entities`, every book).
+- Search box over the whole catalogue, a category select (from `GET /api/content/categories`) and a
+  source select (from `GET /api/content/sources`).
+- Results list (name, category, source, SRD badge) with the total count; selecting a row shows the
+  entry rendered from its 5etools `entries` (`GET /api/content/:id`).
+- Loading, empty and error states with retry. Spanish UI.
+
+## 22. GM Spell Book (`/campaign/:id/gm/spells-srd`, GM only, no mockup)
+
+- Filters: free text (name or description), spell level (trucos, 1–9), school, class spell list,
+  and tri-state Concentración / Ritual toggles; results come from `GET /api/srd/spells`.
+- List rows show name, level, school and concentration/ritual markers; the detail panel shows
+  casting time, range, components, materials, duration, description, higher levels and classes.
+- Players cannot open it (GM guard). Spanish UI.
+
+---
+
 ## Screen Flow Summary
 
 ```

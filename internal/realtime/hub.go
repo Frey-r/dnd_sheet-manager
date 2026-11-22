@@ -53,9 +53,15 @@ const (
 	pingInterval = 30 * time.Second // resilience.md: Ping every 30s
 	pongGrace    = 10 * time.Second // ...and 10s grace to answer
 
+	// heartbeatType is the text frame sent with every ping; clients close the socket after two
+	// missed heartbeats.
+	heartbeatType = "heartbeat"
+
 	moveMessageType       = "vtt.move"
 	moveMessagesPerSecond = 15 // client throttles to one move per 120ms (~8/s); headroom for jitter
 )
+
+var heartbeatFrame = []byte(`{"type":"` + heartbeatType + `"}`)
 
 // Configure applies the rate-limit settings (messages/second, window, ban length)
 // and optionally a shared IP blacklist. Defaults are 5 msg/1s and a 30s ban.
@@ -265,6 +271,34 @@ func (h *Hub) add(client *Client) {
 	h.clients[client.CampaignID][client] = struct{}{}
 }
 
+// IsOnline reports whether the user has an open socket on this campaign (user-stories.md:
+// a message to an offline player is answered as "queued for delivery").
+func (h *Hub) IsOnline(campaignID, userID int64) bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for client := range h.clients[campaignID] {
+		if client.UserID == userID {
+			return true
+		}
+	}
+	return false
+}
+
+// OnlineUsers lists the distinct users with an open socket on this campaign.
+func (h *Hub) OnlineUsers(campaignID int64) []int64 {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	seen := map[int64]bool{}
+	users := []int64{}
+	for client := range h.clients[campaignID] {
+		if !seen[client.UserID] {
+			seen[client.UserID] = true
+			users = append(users, client.UserID)
+		}
+	}
+	return users
+}
+
 func (h *Hub) remove(client *Client) {
 	h.mu.Lock()
 	if clients := h.clients[client.CampaignID]; clients != nil {
@@ -343,6 +377,12 @@ func (h *Hub) write(client *Client) {
 			_ = client.Conn.SetReadDeadline(time.Now().Add(pongGrace))
 			_ = client.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if client.Conn.WriteMessage(websocket.PingMessage, nil) != nil {
+				go h.remove(client)
+				return
+			}
+			// Browsers do not expose ping/pong to scripts, so an application-level heartbeat
+			// lets the client notice a dead link and reconnect (resilience.md).
+			if client.Conn.WriteMessage(websocket.TextMessage, heartbeatFrame) != nil {
 				go h.remove(client)
 				return
 			}

@@ -61,6 +61,8 @@ func TestTypedEventName(t *testing.T) {
 		{"POST", "/api/campaigns/1/combat/encounter", "gm", "ENCOUNTER_STARTED"},
 		{"POST", "/api/campaigns/1/bastions/turn", "gm", "BASTION_TURN"},
 		{"GET", "/api/campaigns/1/bastions/turn", "gm", ""},
+		{"POST", "/api/campaigns/1/lore/search", "player", "LORE_QUERY"},
+		{"POST", "/api/campaigns/1/lore", "gm", ""},
 	}
 	for _, c := range cases {
 		if got := TypedEventName(c.method, c.path, c.role); got != c.want {

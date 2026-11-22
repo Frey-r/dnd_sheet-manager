@@ -81,8 +81,10 @@ type BuyResult struct {
 	PaidCP  int64  `json:"paid_cp"`
 }
 
-// Buy charges the player's character and moves the item to its inventory.
-func (m *Market) Buy(ctx context.Context, campaignID, userID int64, isGM bool, shopID, itemID int64, qty int) (*BuyResult, error) {
+// Buy charges a character at list price and moves the item to its inventory. It is the GM's
+// shortcut (market-bastions.md §3): targetCharacterID picks the player character that receives
+// the item; 0 means the caller's own character.
+func (m *Market) Buy(ctx context.Context, campaignID, userID int64, isGM bool, shopID, itemID, targetCharacterID int64, qty int) (*BuyResult, error) {
 	if qty < 1 || qty > 999 {
 		qty = 1
 	}
@@ -97,8 +99,12 @@ func (m *Market) Buy(ctx context.Context, campaignID, userID int64, isGM bool, s
 	if err != nil || item.ShopID != shop.ID {
 		return nil, repository.ErrMarketNotFound
 	}
-	characterID, err := m.repo.CharacterOf(ctx, campaignID, userID)
-	if err != nil {
+	var characterID int64
+	if isGM && targetCharacterID > 0 {
+		if characterID, err = m.repo.CharacterInCampaign(ctx, campaignID, targetCharacterID); err != nil {
+			return nil, ErrShopUnavailable{"Ese personaje no está en la campaña"}
+		}
+	} else if characterID, err = m.repo.CharacterOf(ctx, campaignID, userID); err != nil {
 		return nil, ErrShopUnavailable{"Necesitas un personaje en la campaña"}
 	}
 	unit := ApplyPct(item.PriceCP, shop.PricePct, true)

@@ -260,11 +260,13 @@ func (h *VTTHandler) ResetObject(c *gin.Context) {
 		return
 	}
 	campaignID := parseID(c.Param("id"))
-	if err := h.repo.ResetObject(c.Request.Context(), campaignID, parseID(c.Param("object_id"))); err != nil {
+	objectID := parseID(c.Param("object_id"))
+	sceneID, err := h.repo.ResetObject(c.Request.Context(), campaignID, objectID)
+	if err != nil {
 		h.fail(c, err, "could not reset object")
 		return
 	}
-	h.publish(c, campaignID, "vtt.object.updated", gin.H{"object_id": parseID(c.Param("object_id"))})
+	h.publish(c, campaignID, "vtt.object.updated", gin.H{"scene_id": sceneID, "object_id": objectID})
 	c.Status(http.StatusNoContent)
 }
 
@@ -302,11 +304,32 @@ func (h *VTTHandler) ListCombats(c *gin.Context) {
 		return
 	}
 	now := time.Now()
+	gm := middleware.IsGM(c)
 	out := make([]combatView, 0, len(combats))
 	for _, cb := range combats {
+		if !gm {
+			maskHiddenCombatants(&cb)
+		}
 		out = append(out, combatView{VTTCombat: cb, RemainingMs: max(0, service.RemainingMs(&cb, now))})
 	}
 	c.JSON(http.StatusOK, out)
+}
+
+// hiddenCombatantName is what players see for a combatant whose token the GM keeps hidden.
+const hiddenCombatantName = "Criatura oculta"
+
+// maskHiddenCombatants hides the name and token of hidden combatants from players. The rows stay
+// so turn_index still points at the right combatant.
+func maskHiddenCombatants(combat *domain.VTTCombat) {
+	masked := make([]domain.VTTCombatant, len(combat.Combatants))
+	for i, cb := range combat.Combatants {
+		if cb.Hidden {
+			cb.Name = hiddenCombatantName
+			cb.TokenID = 0
+		}
+		masked[i] = cb
+	}
+	combat.Combatants = masked
 }
 
 func (h *VTTHandler) StartCombat(c *gin.Context) {

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { foundryApi } from '../services/api';
-import { useAuth } from '../lib/hooks';
+import { useCampaign } from '../lib/useCampaign';
 import { itemCount } from '../lib/plural';
 
 const FOUNDRY_URL = import.meta.env.VITE_FOUNDRY_URL as string | undefined;
@@ -29,7 +29,8 @@ interface SyncState {
  */
 export function FoundryCombat() {
   const { campaignId } = useParams<{ campaignId: string }>();
-  const { isDM } = useAuth();
+  // Only the campaign's GM may trigger a sync; players just see the Foundry client.
+  const { isGM: isDM } = useCampaign(campaignId);
   const [state, setState] = useState<SyncState | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);

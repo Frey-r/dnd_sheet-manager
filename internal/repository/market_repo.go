@@ -175,6 +175,13 @@ func (r *MarketRepository) CharacterOf(ctx context.Context, campaignID, userID i
 	return id, marketNotFound(err)
 }
 
+// CharacterInCampaign checks that a character belongs to the campaign.
+func (r *MarketRepository) CharacterInCampaign(ctx context.Context, campaignID, characterID int64) (int64, error) {
+	var id int64
+	err := r.db.GetContext(ctx, &id, `SELECT id FROM characters WHERE campaign_id=$1 AND id=$2`, campaignID, characterID)
+	return id, marketNotFound(err)
+}
+
 // Wallet coins of a character, locked for update inside tx.
 type walletRow struct {
 	Gold   int `db:"gold"`

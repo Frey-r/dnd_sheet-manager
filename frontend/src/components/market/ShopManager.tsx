@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { DecimalInput } from '../ui/DecimalInput';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { npcApi } from '../../services/api';
+import { characterApi, npcApi } from '../../services/api';
 import { vttApi, vttPlayApi } from '../../services/vttApi';
 import { searchEquipment, searchMagicItems } from '../../services/srdService';
 import { itemCount } from '../../lib/plural';
@@ -184,8 +184,16 @@ function StockEditor({ campaignId, shop }: { campaignId: string; shop: Shop }) {
   const [editing, setEditing] = useState<{ id?: number; draft: ShopItemInput } | null>(null);
   const [q, setQ] = useState('');
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
+  const [recipient, setRecipient] = useState(0);
   const flash = (ok: boolean, text: string) => { setNotice({ ok, text }); setTimeout(() => setNotice(null), 3500); };
   const refresh = () => { void qc.invalidateQueries({ queryKey: key }); void qc.invalidateQueries({ queryKey: ['shops', campaignId] }); };
+  // GM shortcut (market-bastions.md §3): hand an item to a player character at list price.
+  const characters = useQuery({ queryKey: ['characters', campaignId], queryFn: async () => ((await characterApi.listByCampaign(campaignId)).data ?? []) as { id: number; name: string }[] });
+  const give = useMutation({
+    mutationFn: (itemId: number) => marketApi.buy(campaignId, shop.id, itemId, 1, recipient),
+    onSuccess: (r) => { refresh(); void qc.invalidateQueries({ queryKey: ['inventory'] }); flash(true, r.message); },
+    onError: (e) => flash(false, errText(e)),
+  });
 
   const save = useMutation({
     mutationFn: (e: { id?: number; draft: ShopItemInput }) => (e.id ? marketApi.updateItem(campaignId, e.id, e.draft) : marketApi.createItem(campaignId, shop.id, e.draft)),
@@ -209,6 +217,13 @@ function StockEditor({ campaignId, shop }: { campaignId: string; shop: Shop }) {
         </div>
       </div>
       <CompendiumPicker query={q} setQuery={setQ} onPick={(draft) => save.mutate({ draft })} />
+      {(characters.data?.length ?? 0) > 0 && <label className="flex flex-wrap items-center gap-2 text-[13px] text-muted">Entregar a
+        <select className="h-9 rounded-lg border border-line bg-card-2 px-2 text-[14px] text-ink" value={recipient} onChange={(e) => setRecipient(Number(e.target.value))}>
+          <option value={0}>Elige un personaje</option>
+          {characters.data?.map((ch) => <option key={ch.id} value={ch.id}>{ch.name}</option>)}
+        </select>
+        <span className="text-faint">Se cobra el precio de lista a su bolsa.</span>
+      </label>}
       {notice && <span role="status" className={`text-[13px] ${notice.ok ? 'text-ok' : 'text-bad'}`}>{notice.text}</span>}
       {editing && <ItemForm initial={editing.draft} onCancel={() => setEditing(null)} onSave={(d) => save.mutate({ id: editing.id, draft: d })} busy={save.isPending} />}
       {data.data?.items.length === 0 && <p className="text-[13.5px] text-muted">Sin existencias. Añade objetos propios o búscalos en el compendio.</p>}
@@ -221,6 +236,7 @@ function StockEditor({ campaignId, shop }: { campaignId: string; shop: Shop }) {
             </div>
             <span className="font-mono text-[13px] text-gold">{formatCP(it.price_cp)}{shop.price_pct !== 100 && <span className="text-faint"> → {formatCP(it.final_price_cp)}</span>}</span>
             <span className={`mc-badge ${it.stock === 0 ? 'text-bad' : ''}`}>{it.stock === -1 ? '∞' : it.stock}</span>
+            <button type="button" className="mc-btn mc-btn-ghost mc-btn-sm" disabled={!recipient || it.stock === 0 || give.isPending} title={recipient ? undefined : 'Elige primero a quién entregarlo'} onClick={() => give.mutate(it.id)}>Entregar</button>
             <button type="button" className="mc-btn mc-btn-ghost mc-btn-sm" onClick={() => setEditing({ id: it.id, draft: { ...it } })}>Editar</button>
             <button type="button" className="mc-btn mc-btn-ghost mc-btn-sm text-bad" aria-label={`Quitar ${it.name}`} onClick={() => remove.mutate(it.id)}>
               <span className="material-symbols-outlined text-[17px]">delete</span>

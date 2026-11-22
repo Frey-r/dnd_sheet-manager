@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 
 	"dnd-campaign-manager/internal/domain"
@@ -118,6 +119,10 @@ func (h *CampaignHandler) Create(c *gin.Context) {
 
 	userID := middleware.GetUserID(c)
 	campaign, err := h.campaignSvc.Create(c.Request.Context(), userID, &req)
+	if errors.Is(err, service.ErrInvalidCover) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create campaign"})
 		return
@@ -158,6 +163,10 @@ func (h *CampaignHandler) Update(c *gin.Context) {
 	campaignID := parseID(c.Param("id"))
 
 	campaign, err := h.campaignSvc.Update(c.Request.Context(), campaignID, userID, &req)
+	if errors.Is(err, service.ErrInvalidCover) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 	if err != nil {
 		if err == service.ErrForbidden {
 			c.JSON(http.StatusForbidden, gin.H{"error": "only GM can update campaign"})

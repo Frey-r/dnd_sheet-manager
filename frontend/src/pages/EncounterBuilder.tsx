@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { buildEncounter, MONSTER_TYPES, MONSTER_TYPE_LABELS } from '../services/srdService';
-import { combatApi } from '../services/api';
+import { characterApi, combatApi } from '../services/api';
 import { useCampaign } from '../lib/useCampaign';
 import type { EncounterResult, EncounterSuggestion } from '../types/srd';
 
@@ -13,8 +14,14 @@ export function EncounterBuilder() {
   const { campaignId } = useParams<{ campaignId: string }>();
   const navigate = useNavigate();
   const { isFoundry } = useCampaign(campaignId);
-  const [partySize, setPartySize] = useState<number>(4);
-  const [partyLevel, setPartyLevel] = useState<number>(1);
+  // Party size and average level default to the campaign's characters (encounter-builder.md:
+  // mixed-level groups use the average level); the DM can still override both.
+  const party = useQuery({ queryKey: ['characters', campaignId], enabled: Boolean(campaignId), queryFn: () => characterApi.listByCampaign(campaignId!).then((response) => response.data as { level: number }[]) });
+  const partyCount = party.data?.length ?? 0;
+  const [sizeOverride, setPartySize] = useState<number | null>(null);
+  const [levelOverride, setPartyLevel] = useState<number | null>(null);
+  const partySize = sizeOverride ?? (partyCount > 0 ? partyCount : 4);
+  const partyLevel = levelOverride ?? (partyCount > 0 ? Math.max(1, Math.min(20, Math.round(party.data!.reduce((total, member) => total + (member.level || 1), 0) / partyCount))) : 1);
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
   const [monsterType, setMonsterType] = useState<string>('');
   const [maxMonsters, setMaxMonsters] = useState<number>(10);
@@ -232,7 +239,7 @@ export function EncounterBuilder() {
                           className="px-3 py-1.5 bg-primary-container text-on-primary-container font-label-bold text-xs rounded-lg hover:bg-primary hover:text-on-primary transition-all flex items-center gap-1"
                         >
                           <span className="material-symbols-outlined text-sm">swords</span>
-                          Iniciar combate
+                          Añadir a combate
                         </button>
                       </div>
                     </div>

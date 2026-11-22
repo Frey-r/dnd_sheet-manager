@@ -305,6 +305,8 @@ type tradeInput struct {
 	ItemID          int64 `json:"item_id"`
 	InventoryItemID int64 `json:"inventory_item_id"`
 	Qty             int   `json:"qty"`
+	// CharacterID is the player character the GM hands the item to (Buy only).
+	CharacterID int64 `json:"character_id"`
 }
 
 // Buy is a GM shortcut. Players always go through the seller with a cart (MakeOffer).
@@ -317,7 +319,7 @@ func (h *MarketHandler) Buy(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Falta el objeto"})
 		return
 	}
-	res, err := h.market.Buy(c.Request.Context(), parseID(c.Param("id")), middleware.GetUserID(c), middleware.IsGM(c), parseID(c.Param("shop_id")), in.ItemID, in.Qty)
+	res, err := h.market.Buy(c.Request.Context(), parseID(c.Param("id")), middleware.GetUserID(c), middleware.IsGM(c), parseID(c.Param("shop_id")), in.ItemID, in.CharacterID, in.Qty)
 	if err != nil {
 		h.fail(c, err, "no se pudo comprar")
 		return

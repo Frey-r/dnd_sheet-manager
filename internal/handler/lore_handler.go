@@ -50,7 +50,7 @@ func (h *LoreHandler) visible(c *gin.Context) (*domain.LoreEntry, bool) {
 	if middleware.IsGM(c) || entry.LoreTier == domain.LoreTierCampaignPlot {
 		return entry, true
 	}
-	if entry.CharacterID != nil {
+	if entry.CharacterID != nil && entry.LoreTier != domain.LoreTierGMHidden {
 		character, err := h.chars.GetByID(c.Request.Context(), *entry.CharacterID)
 		if err == nil && character != nil && character.UserID == middleware.GetUserID(c) {
 			return entry, true
@@ -158,7 +158,7 @@ func (h *LoreHandler) Search(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if !validTier(request.Scope) || len(request.Query) > 4000 {
+	if (!validTier(request.Scope) && request.Scope != domain.LoreScopeAll) || len(request.Query) > 4000 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid query"})
 		return
 	}
@@ -170,11 +170,23 @@ func (h *LoreHandler) Search(c *gin.Context) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
 			return
 		}
+		if result.Err == service.ErrNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "character not found"})
+			return
+		}
+		if result.Err == service.ErrLoreBusy {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"type": "RAG_BUSY", "error": "El Oráculo está ocupado; inténtalo en unos segundos", "retryable": true})
+			return
+		}
 		if result.Err != nil {
 			c.JSON(http.StatusServiceUnavailable, gin.H{"type": "RAG_UNAVAILABLE", "error": "El Oráculo no está disponible en este servidor", "retryable": true})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"answer": result.Answer, "sources": result.Sources})
+		titles := make([]string, len(result.Sources))
+		for i, source := range result.Sources {
+			titles[i] = source.Title
+		}
+		c.JSON(http.StatusOK, gin.H{"answer": result.Answer, "sources": titles, "source_details": result.Sources})
 	case <-ctx.Done():
 		c.JSON(http.StatusGatewayTimeout, gin.H{"type": "RAG_TIMEOUT", "message": "Lore query timed out", "retryable": true})
 	}

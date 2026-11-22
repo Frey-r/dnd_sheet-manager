@@ -76,8 +76,9 @@ export const marketApi = {
   createItem: async (cid: number | string, shopId: number, data: ShopItemInput) => (await api.post<ShopItem>(`${c(cid)}/shops/${shopId}/items`, data)).data,
   updateItem: async (cid: number | string, id: number, data: ShopItemInput) => (await api.put<ShopItem>(`${c(cid)}/shop-items/${id}`, data)).data,
   deleteItem: (cid: number | string, id: number) => api.delete(`${c(cid)}/shop-items/${id}`),
-  buy: async (cid: number | string, shopId: number, itemId: number, qty = 1) =>
-    (await api.post<{ message: string; paid_cp: number }>(`${c(cid)}/shops/${shopId}/buy`, { item_id: itemId, qty })).data,
+  /** GM shortcut: hands a shop item to a character, charging the list price to its wallet. */
+  buy: async (cid: number | string, shopId: number, itemId: number, qty = 1, characterId?: number) =>
+    (await api.post<{ message: string; paid_cp: number }>(`${c(cid)}/shops/${shopId}/buy`, { item_id: itemId, qty, character_id: characterId })).data,
   sell: async (cid: number | string, shopId: number, inventoryItemId: number, qty = 1) =>
     (await api.post<{ message: string; paid_cp: number }>(`${c(cid)}/shops/${shopId}/sell`, { inventory_item_id: inventoryItemId, qty })).data,
   sellable: async (cid: number | string, shopId: number) => (await api.get<SellOffer[]>(`${c(cid)}/shops/${shopId}/sellable`)).data ?? [],
@@ -124,6 +125,12 @@ export const RARITIES: { value: string; label: string }[] = [
 ];
 export const typeLabel = (t: string) => ITEM_TYPES.find((x) => x.value === t)?.label ?? t;
 export const rarityLabel = (r: string) => RARITIES.find((x) => x.value === r)?.label ?? r;
+const RARITY_CLASSES: Record<string, string> = {
+  common: 'bg-card-3 text-rar-common', uncommon: 'bg-ok-soft text-rar-uncommon', rare: 'bg-info-soft text-rar-rare',
+  very_rare: 'bg-rar-very-rare-soft text-rar-very-rare', legendary: 'bg-gold-soft text-rar-legendary', artifact: 'bg-bad-soft text-bad',
+};
+/** Badge colours per rarity ("very rare" and "very_rare" both match). */
+export const rarityClass = (r: string) => RARITY_CLASSES[(r || 'common').toLowerCase().replace(/\s+/g, '_')] ?? RARITY_CLASSES.common;
 
 // ---------- Haggling ----------
 

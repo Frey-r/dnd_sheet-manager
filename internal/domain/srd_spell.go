@@ -47,6 +47,7 @@ type SpellListItem struct {
 	Level         int     `db:"level" json:"level"`
 	School        string  `db:"school" json:"school"`
 	CastingTime   string  `db:"casting_time" json:"casting_time"`
+	Range         string  `db:"range" json:"range"`
 	Concentration bool    `db:"concentration" json:"concentration"`
 	Ritual        bool    `db:"ritual" json:"ritual"`
 	IsSRD         bool    `db:"is_srd" json:"is_srd"`

@@ -39,13 +39,21 @@ func (s *MessageService) SendMessage(ctx context.Context, senderID, campaignID i
 		IsRead:       false,
 	}
 
+	if req.MessageType == domain.MessageTypeGMBroadcast {
+		// One row per player: a single NULL-recipient row is invisible to every inbox query.
+		if _, err := s.msgRepo.CreateBroadcast(ctx, msg); err != nil {
+			return nil, err
+		}
+		return msg, nil
+	}
+
 	if req.RecipientUserID != nil {
 		isMember, err := s.campaignRepo.IsMember(ctx, campaignID, *req.RecipientUserID)
 		if err != nil || !isMember || *req.RecipientUserID == senderID {
 			return nil, ErrForbidden
 		}
 		msg.RecipientUserID = req.RecipientUserID
-	} else if req.MessageType != domain.MessageTypeGMBroadcast {
+	} else {
 		return nil, ErrForbidden
 	}
 

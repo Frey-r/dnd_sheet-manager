@@ -6,24 +6,29 @@ import { campaignApi, characterApi, loreApi } from '../services/api';
 import { useAuth } from '../lib/hooks';
 import type { Character, CampaignMember } from '../types';
 
-type Scope = 'character_lore' | 'campaign_plot' | 'gm_hidden_lore';
+type Scope = 'character_lore' | 'campaign_plot' | 'gm_hidden_lore' | 'all';
+type Source = { title: string; tier?: string };
 type Turn =
   | { id: number; role: 'user'; text: string; scope: Scope }
-  | { id: number; role: 'oracle'; text: string; sources: string[]; failed?: boolean; retryQuery?: string; scope: Scope };
-type LoreResponse = { answer?: string; sources?: string[] };
+  | { id: number; role: 'oracle'; text: string; sources: Source[]; failed?: boolean; retryQuery?: string; scope: Scope };
+type LoreResponse = { answer?: string; sources?: string[]; source_details?: Source[] };
 type LoreFailure = { type?: string; error?: string; message?: string; retryable?: boolean };
 
 const SCOPES: { value: Scope; label: string; gmOnly?: boolean }[] = [
   { value: 'character_lore', label: 'Mi Personaje' },
   { value: 'campaign_plot', label: 'Trama de la Partida' },
   { value: 'gm_hidden_lore', label: 'Lore Oculto', gmOnly: true },
+  { value: 'all', label: 'Todo', gmOnly: true },
 ];
+const TIER_LABEL: Record<string, string> = { character_lore: 'Lore de personaje', campaign_plot: 'Trama de la partida', gm_hidden_lore: 'Lore oculto (DM)' };
+const sourcesOf = (data: LoreResponse): Source[] => data.source_details ?? (data.sources ?? []).map((title) => ({ title }));
 const SUGGESTIONS = ['¿Qué sabe mi personaje sobre su origen?', '¿Cuál es el estado actual de la trama?', '¿Quiénes son los aliados conocidos del grupo?', 'Resume lo ocurrido en la última sesión'];
 
 function describeFailure(error: unknown): { text: string; retryable: boolean } {
   if (axios.isAxiosError(error)) {
     const data = error.response?.data as LoreFailure | undefined;
     if (data?.type === 'RAG_UNAVAILABLE') return { text: data.error ?? 'El Oráculo no está disponible en este servidor.', retryable: data.retryable ?? true };
+    if (data?.type === 'RAG_BUSY') return { text: data.error ?? 'El Oráculo está ocupado; inténtalo en unos segundos.', retryable: true };
     if (data?.type === 'RAG_TIMEOUT') return { text: 'El Oráculo tardó demasiado en responder. Inténtalo de nuevo.', retryable: data.retryable ?? true };
     if (typeof data?.error === 'string') return { text: data.error, retryable: false };
     if (!error.response) return { text: 'No hay conexión con el servidor.', retryable: true };
@@ -59,7 +64,7 @@ export function LoreSearch() {
     setTurns((previous) => [...previous, { id: nextId.current++, role: 'user', text: trimmed, scope: askScope }]);
     setQuery('');
     ask.mutate({ text: trimmed, askScope }, {
-      onSuccess: (data) => setTurns((previous) => [...previous, { id: nextId.current++, role: 'oracle', text: data.answer?.trim() || 'El Oráculo no encontró nada relevante.', sources: data.sources ?? [], scope: askScope }]),
+      onSuccess: (data) => setTurns((previous) => [...previous, { id: nextId.current++, role: 'oracle', text: data.answer?.trim() || 'El Oráculo no encontró nada relevante.', sources: sourcesOf(data), scope: askScope }]),
       onError: (reason) => {
         const failure = describeFailure(reason);
         setTurns((previous) => [...previous, { id: nextId.current++, role: 'oracle', text: failure.text, sources: [], failed: true, retryQuery: failure.retryable ? trimmed : undefined, scope: askScope }]);
@@ -102,15 +107,16 @@ export function LoreSearch() {
               {turn.sources.length > 0 && (
                 <div className="mt-3">
                   <button type="button" aria-expanded={openSources.has(turn.id)} onClick={() => toggleSources(turn.id)} className="text-sm text-primary font-label-bold">Ver Fuentes ({turn.sources.length})</button>
-                  {openSources.has(turn.id) && <ul className="mt-2 list-disc pl-5 text-sm text-on-surface-variant space-y-1">{turn.sources.map((source, index) => <li key={`${index}-${source}`}>{source}</li>)}</ul>}
+                  {openSources.has(turn.id) && <ul className="mt-2 list-disc pl-5 text-sm text-on-surface-variant space-y-1">{turn.sources.map((source, index) => <li key={`${index}-${source.title}`}><span className="material-symbols-outlined text-base align-middle mr-1" aria-hidden="true">menu_book</span>{source.title}{source.tier && <span className="ml-2 text-xs text-muted">· {TIER_LABEL[source.tier] ?? source.tier}</span>}</li>)}</ul>}
                 </div>
               )}
             </div></div>
           ))}
-          {ask.isPending && <div className="flex" role="status" aria-label="El Oráculo está escribiendo"><div className="rounded-xl px-4 py-3 bg-surface-container-lowest border border-border-low-contrast flex gap-1">{[0, 150, 300].map((delay) => <span key={delay} className="w-2 h-2 rounded-full bg-outline animate-bounce" style={{ animationDelay: `${delay}ms` }} />)}</div></div>}
+          {ask.isPending && <div className="flex" role="status" aria-label="El Oráculo está escribiendo"><div className="rounded-xl px-4 py-3 bg-surface-container-lowest border border-border-low-contrast flex items-center gap-1">{[0, 150, 300].map((delay) => <span key={delay} className="w-2 h-2 rounded-full bg-outline animate-bounce" style={{ animationDelay: `${delay}ms` }} />)}<span className="ml-2 text-sm text-secondary">Buscando en el lore…</span></div></div>}
           <div ref={endRef} />
         </div>
 
+        {turns.length > 0 && <div className="flex gap-2 overflow-x-auto pb-2" role="group" aria-label="Sugerencias">{SUGGESTIONS.map((suggestion) => <button key={suggestion} type="button" disabled={ask.isPending} onClick={() => send(suggestion)} className="shrink-0 px-3 py-1.5 rounded-full border border-border-low-contrast text-xs hover:border-primary disabled:opacity-50">{suggestion}</button>)}</div>}
         <form onSubmit={(event) => { event.preventDefault(); send(query); }} className="sticky bottom-20 md:bottom-0 bg-background py-4 border-t border-border-low-contrast flex gap-3">
           <input type="text" aria-label="Pregunta" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Pregunta sobre el lore…" className="flex-1 bg-surface-subtle border border-border-low-contrast rounded-lg px-4 py-3 font-body-md outline-none focus:border-primary" />
           <button type="submit" aria-label="Enviar" disabled={!query.trim() || ask.isPending} className="bg-primary-container text-on-primary-container px-4 rounded-lg font-label-bold hover:bg-surface-tint transition-colors disabled:opacity-50"><span className="material-symbols-outlined">send</span></button>

@@ -26,6 +26,7 @@ type SRDEquipment struct {
 	ArmorCategory       string    `db:"armor_category" json:"armor_category"`
 	IsSRD               bool      `db:"is_srd" json:"is_srd"`
 	CreatedAt           time.Time `db:"created_at" json:"created_at"`
+	Rank                float64   `db:"rank" json:"rank,omitempty"`
 }
 
 // SRDMagicItem represents a D&D 5e SRD magic item entry.
@@ -39,6 +40,7 @@ type SRDMagicItem struct {
 	Category           string    `db:"category" json:"category"`
 	IsSRD              bool      `db:"is_srd" json:"is_srd"`
 	CreatedAt          time.Time `db:"created_at" json:"created_at"`
+	Rank               float64   `db:"rank" json:"rank,omitempty"`
 }
 
 // EquipmentFilters holds search/filter parameters for SRD equipment queries.

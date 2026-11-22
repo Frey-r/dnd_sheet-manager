@@ -23,7 +23,7 @@ function AppearanceForm({ character: c }: { character: Character }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const visual = useMemo(() => resolveRaceVisual(c.race), [c.race]);
-  const [draft, setDraft] = useState<Appearance>(() => normalizeAppearance(parseStoredAppearance(c.appearance), visual));
+  const [draft, setDraft] = useState<Appearance>(() => normalizeAppearance(parseStoredAppearance(c.appearance), visual, true));
 
   const save = useMutation({
     mutationFn: (a: Appearance) => characterApi.updateAppearance(characterId, a),

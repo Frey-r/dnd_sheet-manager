@@ -124,7 +124,7 @@ export function SRDSpellBrowser() {
                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-secondary text-lg">search</span>
                 <input
                   type="text"
-                  placeholder="Search spells by name or description..."
+                  placeholder="Buscar conjuros por nombre o descripción…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -143,29 +143,29 @@ export function SRDSpellBrowser() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {/* Level Selector */}
               <div>
-                <label className="font-label-sm text-secondary block mb-1">Spell Level</label>
+                <label className="font-label-sm text-secondary block mb-1">Nivel de conjuro</label>
                 <select
                   value={filters.level ?? ''}
                   onChange={(e) => handleLevelSelect(e.target.value === '' ? undefined : Number(e.target.value))}
                   className="w-full px-3 py-1.5 bg-surface-container-lowest border border-border-low-contrast rounded-lg text-on-surface focus:outline-none focus:border-primary"
                 >
-                  <option value="">All Levels</option>
-                  <option value="0">Cantrips</option>
+                  <option value="">Todos los niveles</option>
+                  <option value="0">Trucos</option>
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(l => (
-                    <option key={l} value={l}>Level {l}</option>
+                    <option key={l} value={l}>Nivel {l}</option>
                   ))}
                 </select>
               </div>
 
               {/* School Selector */}
               <div>
-                <label className="font-label-sm text-secondary block mb-1">Magic School</label>
+                <label className="font-label-sm text-secondary block mb-1">Escuela de magia</label>
                 <select
                   value={filters.school ?? ''}
                   onChange={(e) => handleSchoolSelect(e.target.value === '' ? undefined : e.target.value)}
                   className="w-full px-3 py-1.5 bg-surface-container-lowest border border-border-low-contrast rounded-lg text-on-surface focus:outline-none focus:border-primary"
                 >
-                  <option value="">All Schools</option>
+                  <option value="">Todas las escuelas</option>
                   {SPELL_SCHOOLS.map(s => (
                     <option key={s} value={s}>{s}</option>
                   ))}
@@ -174,13 +174,13 @@ export function SRDSpellBrowser() {
 
               {/* Class Selector */}
               <div>
-                <label className="font-label-sm text-secondary block mb-1">Class Spell List</label>
+                <label className="font-label-sm text-secondary block mb-1">Lista de conjuros de clase</label>
                 <select
                   value={filters.class ?? ''}
                   onChange={(e) => handleClassSelect(e.target.value === '' ? undefined : e.target.value)}
                   className="w-full px-3 py-1.5 bg-surface-container-lowest border border-border-low-contrast rounded-lg text-on-surface focus:outline-none focus:border-primary"
                 >
-                  <option value="">All Classes</option>
+                  <option value="">Todas las clases</option>
                   {classesList.map(c => (
                     <option key={c} value={c}>{c}</option>
                   ))}
@@ -203,7 +203,7 @@ export function SRDSpellBrowser() {
                 <span className="material-symbols-outlined text-sm">
                   {filters.concentration === true ? 'check_box' : filters.concentration === false ? 'indeterminate_check_box' : 'check_box_outline_blank'}
                 </span>
-                Concentration
+                Concentración
               </button>
 
               <button
@@ -246,10 +246,10 @@ export function SRDSpellBrowser() {
                       <div className="font-label-bold text-on-surface">{s.name}</div>
                       <div className="font-label-sm text-secondary flex gap-2 items-center mt-1">
                         <span className="bg-surface-variant px-2 py-0.5 rounded font-label-xs text-on-surface-variant uppercase">
-                          Lvl {s.level}
+                          Nv. {s.level}
                         </span>
                         <span className="capitalize">{s.school}</span>
-                        {s.concentration && <span className="text-primary font-bold">• Concentration</span>}
+                        {s.concentration && <span className="text-primary font-bold">• Concentración</span>}
                         {s.ritual && <span className="text-tertiary font-bold">• Ritual</span>}
                       </div>
                     </div>
@@ -261,7 +261,7 @@ export function SRDSpellBrowser() {
 
                 {spells.length === 0 && (
                   <div className="text-center py-20 text-secondary font-body-lg">
-                    No spells found matching the search criteria.
+                    Ningún conjuro coincide con la búsqueda.
                   </div>
                 )}
               </div>
@@ -296,29 +296,29 @@ export function SRDSpellBrowser() {
         <div className="p-4 bg-surface-subtle lg:max-h-[calc(100vh-64px)] overflow-y-auto">
           {detailLoading ? (
             <div className="h-full flex items-center justify-center py-20">
-              <span className="font-body-lg text-secondary">Reading magical coordinates...</span>
+              <span className="font-body-lg text-secondary">Cargando conjuro…</span>
             </div>
           ) : selectedSpell ? (
             <div className="bg-surface border border-border-low-contrast rounded-xl p-5 shadow-sm space-y-4">
               <div>
                 <h2 className="font-headline-md text-on-surface font-bold mb-1">{selectedSpell.name}</h2>
                 <div className="font-label-sm text-secondary capitalize italic">
-                  {selectedSpell.level === 0 ? 'Cantrip' : `${ordinalSuffix(selectedSpell.level)}-level`} {selectedSpell.school}
+                  {selectedSpell.level === 0 ? 'Truco' : `Nivel ${selectedSpell.level}`} · {selectedSpell.school}
                   {selectedSpell.ritual && ' (ritual)'}
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3 border-t border-b border-border-low-contrast py-3 text-sm">
                 <div>
-                  <span className="font-label-bold text-secondary block uppercase text-[10px]">Casting Time</span>
+                  <span className="font-label-bold text-secondary block uppercase text-[10px]">Tiempo de lanzamiento</span>
                   <span className="text-on-surface">{selectedSpell.casting_time}</span>
                 </div>
                 <div>
-                  <span className="font-label-bold text-secondary block uppercase text-[10px]">Range</span>
+                  <span className="font-label-bold text-secondary block uppercase text-[10px]">Alcance</span>
                   <span className="text-on-surface">{selectedSpell.range}</span>
                 </div>
                 <div>
-                  <span className="font-label-bold text-secondary block uppercase text-[10px]">Components</span>
+                  <span className="font-label-bold text-secondary block uppercase text-[10px]">Componentes</span>
                   <span className="text-on-surface">
                     {[
                       selectedSpell.components_v && 'V',
@@ -328,7 +328,7 @@ export function SRDSpellBrowser() {
                   </span>
                 </div>
                 <div>
-                  <span className="font-label-bold text-secondary block uppercase text-[10px]">Duration</span>
+                  <span className="font-label-bold text-secondary block uppercase text-[10px]">Duración</span>
                   <span className="text-on-surface">
                     {selectedSpell.concentration && 'Concentration, '}
                     {selectedSpell.duration}
@@ -338,26 +338,26 @@ export function SRDSpellBrowser() {
 
               {selectedSpell.components_m && selectedSpell.material_desc && (
                 <div className="bg-surface-variant/40 rounded p-3 text-sm text-on-surface-variant">
-                  <span className="font-label-bold text-secondary block uppercase text-[10px] mb-1">Materials</span>
+                  <span className="font-label-bold text-secondary block uppercase text-[10px] mb-1">Materiales</span>
                   {selectedSpell.material_desc}
                 </div>
               )}
 
               <div className="space-y-2">
-                <span className="font-label-bold text-secondary block uppercase text-[10px]">Description</span>
+                <span className="font-label-bold text-secondary block uppercase text-[10px]">Descripción</span>
                 <p className="font-body-md text-on-surface leading-relaxed whitespace-pre-wrap">{selectedSpell.description}</p>
               </div>
 
               {selectedSpell.higher_levels && (
                 <div className="space-y-1 bg-primary/5 rounded-lg border border-primary/10 p-3">
-                  <span className="font-label-bold text-primary block uppercase text-[10px]">At Higher Levels</span>
+                  <span className="font-label-bold text-primary block uppercase text-[10px]">A niveles superiores</span>
                   <p className="font-body-sm text-on-surface-variant">{selectedSpell.higher_levels}</p>
                 </div>
               )}
 
               {selectedSpell.classes && selectedSpell.classes.length > 0 && (
                 <div className="space-y-1">
-                  <span className="font-label-bold text-secondary block uppercase text-[10px]">Classes</span>
+                  <span className="font-label-bold text-secondary block uppercase text-[10px]">Clases</span>
                   <div className="flex flex-wrap gap-1">
                     {selectedSpell.classes.map((cls) => (
                       <span key={cls} className="bg-surface-container px-2 py-0.5 rounded text-xs text-on-surface font-label-md">
@@ -371,9 +371,9 @@ export function SRDSpellBrowser() {
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-center py-20 px-6">
               <span className="material-symbols-outlined text-6xl text-outline mb-4">auto_stories</span>
-              <h3 className="font-label-bold text-on-surface text-lg">No Spell Selected</h3>
+              <h3 className="font-label-bold text-on-surface text-lg">Ningún conjuro seleccionado</h3>
               <p className="font-body-md text-secondary max-w-xs mt-1">
-                Select a spell from the list to display its complete details, requirements, and class spell lists.
+                Selecciona un conjuro de la lista para ver sus detalles, requisitos y clases.
               </p>
             </div>
           )}
@@ -381,12 +381,4 @@ export function SRDSpellBrowser() {
       </div>
     </div>
   );
-}
-
-function ordinalSuffix(i: number): string {
-  const j = i % 10, k = i % 100;
-  if (j === 1 && k !== 11) return i + 'st';
-  if (j === 2 && k !== 12) return i + 'nd';
-  if (j === 3 && k !== 13) return i + 'rd';
-  return i + 'th';
 }

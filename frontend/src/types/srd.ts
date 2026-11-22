@@ -46,7 +46,9 @@ export interface SRDMonster {
 
 export interface MonsterAction {
   name: string;
-  desc: string;
+  /** Homebrew creatures; catalog creatures carry 5etools `entries` instead. */
+  desc?: string;
+  entries?: unknown;
   attack_bonus?: number;
   damage_dice?: string;
   damage_type?: string;
@@ -108,6 +110,7 @@ export interface SpellListItem {
   level: number;
   school: string;
   casting_time: string;
+  range: string;
   concentration: boolean;
   ritual: boolean;
   is_srd: boolean;

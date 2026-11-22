@@ -72,6 +72,9 @@ type CreateItemRequest struct {
 	RequiresAttunement bool    `json:"requires_attunement"`
 	IsTradeable        bool    `json:"is_tradeable"`
 	SRDRefID           *int64  `json:"srd_ref_id"`
+	// ContentID is the catalog entry the item was picked from. The server reads the item's
+	// value from that entry (never from the client) so it can later be sold (market-bastions.md §4).
+	ContentID *int64 `json:"content_id"`
 }
 
 type UpdateItemRequest struct {

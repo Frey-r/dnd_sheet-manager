@@ -2,32 +2,36 @@ package domain
 
 import (
 	"encoding/json"
+	"strings"
 	"time"
 )
 
 type Character struct {
-	ID                  int64     `db:"id" json:"id"`
-	UserID              int64     `db:"user_id" json:"user_id"`
-	CampaignID          int64     `db:"campaign_id" json:"campaign_id"`
-	Name                string    `db:"name" json:"name"`
-	Race                string    `db:"race" json:"race"`
-	Class               string    `db:"class" json:"class"`
-	Level               int       `db:"level" json:"level"`
-	Background          string    `db:"background" json:"background"`
-	Alignment           string    `db:"alignment" json:"alignment"`
-	StrScore            int       `db:"str_score" json:"str_score"`
-	DexScore            int       `db:"dex_score" json:"dex_score"`
-	ConScore            int       `db:"con_score" json:"con_score"`
-	IntScore            int       `db:"int_score" json:"int_score"`
-	WisScore            int       `db:"wis_score" json:"wis_score"`
-	ChaScore            int       `db:"cha_score" json:"cha_score"`
-	MaxHP               int       `db:"max_hp" json:"max_hp"`
-	CurrentHP           int       `db:"current_hp" json:"current_hp"`
-	TempHP              int       `db:"temp_hp" json:"temp_hp"`
-	AC                  int       `db:"ac" json:"ac"`
-	Speed               int       `db:"speed" json:"speed"`
-	InitiativeBonus     int       `db:"initiative_bonus" json:"initiative_bonus"`
-	ProficiencyBonus    int       `db:"proficiency_bonus" json:"proficiency_bonus"`
+	ID               int64  `db:"id" json:"id"`
+	UserID           int64  `db:"user_id" json:"user_id"`
+	CampaignID       int64  `db:"campaign_id" json:"campaign_id"`
+	Name             string `db:"name" json:"name"`
+	Race             string `db:"race" json:"race"`
+	Class            string `db:"class" json:"class"`
+	Level            int    `db:"level" json:"level"`
+	Background       string `db:"background" json:"background"`
+	Alignment        string `db:"alignment" json:"alignment"`
+	StrScore         int    `db:"str_score" json:"str_score"`
+	DexScore         int    `db:"dex_score" json:"dex_score"`
+	ConScore         int    `db:"con_score" json:"con_score"`
+	IntScore         int    `db:"int_score" json:"int_score"`
+	WisScore         int    `db:"wis_score" json:"wis_score"`
+	ChaScore         int    `db:"cha_score" json:"cha_score"`
+	MaxHP            int    `db:"max_hp" json:"max_hp"`
+	CurrentHP        int    `db:"current_hp" json:"current_hp"`
+	TempHP           int    `db:"temp_hp" json:"temp_hp"`
+	AC               int    `db:"ac" json:"ac"`
+	Speed            int    `db:"speed" json:"speed"`
+	InitiativeBonus  int    `db:"initiative_bonus" json:"initiative_bonus"`
+	ProficiencyBonus int    `db:"proficiency_bonus" json:"proficiency_bonus"`
+	// Warnings are non-blocking notes returned on creation (class/race not in the catalog:
+	// srd-integration.md, Character creation). Not stored.
+	Warnings            []string  `db:"-" json:"warnings,omitempty"`
 	Inspiration         bool      `db:"inspiration" json:"inspiration"`
 	PassivePerception   int       `db:"passive_perception" json:"passive_perception"`
 	DeathSaveSuccesses  int       `db:"death_save_successes" json:"death_save_successes"`
@@ -115,6 +119,8 @@ type UpdateCharacterRequest struct {
 	Inspiration         *bool   `json:"inspiration"`
 	XP                  *int    `json:"xp"`
 	Gold                *int    `json:"gold"`
+	Silver              *int    `json:"silver"`
+	Copper              *int    `json:"copper"`
 	PersonalityTraits   *string `json:"personality_traits"`
 	Ideals              *string `json:"ideals"`
 	Bonds               *string `json:"bonds"`
@@ -122,6 +128,23 @@ type UpdateCharacterRequest struct {
 	BackstoryText       *string `json:"backstory_text"`
 	Notes               *string `json:"notes"`
 	SpellcastingAbility *string `json:"spellcasting_ability"`
+	// PhysicalDescription edits the physical traits card (age, height, weight, eyes, skin, hair).
+	PhysicalDescription *PhysicalDescription `json:"physical_description"`
+}
+
+// EncodePhysicalDescription stores the physical traits as the JSON text of the
+// physical_description column, trimming each value to 60 characters.
+func EncodePhysicalDescription(pd PhysicalDescription) string {
+	clip := func(s string) string {
+		s = strings.TrimSpace(s)
+		if r := []rune(s); len(r) > 60 {
+			return string(r[:60])
+		}
+		return s
+	}
+	pd = PhysicalDescription{Height: clip(pd.Height), Weight: clip(pd.Weight), Age: clip(pd.Age), Eyes: clip(pd.Eyes), Skin: clip(pd.Skin), Hair: clip(pd.Hair)}
+	data, _ := json.Marshal(pd)
+	return string(data)
 }
 
 type CharacterWithOwner struct {

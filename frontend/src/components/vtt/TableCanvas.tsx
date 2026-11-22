@@ -78,7 +78,7 @@ export function TableCanvas(props: Props) {
       const c = byId.get(id);
       if (!c) return null;
       const visual = resolveRaceVisual(c.race);
-      return { visual, appearance: normalizeAppearance(parseStoredAppearance(c.appearance), visual), aura: auraForClass(c.class) };
+      return { visual, appearance: normalizeAppearance(parseStoredAppearance(c.appearance), visual, true), aura: auraForClass(c.class) };
     };
   }, [props.characters]);
   const drag = useRef<{ kind: 'pan'; sx: number; sy: number; vx: number; vy: number } | { kind: 'token'; token: VTTToken; ox: number; oy: number } | null>(null);

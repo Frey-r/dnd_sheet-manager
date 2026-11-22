@@ -12,6 +12,7 @@ import (
 
 	"dnd-campaign-manager/internal/middleware"
 	"dnd-campaign-manager/internal/repository"
+	"dnd-campaign-manager/internal/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -116,6 +117,10 @@ func (h *CampaignResourceHandler) TestBot(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), botTestTimeout)
 	defer cancel()
 	reply, err := h.llm.GenerateResponse(ctx, buildBotPrompt(personality, enabledBotModules(actions), message))
+	if errors.Is(err, service.ErrLoreBusy) {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"type": "RAG_BUSY", "error": "El Oráculo está ocupado; inténtalo en unos segundos", "retryable": true})
+		return
+	}
 	if err != nil || strings.TrimSpace(reply) == "" {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"type": "RAG_UNAVAILABLE", "error": "El modelo de lenguaje no está disponible en este servidor", "retryable": true})
 		return

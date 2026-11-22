@@ -8,6 +8,7 @@ export function CreateCampaignPage() {
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [coverUrl, setCoverUrl] = useState('');
   const [gameMode, setGameMode] = useState<'local' | 'foundry'>('local');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -18,7 +19,7 @@ export function CreateCampaignPage() {
     setSubmitting(true);
     setError('');
     try {
-      const response = await campaignApi.create({ name: name.trim(), description: description.trim(), game_mode: gameMode });
+      const response = await campaignApi.create({ name: name.trim(), description: description.trim(), game_mode: gameMode, cover_url: coverUrl.trim() });
       navigate(`/campaign/${response.data.id}`);
     } catch (reason) {
       setError(getApiError(reason));
@@ -42,6 +43,10 @@ export function CreateCampaignPage() {
           </label>
           <label className="block font-body-md">Descripción del mundo
             <textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Entorno, atmósfera y punto de partida…" rows={5} maxLength={10000} className="mt-1 w-full bg-surface-subtle border border-border-low-contrast px-4 py-3 rounded-lg resize-none" />
+          </label>
+          <label className="block font-body-md">Portada (URL de imagen, opcional)
+            <input type="url" value={coverUrl} onChange={(event) => setCoverUrl(event.target.value)} placeholder="https://…" maxLength={2048} className="mt-1 w-full bg-surface-subtle border border-border-low-contrast px-4 py-3 rounded-lg" />
+            <span className="block text-sm text-secondary mt-1">Después podrás subir una imagen desde el hub de la campaña.</span>
           </label>
         </section>
         <section className="space-y-3">

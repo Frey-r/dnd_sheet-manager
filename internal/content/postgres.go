@@ -179,11 +179,10 @@ func projectLegacy(ctx context.Context, tx *sql.Tx, contentID int64, entity Enti
 		if rarity == "" || rarity == "none" {
 			rarity = "common"
 		}
-		category := flatText(data["type"])
-		if category == "" {
-			category = entity.Type
-		}
-		_, err := tx.ExecContext(ctx, `INSERT INTO srd_equipment(name,category,cost_gp,cost_unit,weight,description,damage_dice,damage_type,weapon_category,weapon_range,range_normal,range_long,properties,ac_base,ac_dex_bonus,ac_max_bonus,str_minimum,stealth_disadvantage,armor_category,is_srd,source,content_entity_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22) ON CONFLICT(name,source) DO UPDATE SET category=EXCLUDED.category,cost_gp=EXCLUDED.cost_gp,weight=EXCLUDED.weight,description=EXCLUDED.description,is_srd=EXCLUDED.is_srd,content_entity_id=EXCLUDED.content_entity_id`, entity.Name, category, cost, unit, numberFloat(data["weight"]), flatText(data["entries"]), flatText(data["dmg1"]), flatText(data["dmgType"]), flatText(data["weaponCategory"]), flatText(data["range"]), 0, 0, jsonValue(data["property"]), nullableInt(data["ac"]), boolValue(data["dexBonus"]), nullableInt(data["maxDexBonus"]), nullableInt(data["strengthRequirement"]), boolValue(data["stealth"]), category, entity.IsSRD, entity.Source, contentID)
+		eq := projectEquipment(data)
+		category := eq.Category
+		rangeNormal, rangeLong := weaponRanges(data["range"])
+		_, err := tx.ExecContext(ctx, `INSERT INTO srd_equipment(name,category,cost_gp,cost_unit,weight,description,damage_dice,damage_type,weapon_category,weapon_range,range_normal,range_long,properties,ac_base,ac_dex_bonus,ac_max_bonus,str_minimum,stealth_disadvantage,armor_category,is_srd,source,content_entity_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22) ON CONFLICT(name,source) DO UPDATE SET category=EXCLUDED.category,cost_gp=EXCLUDED.cost_gp,cost_unit=EXCLUDED.cost_unit,weight=EXCLUDED.weight,description=EXCLUDED.description,damage_dice=EXCLUDED.damage_dice,damage_type=EXCLUDED.damage_type,weapon_category=EXCLUDED.weapon_category,weapon_range=EXCLUDED.weapon_range,range_normal=EXCLUDED.range_normal,range_long=EXCLUDED.range_long,properties=EXCLUDED.properties,ac_base=EXCLUDED.ac_base,ac_dex_bonus=EXCLUDED.ac_dex_bonus,ac_max_bonus=EXCLUDED.ac_max_bonus,str_minimum=EXCLUDED.str_minimum,stealth_disadvantage=EXCLUDED.stealth_disadvantage,armor_category=EXCLUDED.armor_category,is_srd=EXCLUDED.is_srd,content_entity_id=EXCLUDED.content_entity_id`, entity.Name, category, cost, unit, numberFloat(data["weight"]), flatText(data["entries"]), flatText(data["dmg1"]), flatText(data["dmgType"]), flatText(data["weaponCategory"]), eq.WeaponRange, rangeNormal, rangeLong, jsonValue(data["property"]), nullableInt(data["ac"]), eq.DexBonus, eq.MaxDexBonus, eq.StrMinimum, boolValue(data["stealth"]), eq.ArmorCategory, entity.IsSRD, entity.Source, contentID)
 		if err != nil {
 			return err
 		}
@@ -351,6 +350,15 @@ func classNames(value any) []string {
 }
 func proficiency(cr string) int {
 	value := crValue(cr)
+	if value >= 29 {
+		return 9
+	}
+	if value >= 25 {
+		return 8
+	}
+	if value >= 21 {
+		return 7
+	}
 	if value >= 17 {
 		return 6
 	}

@@ -30,6 +30,9 @@ type CreateSpellRequest struct {
 	Components  string `json:"components"`
 	DamageType  string `json:"damage_type"`
 	SRDRefID    *int64 `json:"srd_ref_id"`
+	// ContentEntityID is the catalog entry the spell was picked from; the server resolves the
+	// matching srd_spells id into SRDRefID.
+	ContentEntityID *int64 `json:"content_entity_id"`
 	// Prepared was sent by the client but dropped: spells were always stored unprepared.
 	Prepared *bool `json:"prepared"`
 }

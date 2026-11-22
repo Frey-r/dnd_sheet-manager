@@ -18,7 +18,8 @@
   --ink: #eceae4;
   --ink-2: #c3c1bb;
   --muted: #8d919a;
-  --faint: #6a6e77;
+  /* faint text keeps WCAG AA (>= 4.5:1) on bg, bg-elev, surface and surface-2 */
+  --faint: #868a93;
   --accent: #ff6a3d;
   --accent-ink: #1b0a03;
   --accent-soft: rgba(255, 106, 61, .14);
@@ -34,6 +35,16 @@
   --bad-soft: rgba(239, 79, 85, .14);
   --info: #5aa9e6;
   --info-soft: rgba(90, 169, 230, .14);
+  /* role labels and item rarity (design-system.md); "very rare" is magenta, never violet */
+  --role-player: var(--ok);
+  --role-dm: var(--gold);
+  --role-admin: var(--bad);
+  --rar-common: var(--muted);
+  --rar-uncommon: var(--ok);
+  --rar-rare: var(--info);
+  --rar-very-rare: #e85aa8;
+  --rar-very-rare-soft: rgba(232, 90, 168, .14);
+  --rar-legendary: var(--gold);
   --shadow-1: 0 1px 0 rgba(255, 255, 255, .03) inset, 0 1px 2px rgba(0, 0, 0, .4);
   --shadow-2: 0 10px 30px -10px rgba(0, 0, 0, .6), 0 2px 6px rgba(0, 0, 0, .35);
   --shadow-3: 0 24px 60px -12px rgba(0, 0, 0, .7);
@@ -51,7 +62,7 @@
   --ink: #16171a;
   --ink-2: #3a3c41;
   --muted: #61646c;
-  --faint: #8a8d94;
+  --faint: #666970;
   --accent: #d6421a;
   --accent-ink: #ffffff;
   --accent-soft: rgba(214, 66, 26, .09);
@@ -67,6 +78,8 @@
   --bad-soft: rgba(211, 52, 59, .09);
   --info: #2a6fb0;
   --info-soft: rgba(42, 120, 191, .09);
+  --rar-very-rare: #b02a78;
+  --rar-very-rare-soft: rgba(176, 42, 120, .09);
   --shadow-1: 0 1px 2px rgba(20, 18, 12, .06);
   --shadow-2: 0 12px 30px -12px rgba(20, 18, 12, .22), 0 2px 6px rgba(20, 18, 12, .06);
   --shadow-3: 0 30px 70px -20px rgba(20, 18, 12, .35);
@@ -95,6 +108,8 @@
   --warn: #ffd23d;
   --bad: #ff5c62;
   --info: #66c7ff;
+  --rar-very-rare: #ff5ec4;
+  --rar-very-rare-soft: rgba(255, 94, 196, .2);
   --shadow-1: none;
   --shadow-2: 0 0 0 1px #fff;
   --shadow-3: 0 0 0 2px #fff;
@@ -184,6 +199,15 @@
   --color-bad-soft: var(--bad-soft);
   --color-info: var(--info);
   --color-info-soft: var(--info-soft);
+  --color-role-player: var(--role-player);
+  --color-role-dm: var(--role-dm);
+  --color-role-admin: var(--role-admin);
+  --color-rar-common: var(--rar-common);
+  --color-rar-uncommon: var(--rar-uncommon);
+  --color-rar-rare: var(--rar-rare);
+  --color-rar-very-rare: var(--rar-very-rare);
+  --color-rar-very-rare-soft: var(--rar-very-rare-soft);
+  --color-rar-legendary: var(--rar-legendary);
 
   --radius-DEFAULT: 6px;
   --radius-lg: 10px;

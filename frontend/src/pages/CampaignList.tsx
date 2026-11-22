@@ -79,6 +79,7 @@ export function CampaignListPage() {
             return (
               <Link key={campaign.id} to={`/campaign/${campaign.id}`} className="bg-surface rounded-xl border border-border-low-contrast overflow-hidden flex flex-col group cursor-pointer hover:border-primary transition-colors hover:shadow-md">
                 <div className="h-32 bg-surface-container relative overflow-hidden">
+                  {campaign.cover_url && <img src={campaign.cover_url} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105" />}
                   {campaign.status === 'active' && (
                     <div className="absolute top-3 left-3 bg-success-active text-on-primary px-3 py-1 rounded-full font-label-bold text-label-bold flex items-center gap-1 shadow-sm">
                       <div className="w-2 h-2 rounded-full bg-on-primary animate-pulse" />

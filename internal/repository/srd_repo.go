@@ -1,7 +1,9 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -284,7 +286,7 @@ func (r *SRDRepository) SearchSpells(filters domain.SpellFilters) (*domain.Pagin
 	args["limit"] = filters.Limit
 	args["offset"] = filters.Offset
 	dataQuery := fmt.Sprintf(
-		"SELECT id, name, level, school, casting_time, concentration, ritual, is_srd, %s AS rank FROM srd_spells %s ORDER BY %s LIMIT :limit OFFSET :offset",
+		"SELECT id, name, level, school, casting_time, range, concentration, ritual, is_srd, %s AS rank FROM srd_spells %s ORDER BY %s LIMIT :limit OFFSET :offset",
 		rankExpr, where, orderBy,
 	)
 
@@ -332,12 +334,17 @@ func (r *SRDRepository) SearchEquipment(filters domain.EquipmentFilters) (*domai
 
 	conditions := []string{}
 	args := map[string]interface{}{}
+	// Ranked by relevance when there is a text query (srd-data.md, Full-Text Search).
+	rankExpr := "CAST(0 AS float8)"
+	orderBy := "name ASC"
 
 	if filters.Query != "" {
 		fts := sanitizeFTSQuery(filters.Query)
 		if fts != "" {
 			conditions = append(conditions, "search_vector @@ to_tsquery('english', :fts_query)")
 			args["fts_query"] = fts
+			rankExpr = "CAST(ts_rank(search_vector, to_tsquery('english', :fts_query)) AS float8)"
+			orderBy = "rank DESC, name ASC"
 		}
 	}
 	if filters.Category != "" {
@@ -372,8 +379,8 @@ func (r *SRDRepository) SearchEquipment(filters domain.EquipmentFilters) (*domai
 		`SELECT id, name, category, cost_gp, cost_unit, weight, description,
 		 damage_dice, damage_type, weapon_category, weapon_range, range_normal, range_long,
 		 CAST(properties AS text), ac_base, ac_dex_bonus, ac_max_bonus, str_minimum, stealth_disadvantage,
-		 armor_category, is_srd, created_at
-		 FROM srd_equipment %s ORDER BY name ASC LIMIT :limit OFFSET :offset`, where)
+		 armor_category, is_srd, created_at, %s AS rank
+		 FROM srd_equipment %s ORDER BY %s LIMIT :limit OFFSET :offset`, rankExpr, where, orderBy)
 
 	rows, err := r.db.NamedQuery(dataQuery, args)
 	if err != nil {
@@ -420,12 +427,17 @@ func (r *SRDRepository) SearchMagicItems(filters domain.MagicItemFilters) (*doma
 
 	conditions := []string{}
 	args := map[string]interface{}{}
+	// Ranked by relevance when there is a text query (srd-data.md, Full-Text Search).
+	rankExpr := "CAST(0 AS float8)"
+	orderBy := "name ASC"
 
 	if filters.Query != "" {
 		fts := sanitizeFTSQuery(filters.Query)
 		if fts != "" {
 			conditions = append(conditions, "search_vector @@ to_tsquery('english', :fts_query)")
 			args["fts_query"] = fts
+			rankExpr = "CAST(ts_rank(search_vector, to_tsquery('english', :fts_query)) AS float8)"
+			orderBy = "rank DESC, name ASC"
 		}
 	}
 	if filters.Rarity != "" {
@@ -457,8 +469,8 @@ func (r *SRDRepository) SearchMagicItems(filters domain.MagicItemFilters) (*doma
 	args["limit"] = filters.Limit
 	args["offset"] = filters.Offset
 	dataQuery := fmt.Sprintf(
-		"SELECT id, name, rarity, requires_attunement, attunement_desc, description, category, is_srd, created_at FROM srd_magic_items %s ORDER BY name ASC LIMIT :limit OFFSET :offset",
-		where,
+		"SELECT id, name, rarity, requires_attunement, attunement_desc, description, category, is_srd, created_at, %s AS rank FROM srd_magic_items %s ORDER BY %s LIMIT :limit OFFSET :offset",
+		rankExpr, where, orderBy,
 	)
 
 	rows, err := r.db.NamedQuery(dataQuery, args)
@@ -519,6 +531,28 @@ func spellHasClassSQL(param string) string {
 // first, then the 2014 ones, then everything else by id (the full 5etools catalog holds e.g.
 // "Wizard" from both PHB and XPHB).
 const editionPreference = `CASE source WHEN 'XPHB' THEN 0 WHEN 'PHB' THEN 1 ELSE 2 END, id`
+
+// SpellRefByContent returns the srd_spells id projected from a catalog entry, or nil.
+func (r *SRDRepository) SpellRefByContent(ctx context.Context, contentID int64) (*int64, error) {
+	return r.refByContent(ctx, "srd_spells", contentID)
+}
+
+// EquipmentRefByContent returns the srd_equipment id projected from a catalog entry, or nil.
+func (r *SRDRepository) EquipmentRefByContent(ctx context.Context, contentID int64) (*int64, error) {
+	return r.refByContent(ctx, "srd_equipment", contentID)
+}
+
+func (r *SRDRepository) refByContent(ctx context.Context, table string, contentID int64) (*int64, error) {
+	var id int64
+	err := r.db.GetContext(ctx, &id, `SELECT id FROM `+table+` WHERE content_entity_id=$1 ORDER BY id LIMIT 1`, contentID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &id, nil
+}
 
 // GetClassByName returns a class by name with its features and spell slots.
 func (r *SRDRepository) GetClassByName(name string) (*domain.SRDClass, error) {
@@ -598,12 +632,17 @@ func (r *SRDRepository) SearchRules(filters domain.RulesFilters) (*domain.Pagina
 
 	conditions := []string{}
 	args := map[string]interface{}{}
+	// Ranked by relevance when there is a text query (srd-data.md, Full-Text Search).
+	rankExpr := "CAST(0 AS float8)"
+	orderBy := "name ASC"
 
 	if filters.Query != "" {
 		fts := sanitizeFTSQuery(filters.Query)
 		if fts != "" {
 			conditions = append(conditions, "search_vector @@ to_tsquery('english', :fts_query)")
 			args["fts_query"] = fts
+			rankExpr = "CAST(ts_rank(search_vector, to_tsquery('english', :fts_query)) AS float8)"
+			orderBy = "rank DESC, name ASC"
 		}
 	}
 	if filters.Category != "" {
@@ -631,8 +670,8 @@ func (r *SRDRepository) SearchRules(filters domain.RulesFilters) (*domain.Pagina
 	args["limit"] = filters.Limit
 	args["offset"] = filters.Offset
 	dataQuery := fmt.Sprintf(
-		"SELECT id, name, category, content, parent_rule_id, is_srd, created_at FROM srd_rules %s ORDER BY name ASC LIMIT :limit OFFSET :offset",
-		where,
+		"SELECT id, name, category, content, parent_rule_id, is_srd, created_at, %s AS rank FROM srd_rules %s ORDER BY %s LIMIT :limit OFFSET :offset",
+		rankExpr, where, orderBy,
 	)
 
 	rows, err := r.db.NamedQuery(dataQuery, args)

@@ -23,6 +23,7 @@ export function MapDetail() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [sheet, setSheet] = useState({ name: '', description: '' });
   const [error, setError] = useState('');
+  const [details, setDetails] = useState<{ name: string; location: string; image_url: string; description: string } | null>(null);
   const viewport = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const drag = useRef<{ startX: number; startY: number; originX: number; originY: number; moved: boolean } | null>(null);
@@ -31,6 +32,12 @@ export function MapDetail() {
   const mutation = useMutation({
     mutationFn: (pins: Pin[]) => mapApi.update(campaignId, mapId, { pins }),
     onSuccess: () => { void map.refetch(); setError(''); },
+    onError: (reason) => setError(getApiError(reason)),
+  });
+  // Map details (name, location, image, description) are edited in place from this page.
+  const saveDetails = useMutation({
+    mutationFn: (value: NonNullable<typeof details>) => mapApi.update(campaignId, mapId, { name: value.name.trim(), location: value.location.trim(), image_url: value.image_url.trim(), description: value.description }),
+    onSuccess: () => { setDetails(null); void map.refetch(); setError(''); },
     onError: (reason) => setError(getApiError(reason)),
   });
   const pins = map.data?.pins ?? [];
@@ -94,6 +101,7 @@ export function MapDetail() {
     <header className="h-16 border-b border-border-low-contrast px-4 flex items-center justify-between gap-3 relative">
       <Link to={`/campaign/${campaignId}/gm/maps`} aria-label="Volver"><span className="material-symbols-outlined">arrow_back</span></Link>
       <h1 className="font-headline-md font-bold flex-1 truncate">{data.name}</h1>
+      {!details && <button type="button" onClick={() => setDetails({ name: data.name, location: data.location ?? '', image_url: data.image_url ?? '', description: data.description ?? '' })} className="mc-btn"><span className="material-symbols-outlined text-[18px]">edit</span>Editar</button>}
       <button type="button" aria-expanded={layersOpen} onClick={() => setLayersOpen(!layersOpen)} className="mc-btn"><span className="material-symbols-outlined text-[18px]">layers</span>Capas</button>
       {layersOpen && <div role="menu" className="absolute right-4 top-14 z-30 w-48 rounded-lg border border-line bg-card p-2 shadow-lg">
         {layerRows.map(([key, label]) => <label key={key} className="flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-card-2"><input type="checkbox" checked={layers[key]} onChange={() => setLayers({ ...layers, [key]: !layers[key] })} />{label}</label>)}
@@ -123,8 +131,15 @@ export function MapDetail() {
     </main>
     <section className="p-4 md:p-6 border-t border-border-low-contrast grid gap-6 md:grid-cols-2">
       <div className="space-y-3">
+        {details ? <form aria-label="Editar mapa" className="space-y-3 rounded-lg border border-line p-4" onSubmit={(event) => { event.preventDefault(); if (details.name.trim()) saveDetails.mutate(details); }}>
+          <label className="block text-sm font-label-bold">Nombre<input required value={details.name} onChange={(event) => setDetails({ ...details, name: event.target.value })} className="mt-1 w-full rounded bg-surface-subtle border-border-low-contrast" /></label>
+          <label className="block text-sm font-label-bold">Ubicación<input value={details.location} onChange={(event) => setDetails({ ...details, location: event.target.value })} className="mt-1 w-full rounded bg-surface-subtle border-border-low-contrast" /></label>
+          <label className="block text-sm font-label-bold">URL de la imagen<input value={details.image_url} onChange={(event) => setDetails({ ...details, image_url: event.target.value })} className="mt-1 w-full rounded bg-surface-subtle border-border-low-contrast" /></label>
+          <label className="block text-sm font-label-bold">Descripción<textarea rows={4} value={details.description} onChange={(event) => setDetails({ ...details, description: event.target.value })} className="mt-1 w-full rounded bg-surface-subtle border-border-low-contrast" /></label>
+          <div className="flex gap-2"><button type="submit" disabled={saveDetails.isPending || !details.name.trim()} className="px-4 py-2 bg-primary-container text-on-primary-container rounded-lg font-label-bold disabled:opacity-50">{saveDetails.isPending ? 'Guardando…' : 'Guardar'}</button><button type="button" onClick={() => setDetails(null)} className="px-4 py-2 rounded-lg border">Cancelar</button></div>
+        </form> : <>
         <p className="text-secondary">{data.location}</p>
-        <p className="whitespace-pre-wrap">{data.description}</p>
+        <p className="whitespace-pre-wrap">{data.description}</p></>}
         <div className="flex gap-2 items-end flex-wrap"><label className="text-sm font-label-bold">Nombre del marcador<input value={pinName} onChange={(event) => setPinName(event.target.value)} placeholder="Nombre del lugar" className="block mt-1 rounded bg-surface-subtle border-border-low-contrast" /></label><button type="button" onClick={() => setAdding(!adding)} disabled={!pinName.trim() && !adding} className="px-4 py-2 bg-primary-container rounded-lg">{adding ? 'Terminar marcadores' : 'Añadir marcadores'}</button></div>
         {adding && <p className="text-sm text-secondary">Haz clic en el mapa para colocar «{pinName || '…'}». Arrastra para mover la vista; rueda o +/− para el zoom.</p>}
       </div>

@@ -1,12 +1,14 @@
 package handler
 
 import (
+	"encoding/json"
 	"errors"
 	"log"
 	"net/http"
 
 	"dnd-campaign-manager/internal/domain"
 	"dnd-campaign-manager/internal/middleware"
+	"dnd-campaign-manager/internal/realtime"
 	"dnd-campaign-manager/internal/repository"
 	"dnd-campaign-manager/internal/service"
 
@@ -45,6 +47,8 @@ func tradeFail(c *gin.Context, err error, msg string) {
 	case errors.Is(err, service.ErrInsufficientGold):
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Insufficient gold balance"})
 	case errors.Is(err, service.ErrTradeInvalidated):
+		// The offer was stored as invalidated: tell the campaign so the offeror can redo it.
+		c.Set(realtime.ForcedEventKey, "TRADE_INVALIDATED")
 		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 	case errors.Is(err, repository.ErrTradeItem), errors.Is(err, repository.ErrTradeEmpty), errors.Is(err, service.ErrCounterRecipient):
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -98,6 +102,8 @@ func (h *TradeHandler) AcceptTrade(c *gin.Context) {
 		return
 	}
 
+	// user-stories.md: the accepted trade is audited with its amounts and items.
+	c.Set(realtime.EventDetailsKey, tradeAuditDetails(offer))
 	c.JSON(http.StatusOK, offer)
 }
 
@@ -151,4 +157,28 @@ func (h *TradeHandler) CounterOffer(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, offer)
+}
+
+// tradeAuditDetails is the TRADE_ACCEPTED payload stored in game_events (campaign audit).
+func tradeAuditDetails(offer *domain.TradeOffer) map[string]any {
+	if offer == nil {
+		return nil
+	}
+	return map[string]any{
+		"trade_id":               offer.ID,
+		"offeror_character_id":   offer.OfferorCharacterID,
+		"recipient_character_id": offer.RecipientCharacterID,
+		"offered_gold":           offer.OfferedGold,
+		"requested_gold":         offer.RequestedGold,
+		"offered_item_ids":       jsonIDs(offer.OfferedItemIDs),
+		"requested_item_ids":     jsonIDs(offer.RequestedItemIDs),
+	}
+}
+
+// jsonIDs keeps a stored JSON id array as raw JSON in the event (empty array when invalid).
+func jsonIDs(raw string) json.RawMessage {
+	if json.Valid([]byte(raw)) && raw != "" {
+		return json.RawMessage(raw)
+	}
+	return json.RawMessage("[]")
 }

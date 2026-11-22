@@ -5,10 +5,14 @@ import { characterApi, tradeApi } from '../services/api';
 import { useAuth } from '../lib/hooks';
 import { getApiError } from '../services/errors';
 import { ErrorState, LoadingState } from '../components/ui/Feedback';
+import { PixelAvatar } from '../components/avatar/PixelAvatar';
 import type { Character, InventoryItem } from '../types';
 import { itemCount } from '../lib/plural';
+import { FoundryAuthorityNotice } from '../components/foundry/FoundryAuthorityNotice';
+import { useCampaign } from '../lib/useCampaign';
 
-type Offer = { id: number; campaign_id: number; offeror_character_id: number; recipient_character_id: number; offered_item_ids: string; requested_item_ids: string; offered_gold: number; requested_gold: number; status: string; expires_at: string };
+type NamedItem = { id: number; name: string; quantity: number };
+type Offer = { id: number; campaign_id: number; offeror_character_id: number; recipient_character_id: number; offered_item_ids: string; requested_item_ids: string; offered_gold: number; requested_gold: number; status: string; expires_at: string; offered_items?: NamedItem[]; requested_items?: NamedItem[] };
 const parseIDs = (value: string): number[] => { try { const ids = JSON.parse(value) as unknown; return Array.isArray(ids) ? ids.filter((id): id is number => typeof id === 'number') : []; } catch { return []; } };
 
 const STATUS: Record<string, { label: string; dot: string }> = {
@@ -17,7 +21,14 @@ const STATUS: Record<string, { label: string; dot: string }> = {
   rejected: { label: 'Rechazada', dot: 'bg-bad' },
   cancelled: { label: 'Cancelada', dot: 'bg-faint' },
   expired: { label: 'Expirada', dot: 'bg-faint' },
+  invalidated: { label: 'Invalidada', dot: 'bg-bad' },
 };
+// "Daga ×2, Anillo" — names of an offer's items (the list endpoint names them), else a count.
+const itemNames = (items: NamedItem[] | undefined, raw: string) => (items && items.length ? items.map((item) => (item.quantity > 1 ? `${item.name} ×${item.quantity}` : item.name)).join(', ') : itemCount(parseIDs(raw).length));
+
+function CharacterChip({ character, fallback }: { character?: Character; fallback: string }) {
+  return <span className="inline-flex items-center gap-2"><span className="avatar-stage h-8 w-8 shrink-0 overflow-hidden rounded border border-border-low-contrast">{character && <PixelAvatar appearance={character.appearance} race={character.race} klass={character.class} crop="bust" scale={1.34} decorative />}</span>{character?.name ?? fallback}</span>;
+}
 
 function StatusBadge({ status }: { status: string }) {
   const info = STATUS[status] ?? { label: status, dot: 'bg-faint' };
@@ -45,6 +56,7 @@ function remaining(expiresAt: string, now: number) {
 
 export function Trade() {
   const { campaignId = '' } = useParams();
+  const { isFoundry } = useCampaign(campaignId);
   const { user } = useAuth();
   const client = useQueryClient();
   const now = useNow(1000);
@@ -74,31 +86,45 @@ export function Trade() {
     });
   };
   const toggle = (id: number, selected: number[], choose: (ids: number[]) => void) => choose(selected.includes(id) ? selected.filter((value) => value !== id) : [...selected, id]);
-  const itemChoices = (items: InventoryItem[] | undefined, selected: number[], choose: (ids: number[]) => void) => <div className="max-h-48 overflow-y-auto space-y-1">{items?.filter((item) => item.is_tradeable && !item.quest_bound && !item.is_equipped && !item.trade_locked).map((item) => <label key={item.id} className="flex gap-2 items-center text-sm"><input type="checkbox" checked={selected.includes(item.id)} onChange={() => toggle(item.id, selected, choose)} />{item.name} ×{item.quantity}</label>)}{items?.length === 0 && <p className="text-secondary text-sm">No hay objetos disponibles.</p>}</div>;
+  // My own inventory is the full list, so it is filtered here; the recipient list comes from the
+  // tradeable-items endpoint, which already filters server side and omits those flag fields.
+  const ownTradeable = (items: InventoryItem[] | undefined) => items?.filter((item) => item.is_tradeable && !item.quest_bound && !item.is_equipped && !item.trade_locked);
+  const itemChoices = (items: InventoryItem[] | undefined, selected: number[], choose: (ids: number[]) => void) => <div className="max-h-48 overflow-y-auto space-y-1">{items?.map((item) => <label key={item.id} className="flex gap-2 items-center text-sm"><input type="checkbox" checked={selected.includes(item.id)} onChange={() => toggle(item.id, selected, choose)} />{item.name} ×{item.quantity}</label>)}{items?.length === 0 && <p className="text-secondary text-sm">No hay objetos disponibles.</p>}</div>;
   const characterName = (id: number) => characters.data?.find((character) => character.id === id)?.name || `#${id}`;
+  const characterOf = (id: number) => characters.data?.find((character) => character.id === id);
+  const resetForm = () => { setRecipientID(0); setOfferedItems([]); setRequestedItems([]); setOfferedGold(0); setRequestedGold(0); setAskGold(false); setError(''); };
+  // An invalidated offer can be redone: the form is refilled with what is still available.
+  const redo = (offer: Offer) => {
+    setRecipientID(offer.recipient_character_id);
+    setOfferedGold(Math.min(mine?.gold ?? 0, offer.offered_gold));
+    setOfferedItems(parseIDs(offer.offered_item_ids).filter((id) => ownTradeable(inventory.data)?.some((item) => item.id === id)));
+    setRequestedItems([]);
+    setRequestedGold(offer.requested_gold); setAskGold(offer.requested_gold > 0);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
   const recipient = characters.data?.find((character) => character.id === recipientID);
   const inputClass = 'block mt-1 w-full rounded bg-surface-subtle border-border-low-contrast disabled:opacity-60';
 
   return <div className="min-h-screen"><header className="h-16 px-4 border-b border-border-low-contrast flex items-center gap-3"><Link to={`/campaign/${campaignId}`} aria-label="Volver"><span className="material-symbols-outlined">arrow_back</span></Link><h1 className="font-headline-md font-bold">Intercambios</h1></header>
-    <main className="max-w-5xl mx-auto p-4 md:p-8 space-y-6">{error && <ErrorState message={error} />}
+    <main className="max-w-5xl mx-auto p-4 md:p-8 space-y-6">{error && <ErrorState message={error} />}<FoundryAuthorityNotice isFoundry={isFoundry} />
       {characters.isLoading ? <LoadingState /> : !mine ? <p className="text-secondary">Necesitas un personaje para intercambiar. <Link className="text-primary" to={`/campaign/${campaignId}/character/new`}>Crear personaje</Link></p> : <section className="border border-border-low-contrast rounded-xl p-5 space-y-4">
         <div className="flex items-center justify-between gap-3"><h2 className="font-headline-md">Nueva oferta</h2><StatusBadge status="pending" /></div>
         <div className="grid md:grid-cols-2 gap-4">
           <section aria-label="Tu oferta" className="rounded-lg border border-line p-4 space-y-3">
-            <div><span className="mc-eyebrow">Ofreces</span><h3 className="font-label-bold">{mine.name}</h3><p className="text-xs text-muted">Nivel {mine.level} · {mine.gold} po disponibles</p></div>
+            <div><span className="mc-eyebrow">Ofreces</span><h3 className="font-label-bold"><CharacterChip character={mine} fallback={mine.name} /></h3><p className="text-xs text-muted">Nivel {mine.level} · {mine.gold} po disponibles</p></div>
             <label className="block text-sm font-label-bold">Oro ofrecido<input type="number" min={0} max={mine.gold} value={offeredGold} onChange={(event) => setOfferedGold(Math.min(mine.gold, Math.max(0, Number(event.target.value))))} className={inputClass} /></label>
-            <div><h4 className="font-label-bold text-sm mb-1">Tus objetos</h4>{itemChoices(inventory.data, offeredItems, setOfferedItems)}</div>
+            <div><h4 className="font-label-bold text-sm mb-1">Tus objetos</h4>{itemChoices(ownTradeable(inventory.data), offeredItems, setOfferedItems)}</div>
           </section>
           <section aria-label="Oferta del destinatario" className="rounded-lg border border-line p-4 space-y-3">
             <label className="block text-sm font-label-bold">Destinatario<select value={recipientID} onChange={(event) => { setRecipientID(Number(event.target.value)); setRequestedItems([]); }} className={inputClass}><option value={0}>Selecciona un personaje</option>{characters.data?.filter((character) => character.id !== mine.id).map((character) => <option key={character.id} value={character.id}>{character.name}</option>)}</select></label>
-            {recipient && <p className="text-xs text-muted">Nivel {recipient.level}</p>}
+            {recipient && <p className="text-xs text-muted flex items-center gap-2"><CharacterChip character={recipient} fallback={recipient.name} /> · Nivel {recipient.level}</p>}
             <label className="block text-sm font-label-bold">Oro solicitado<input type="number" min={0} disabled={!askGold} value={askGold ? requestedGold : 0} onChange={(event) => setRequestedGold(Math.max(0, Number(event.target.value)))} className={inputClass} /></label>
             <label className="flex items-center gap-2 text-xs text-muted"><input type="checkbox" checked={askGold} onChange={(event) => setAskGold(event.target.checked)} />Solicitar oro al destinatario</label>
             <div><h4 className="font-label-bold text-sm mb-1">{recipient ? `Objetos de ${recipient.name}` : 'Objetos solicitados'}</h4>{recipientID ? itemChoices(recipientInventory.data, requestedItems, setRequestedItems) : <p className="text-secondary text-sm">Elige un destinatario.</p>}</div>
           </section>
         </div>
-        <div className="flex justify-end"><button type="button" onClick={send} disabled={!recipientID || action.isPending || (!offeredGold && !(askGold && requestedGold) && !offeredItems.length && !requestedItems.length)} className="bg-primary-container text-on-primary-container px-6 py-3 rounded-lg font-label-bold disabled:opacity-50">Enviar oferta</button></div>
+        <div className="flex justify-end gap-3"><button type="button" onClick={resetForm} className="px-6 py-3 rounded-lg border font-label-bold">Cancelar</button><button type="button" onClick={send} disabled={!recipientID || action.isPending || (!offeredGold && !(askGold && requestedGold) && !offeredItems.length && !requestedItems.length)} className="bg-primary-container text-on-primary-container px-6 py-3 rounded-lg font-label-bold disabled:opacity-50">Enviar oferta</button></div>
       </section>}
-      <section><h2 className="font-headline-md mb-3">Ofertas</h2>{offers.isLoading ? <LoadingState /> : offers.error ? <ErrorState message="No se pudieron cargar los intercambios" onRetry={() => void offers.refetch()} /> : campaignOffers.length === 0 ? <p className="text-secondary">No hay intercambios todavía en esta campaña.</p> : <div className="space-y-3">{campaignOffers.map((offer) => <article key={offer.id} className="border border-border-low-contrast rounded-lg p-4"><div className="flex flex-wrap justify-between gap-3"><h3 className="font-label-bold">{characterName(offer.offeror_character_id)} → {characterName(offer.recipient_character_id)}</h3><StatusBadge status={offer.status} /></div><p className="text-sm text-secondary mt-1">Ofrece {offer.offered_gold} po · {itemCount(parseIDs(offer.offered_item_ids).length)}; solicita {offer.requested_gold} po · {itemCount(parseIDs(offer.requested_item_ids).length)}</p>{offer.status === 'pending' && <p className="text-xs text-warn mt-1" aria-live="off">{remaining(offer.expires_at, now)}</p>}{offer.status === 'pending' && <div className="flex gap-2 mt-3">{offer.recipient_character_id === mine?.id ? <><button type="button" onClick={() => action.mutate(() => tradeApi.accept(offer.id))} className="px-3 py-1 rounded bg-primary-container">Aceptar</button><button type="button" onClick={() => action.mutate(() => tradeApi.reject(offer.id))} className="px-3 py-1 rounded border">Rechazar</button><button type="button" onClick={() => action.mutate(() => tradeApi.counter(offer.id, { ...offerData, recipient_character_id: offer.offeror_character_id }))} className="px-3 py-1 rounded border">Contraofertar</button></> : offer.offeror_character_id === mine?.id && <button type="button" onClick={() => action.mutate(() => tradeApi.cancel(offer.id))} className="px-3 py-1 rounded border">Cancelar</button>}</div>}</article>)}</div>}</section>
+      <section><h2 className="font-headline-md mb-3">Ofertas</h2>{offers.isLoading ? <LoadingState /> : offers.error ? <ErrorState message="No se pudieron cargar los intercambios" onRetry={() => void offers.refetch()} /> : campaignOffers.length === 0 ? <p className="text-secondary">No hay intercambios todavía en esta campaña.</p> : <div className="space-y-3">{campaignOffers.map((offer) => <article key={offer.id} className="border border-border-low-contrast rounded-lg p-4"><div className="flex flex-wrap justify-between gap-3"><h3 className="font-label-bold flex flex-wrap items-center gap-2"><CharacterChip character={characterOf(offer.offeror_character_id)} fallback={characterName(offer.offeror_character_id)} /> → <CharacterChip character={characterOf(offer.recipient_character_id)} fallback={characterName(offer.recipient_character_id)} /></h3><StatusBadge status={offer.status} /></div><p className="text-sm text-secondary mt-1">Ofrece {offer.offered_gold} po · {itemNames(offer.offered_items, offer.offered_item_ids)}; solicita {offer.requested_gold} po · {itemNames(offer.requested_items, offer.requested_item_ids)}</p>{offer.status === 'invalidated' && offer.offeror_character_id === mine?.id && <div className="mt-2 flex flex-wrap items-center gap-3"><p className="text-xs text-bad">Un objeto ya no está disponible; actualiza la oferta.</p><button type="button" onClick={() => redo(offer)} className="px-3 py-1 rounded border text-sm">Rehacer oferta</button></div>}{offer.status === 'pending' && <p className="text-xs text-warn mt-1" aria-live="off">{remaining(offer.expires_at, now)}</p>}{offer.status === 'pending' && <div className="flex gap-2 mt-3">{offer.recipient_character_id === mine?.id ? <><button type="button" onClick={() => action.mutate(() => tradeApi.accept(offer.id))} className="px-3 py-1 rounded bg-primary-container">Aceptar</button><button type="button" onClick={() => action.mutate(() => tradeApi.reject(offer.id))} className="px-3 py-1 rounded border">Rechazar</button><button type="button" onClick={() => action.mutate(() => tradeApi.counter(offer.id, { ...offerData, recipient_character_id: offer.offeror_character_id }))} className="px-3 py-1 rounded border">Contraofertar</button></> : offer.offeror_character_id === mine?.id && <button type="button" onClick={() => action.mutate(() => tradeApi.cancel(offer.id))} className="px-3 py-1 rounded border">Cancelar</button>}</div>}</article>)}</div>}</section>
     </main></div>;
 }

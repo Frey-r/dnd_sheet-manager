@@ -155,6 +155,12 @@ func (c *Config) IsPlaceholderSecret() bool {
 	return strings.HasPrefix(c.JWT.Secret, "change-this")
 }
 
+// Default token lifetimes in seconds (security.md).
+const (
+	DefaultJWTTTL        = 3600
+	DefaultJWTRefreshTTL = 86400
+)
+
 func Load(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -193,6 +199,14 @@ func Load(path string) (*Config, error) {
 				cfg.Server.TrustedProxies = append(cfg.Server.TrustedProxies, proxy)
 			}
 		}
+	}
+	// security.md: access tokens default to 1 h and refresh tokens to 24 h when unset, so a
+	// missing jwt.ttl never yields a token that expires on issue.
+	if cfg.JWT.TTL <= 0 {
+		cfg.JWT.TTL = DefaultJWTTTL
+	}
+	if cfg.JWT.RefreshTTL <= 0 {
+		cfg.JWT.RefreshTTL = DefaultJWTRefreshTTL
 	}
 	if cfg.Server.Port <= 0 || cfg.Server.Port > 65535 {
 		return nil, fmt.Errorf("server.port must be between 1 and 65535")

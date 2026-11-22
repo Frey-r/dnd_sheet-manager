@@ -6,6 +6,10 @@ import type { Character, InventoryItem } from '../types';
 import { getApiError } from '../services/errors';
 import { ErrorState, LoadingState } from '../components/ui/Feedback';
 import { CharacterTabs } from '../components/character/CharacterTabs';
+import { OfficialItem } from '../components/character/OfficialData';
+import { catalogItemDescription, catalogItemType, catalogRarity } from '../lib/catalogItem';
+import { FoundryAuthorityNotice } from '../components/foundry/FoundryAuthorityNotice';
+import { useCampaign } from '../lib/useCampaign';
 
 type ContentItem = { id: number; name: string; source: string; is_srd: boolean; data?: Record<string, unknown> };
 
@@ -15,30 +19,32 @@ const SLOTS: [string, string][] = [
   ['main_hand', 'Mano principal'], ['off_hand', 'Mano secundaria'], ['ring', 'Anillo'], ['feet', 'Pies'],
 ];
 const RARITY: Record<string, { label: string; className: string }> = {
-  common: { label: 'Común', className: 'bg-card-3 text-muted' },
-  uncommon: { label: 'Poco común', className: 'bg-ok-soft text-ok' },
-  rare: { label: 'Raro', className: 'bg-info-soft text-info' },
-  very_rare: { label: 'Muy raro', className: 'bg-accent-soft text-accent' },
-  legendary: { label: 'Legendario', className: 'bg-gold-soft text-gold' },
+  common: { label: 'Común', className: 'bg-card-3 text-rar-common' },
+  uncommon: { label: 'Poco común', className: 'bg-ok-soft text-rar-uncommon' },
+  rare: { label: 'Raro', className: 'bg-info-soft text-rar-rare' },
+  very_rare: { label: 'Muy raro', className: 'bg-rar-very-rare-soft text-rar-very-rare' },
+  legendary: { label: 'Legendario', className: 'bg-gold-soft text-rar-legendary' },
 };
 const CONSUMABLE = new Set(['potion', 'scroll']);
 const rarityOf = (item: InventoryItem) => RARITY[item.rarity || 'common'] ?? RARITY.common;
 
 export function InventoryTab() {
   const { campaignId, characterId = '' } = useParams();
+  const { isFoundry } = useCampaign(campaignId);
   const client = useQueryClient();
   const [adding, setAdding] = useState(false);
   const [query, setQuery] = useState('');
   const [error, setError] = useState('');
+  const [official, setOfficial] = useState<Record<number, boolean>>({});
   const inventory = useQuery({ queryKey: ['inventory', characterId], queryFn: () => characterApi.inventory(characterId).then((response) => response.data as InventoryItem[]) });
   const character = useQuery({ queryKey: ['character', characterId], queryFn: () => characterApi.get(characterId).then((response) => response.data as Character) });
   const results = useQuery({ queryKey: ['content-items', query], enabled: adding, queryFn: () => contentApi.search({ type: 'item', query, limit: 50 }).then((response) => response.data.data as ContentItem[]) });
   const refresh = () => client.invalidateQueries({ queryKey: ['inventory', characterId] });
-  const mutation = useMutation({ mutationFn: (action: () => Promise<unknown>) => action(), onSuccess: () => { setError(''); return refresh(); }, onError: (reason) => setError(getApiError(reason)) });
+  const mutation = useMutation({ mutationFn: (action: () => Promise<unknown>) => action(), onSuccess: () => { setError(''); void client.invalidateQueries({ queryKey: ['character', characterId] }); return refresh(); }, onError: (reason) => setError(getApiError(reason)) });
   const add = async (summary: ContentItem) => {
     const detail = await contentApi.get(summary.id);
     const data = detail.data.data as Record<string, unknown>;
-    await itemApi.add(characterId, { name: summary.name, item_type: String(data.type || 'gear'), rarity: String(data.rarity || 'common'), weight: Number(data.weight || 0), quantity: 1, description: JSON.stringify(data.entries || data.entry || ''), requires_attunement: Boolean(data.reqAttune), is_tradeable: true });
+    await itemApi.add(characterId, { name: summary.name, item_type: catalogItemType(data), rarity: catalogRarity(data.rarity), weight: Number(data.weight || 0), quantity: 1, description: catalogItemDescription(data), requires_attunement: Boolean(data.reqAttune), is_tradeable: true, content_id: summary.id });
     setAdding(false);
   };
   const use = (item: InventoryItem) => mutation.mutate(() => item.quantity <= 1 ? itemApi.remove(characterId, item.id) : itemApi.update(characterId, item.id, { quantity: item.quantity - 1 }));
@@ -55,7 +61,7 @@ export function InventoryTab() {
   const itemCard = (item: InventoryItem) => {
     const rarity = rarityOf(item);
     return <article key={item.id} className="bg-surface-container-lowest border border-border-low-contrast rounded-lg p-4">
-      <div className="flex justify-between gap-3"><div className="min-w-0"><h3 className="font-label-bold flex flex-wrap items-center gap-2">{item.name}<span className={`mc-badge ${rarity.className}`}>{rarity.label}</span>{item.is_attuned && <span className="mc-badge bg-info-soft text-info">Sintonizado</span>}</h3><p className="text-sm text-secondary">{item.item_type} · {item.weight} lb{item.trade_locked ? ' · Reservado en intercambio' : ''}</p></div><input aria-label={`Cantidad de ${item.name}`} type="number" min={0} defaultValue={item.quantity} disabled={item.trade_locked} onBlur={(event) => { const quantity = Number(event.target.value); if (quantity !== item.quantity) mutation.mutate(() => itemApi.update(characterId, item.id, { quantity })); }} className="w-20 h-9 rounded bg-surface-subtle border-border-low-contrast" /></div>
+      <div className="flex justify-between gap-3"><div className="min-w-0"><h3 className="font-label-bold flex flex-wrap items-center gap-2">{item.name}<span className={`mc-badge ${rarity.className}`}>{rarity.label}</span>{item.is_attuned && <span className="mc-badge bg-info-soft text-info">Sintonizado</span>}</h3><p className="text-sm text-secondary">{item.item_type} · {item.weight} lb{item.trade_locked ? ' · Reservado en intercambio' : ''}</p>{item.description && <p className="text-xs text-on-surface-variant whitespace-pre-line line-clamp-3 mt-1">{item.description}</p>}{item.srd_ref_id ? <details className="mt-1 text-xs" onToggle={(event) => { const open = event.currentTarget.open; setOfficial((previous) => ({ ...previous, [item.id]: open })); }}><summary className="cursor-pointer text-primary">Datos oficiales</summary>{official[item.id] && <OfficialItem id={item.srd_ref_id} />}</details> : null}</div><input aria-label={`Cantidad de ${item.name}`} type="number" min={0} defaultValue={item.quantity} disabled={item.trade_locked} onBlur={(event) => { const quantity = Number(event.target.value); if (quantity !== item.quantity) mutation.mutate(() => itemApi.update(characterId, item.id, { quantity })); }} className="w-20 h-9 rounded bg-surface-subtle border-border-low-contrast" /></div>
       <div className="flex flex-wrap items-center gap-2 mt-3">
         {CONSUMABLE.has(item.item_type) && <button type="button" disabled={item.trade_locked || mutation.isPending} onClick={() => use(item)} className="px-3 py-1 rounded bg-primary-container text-on-primary-container text-sm disabled:opacity-50">Usar</button>}
         <button type="button" disabled={item.trade_locked} onClick={() => mutation.mutate(() => itemApi.equip(characterId, item.id))} className="px-3 py-1 rounded bg-surface-container text-sm disabled:opacity-50">{item.is_equipped ? 'Desequipar' : 'Equipar'}</button>
@@ -73,7 +79,8 @@ export function InventoryTab() {
     <CharacterTabs campaignId={campaignId} characterId={characterId} active="inventory" />
     <main className="flex-1 px-4 py-6 max-w-3xl mx-auto w-full space-y-6">
       {error && <ErrorState message={error} />}
-      {character.data && <section className="bg-surface-container-lowest border border-border-low-contrast rounded-xl p-4 flex justify-between items-center"><span className="font-label-bold">Oro</span><input aria-label="Oro" type="number" min={0} key={character.data.gold} defaultValue={character.data.gold} onBlur={(event) => mutation.mutate(() => characterApi.update(characterId, { gold: Number(event.target.value) }))} className="w-28 rounded bg-surface-subtle border-border-low-contrast" /></section>}
+      <FoundryAuthorityNotice isFoundry={isFoundry} />
+      {character.data && <section aria-label="Monedas" className="bg-surface-container-lowest border border-border-low-contrast rounded-xl p-4 grid grid-cols-3 gap-3">{([['gold', 'Oro (po)'], ['silver', 'Plata (pp)'], ['copper', 'Cobre (pc)']] as const).map(([coin, label]) => { const amount = character.data?.[coin] ?? 0; return <label key={coin} className="text-sm font-label-bold">{label}<input aria-label={label} type="number" min={0} key={`${coin}-${amount}`} defaultValue={amount} onBlur={(event) => { const value = Math.max(0, Math.floor(Number(event.target.value) || 0)); if (value !== amount) mutation.mutate(() => characterApi.update(characterId, { [coin]: value })); }} className="block mt-1 w-full rounded bg-surface-subtle border-border-low-contrast" /></label>; })}</section>}
       {inventory.isLoading ? <LoadingState /> : inventory.error ? <ErrorState message="No se pudo cargar el inventario" onRetry={() => void inventory.refetch()} /> : <>
         <section aria-label="Equipo"><h2 className="font-label-bold mb-3">Equipo</h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">{SLOTS.map(([slot, label]) => { const item = slotted(slot); return <div key={slot} className={`rounded-lg border p-2 min-h-[72px] ${item ? 'border-accent-line bg-accent-soft' : 'border-dashed border-line'}`}><span className="block text-[11px] uppercase tracking-wide text-muted">{label}</span>{item ? <><span className="block text-sm font-semibold truncate">{item.name}</span><span className={`mc-badge ${rarityOf(item).className}`}>{rarityOf(item).label}</span></> : <span className="block text-xs text-faint mt-1">Vacío</span>}</div>; })}</div>

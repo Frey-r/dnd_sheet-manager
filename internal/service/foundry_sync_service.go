@@ -216,12 +216,13 @@ func (s *FoundrySyncService) syncJournal(ctx context.Context, campaignID, _ int6
 			}
 			uuid := doc.UUID
 			entry := &domain.LoreEntry{CampaignID: campaignID, ContentText: content, LoreTier: tier, Title: title, FoundryUUID: &uuid}
-			id, isNew, err := tx.UpsertLore(ctx, entry)
+			// New entries and entries whose text changed are (re-)embedded after the commit.
+			id, needsEmbedding, err := tx.UpsertLore(ctx, entry)
 			if err != nil {
 				return fmt.Errorf("lore %s: %w", title, err)
 			}
 			out.Journal++
-			if isNew {
+			if needsEmbedding {
 				inserted = append(inserted, id)
 			}
 		}
@@ -334,19 +335,19 @@ func (s *FoundrySyncService) SyncReference(ctx context.Context, campaignID int64
 	}
 
 	run("spells", fetchOne(foundry.SearchOpts{DocumentType: "Item", SubType: "spell"}), func(tx *repository.FoundryRepository, d *foundry.Document) error {
-		return tx.UpsertSRDSpell(ctx, foundry.ToSRDSpell(d), d.UUID, true)
+		return tx.UpsertSRDSpell(ctx, foundry.ToSRDSpell(d), d.UUID, foundry.IsSRDDocument(d))
 	})
 	run("monsters", fetchOne(foundry.SearchOpts{DocumentType: "Actor", SubType: "npc"}), func(tx *repository.FoundryRepository, d *foundry.Document) error {
-		return tx.UpsertSRDMonster(ctx, foundry.ToSRDMonster(d), true)
+		return tx.UpsertSRDMonster(ctx, foundry.ToSRDMonster(d), foundry.IsSRDDocument(d))
 	})
 	run("classes", fetchOne(foundry.SearchOpts{DocumentType: "Item", SubType: "class"}), func(tx *repository.FoundryRepository, d *foundry.Document) error {
-		return tx.UpsertSRDClass(ctx, foundry.ToSRDClass(d), d.UUID, true)
+		return tx.UpsertSRDClass(ctx, foundry.ToSRDClass(d), d.UUID, foundry.IsSRDDocument(d))
 	})
 	run("subclasses", fetchOne(foundry.SearchOpts{DocumentType: "Item", SubType: "subclass"}), func(tx *repository.FoundryRepository, d *foundry.Document) error {
-		return tx.UpsertSRDSubclass(ctx, foundry.ToSRDSubclass(d), true)
+		return tx.UpsertSRDSubclass(ctx, foundry.ToSRDSubclass(d), foundry.IsSRDDocument(d))
 	})
 	run("races", fetchOne(foundry.SearchOpts{DocumentType: "Item", SubType: "race"}), func(tx *repository.FoundryRepository, d *foundry.Document) error {
-		return tx.UpsertSRDRace(ctx, foundry.ToSRDRace(d), d.UUID, true)
+		return tx.UpsertSRDRace(ctx, foundry.ToSRDRace(d), d.UUID, foundry.IsSRDDocument(d))
 	})
 	itemSubtypes := []string{"weapon", "equipment", "consumable", "tool", "loot", "container"}
 	run("items", func(ctx context.Context) ([]*foundry.Document, error) {
@@ -365,9 +366,9 @@ func (s *FoundrySyncService) SyncReference(ctx context.Context, campaignID int64
 		}
 		_ = json.Unmarshal(d.System, &probe)
 		if r := strings.ToLower(probe.Rarity); r != "" && r != "common" {
-			return tx.UpsertSRDMagicItem(ctx, foundry.ToSRDMagicItem(d), d.UUID, true)
+			return tx.UpsertSRDMagicItem(ctx, foundry.ToSRDMagicItem(d), d.UUID, foundry.IsSRDDocument(d))
 		}
-		return tx.UpsertSRDEquipment(ctx, foundry.ToSRDEquipment(d), d.UUID, true)
+		return tx.UpsertSRDEquipment(ctx, foundry.ToSRDEquipment(d), d.UUID, foundry.IsSRDDocument(d))
 	})
 
 	status, stored := "ok", ""

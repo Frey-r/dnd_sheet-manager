@@ -71,12 +71,15 @@ func (r *VTTRepository) DeleteObject(ctx context.Context, campaignID, objectID i
 	return sceneID, notFound(err)
 }
 
-func (r *VTTRepository) ResetObject(ctx context.Context, campaignID, objectID int64) error {
+// ResetObject clears an object's attempts and depletion; it returns the object's scene id so the
+// vtt.object.updated event can carry it (vtt-modes.md).
+func (r *VTTRepository) ResetObject(ctx context.Context, campaignID, objectID int64) (int64, error) {
 	if _, err := r.db.ExecContext(ctx, `DELETE FROM vtt_object_attempts WHERE object_id=(SELECT id FROM vtt_objects WHERE campaign_id=$1 AND id=$2)`, campaignID, objectID); err != nil {
-		return err
+		return 0, err
 	}
-	_, err := r.db.ExecContext(ctx, `UPDATE vtt_objects SET depleted=FALSE WHERE campaign_id=$1 AND id=$2`, campaignID, objectID)
-	return err
+	var sceneID int64
+	err := r.db.GetContext(ctx, &sceneID, `UPDATE vtt_objects SET depleted=FALSE WHERE campaign_id=$1 AND id=$2 RETURNING scene_id`, campaignID, objectID)
+	return sceneID, notFound(err)
 }
 
 // AttemptedObjects returns the ids of objects of a scene the given characters already tried.
@@ -218,7 +221,7 @@ func (r *VTTRepository) Combat(ctx context.Context, campaignID, combatID int64) 
 
 func (r *VTTRepository) loadCombatants(ctx context.Context, c *domain.VTTCombat) error {
 	c.Combatants = []domain.VTTCombatant{}
-	return r.db.SelectContext(ctx, &c.Combatants, `SELECT cb.id,cb.combat_id,cb.token_id,cb.initiative,cb.is_player,cb.movement_used_ft,cb.dashed,cb.pending,t.name
+	return r.db.SelectContext(ctx, &c.Combatants, `SELECT cb.id,cb.combat_id,cb.token_id,cb.initiative,cb.is_player,cb.movement_used_ft,cb.dashed,cb.pending,t.name,t.hidden
 		FROM vtt_combatants cb JOIN vtt_tokens t ON t.id=cb.token_id WHERE cb.combat_id=$1 AND NOT cb.pending ORDER BY cb.initiative DESC, cb.id`, c.ID)
 }
 

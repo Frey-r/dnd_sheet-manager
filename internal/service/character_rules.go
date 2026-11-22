@@ -82,9 +82,7 @@ func ApplyStartingStats(c *domain.Character, scores [6]int) error {
 	c.ProficiencyBonus = 2
 	c.InitiativeBonus = abilityMod(c.DexScore)
 	c.PassivePerception = 10 + abilityMod(c.WisScore)
-	if casting == "" {
-		casting = "INT"
-	}
+	// Martial classes have no spellcasting ability (characters.md): leave it empty.
 	c.SpellcastingAbility = casting
 	return nil
 }

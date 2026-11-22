@@ -19,13 +19,13 @@ func NewItemRepository(db *sqlx.DB) *ItemRepository {
 func (r *ItemRepository) Create(ctx context.Context, item *domain.InventoryItem) error {
 	query := `
 		INSERT INTO inventory_items (character_id, name, item_type, rarity, weight, quantity, description,
-			is_equipped, slot_type, requires_attunement, is_attuned, is_tradeable, quest_bound, srd_ref_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+			is_equipped, slot_type, requires_attunement, is_attuned, is_tradeable, quest_bound, srd_ref_id, value_cp)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 		RETURNING id, created_at, updated_at`
 	return r.db.QueryRowxContext(ctx, query,
 		item.CharacterID, item.Name, item.ItemType, item.Rarity, item.Weight, item.Quantity,
 		item.Description, item.IsEquipped, item.SlotType, item.RequiresAttunement,
-		item.IsAttuned, item.IsTradeable, item.QuestBound, item.SRDRefID,
+		item.IsAttuned, item.IsTradeable, item.QuestBound, item.SRDRefID, item.ValueCP,
 	).Scan(&item.ID, &item.CreatedAt, &item.UpdatedAt)
 }
 
@@ -63,14 +63,29 @@ func (r *ItemRepository) Delete(ctx context.Context, id int64) error {
 }
 
 func (r *ItemRepository) DeleteForCharacter(ctx context.Context, characterID, id int64) error {
-	result, err := r.db.ExecContext(ctx, `DELETE FROM inventory_items WHERE id=$1 AND character_id=$2 AND trade_locked=false`, id, characterID)
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	result, err := tx.ExecContext(ctx, `DELETE FROM inventory_items WHERE id=$1 AND character_id=$2 AND trade_locked=false`, id, characterID)
 	if err != nil {
 		return err
 	}
 	if changed, _ := result.RowsAffected(); changed != 1 {
 		return ErrResourceNotFound
 	}
-	return nil
+	// Pending offers that asked for this item can no longer complete: invalidate them and
+	// release the offerors' locked items (user-stories.md, item no longer available).
+	if _, err := tx.ExecContext(ctx, `WITH hit AS (
+			UPDATE trade_offers SET status='invalidated'
+			WHERE status='pending' AND COALESCE(NULLIF(requested_item_ids, ''), '[]')::jsonb @> to_jsonb(ARRAY[$1::bigint])
+			RETURNING offered_item_ids)
+		UPDATE inventory_items SET trade_locked=false
+		WHERE id IN (SELECT jsonb_array_elements_text(COALESCE(NULLIF(offered_item_ids, ''), '[]')::jsonb)::bigint FROM hit)`, id); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (r *ItemRepository) UpdateForCharacter(ctx context.Context, characterID int64, item *domain.InventoryItem) error {

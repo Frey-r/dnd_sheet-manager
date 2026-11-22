@@ -142,8 +142,8 @@ func (s *RAGService) VectorizeLoreEntry(ctx context.Context, entryID int64) erro
 	return s.loreRepo.UpdateVector(ctx, entryID, embedding)
 }
 
-func (s *RAGService) Query(ctx context.Context, campaignID int64, characterID *int64, userID int64, isGM bool, loreTier domain.LoreTier, query string) (string, []string, error) {
-	if !isGM && loreTier == domain.LoreTierGMHidden {
+func (s *RAGService) Query(ctx context.Context, campaignID int64, characterID *int64, userID int64, isGM bool, loreTier domain.LoreTier, query string) (string, []domain.LoreSource, error) {
+	if !isGM && (loreTier == domain.LoreTierGMHidden || loreTier == domain.LoreScopeAll) {
 		return "", nil, ErrForbidden
 	}
 	if characterID != nil {
@@ -161,19 +161,25 @@ func (s *RAGService) Query(ctx context.Context, campaignID int64, characterID *i
 	var entries []domain.LoreEntry
 	var err error
 	if characterID != nil && loreTier == domain.LoreTierCharacter {
-		entries, err = s.loreRepo.GetByCharacter(ctx, *characterID)
+		entries, err = s.loreRepo.GetByCharacter(ctx, *characterID, isGM)
 		if err != nil {
 			return "", nil, err
 		}
 	} else {
+		scope := repository.LoreSearchScope{CampaignID: campaignID, Tier: loreTier}
+		if !isGM && loreTier == domain.LoreTierCharacter {
+			// A player searching character lore without naming a character only sees the
+			// lore of their own characters (security.md: no access to other players' lore).
+			scope.OwnerUserID = userID
+		}
 		if queryEmbedding, embErr := s.GetEmbedding(ctx, query); embErr == nil {
-			entries, err = s.loreRepo.SearchByTier(ctx, campaignID, loreTier, queryEmbedding, 5)
+			entries, err = s.loreRepo.SearchByTier(ctx, scope, queryEmbedding, 5)
 			if err != nil {
 				return "", nil, err
 			}
 		}
 		if len(entries) == 0 {
-			entries, err = s.loreRepo.SearchTextByTier(ctx, campaignID, loreTier, searchWords(query), 5)
+			entries, err = s.loreRepo.SearchTextByTier(ctx, scope, searchWords(query), 5)
 			if err != nil {
 				return "", nil, err
 			}
@@ -186,12 +192,11 @@ func (s *RAGService) Query(ctx context.Context, campaignID int64, characterID *i
 
 	// Build context from entries
 	contextText := buildContextFromEntries(entries)
-	sources := make([]string, len(entries))
+	sources := make([]domain.LoreSource, len(entries))
 	for i, entry := range entries {
-		if entry.Title != "" {
-			sources[i] = entry.Title
-		} else {
-			sources[i] = fmt.Sprintf("Entrada de lore #%d", entry.ID)
+		sources[i] = domain.LoreSource{Title: entry.Title, Tier: entry.LoreTier}
+		if entry.Title == "" {
+			sources[i].Title = fmt.Sprintf("Entrada de lore #%d", entry.ID)
 		}
 	}
 
@@ -279,7 +284,7 @@ func (s *RAGService) VectorizeCharacterBackstory(ctx context.Context, charID int
 	}
 
 	// Check if lore entry already exists for this character
-	existing, _ := s.loreRepo.GetByCharacter(ctx, charID)
+	existing, _ := s.loreRepo.GetByCharacter(ctx, charID, true)
 	if len(existing) > 0 {
 		// Update existing
 		entry.ID = existing[0].ID

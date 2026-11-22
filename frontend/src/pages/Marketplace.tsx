@@ -7,10 +7,11 @@ import { marketApi, type Shop } from '../services/marketApi';
 import { ShopView } from '../components/market/ShopView';
 import { ShopManager } from '../components/market/ShopManager';
 import { itemCount } from '../lib/plural';
+import { FoundryAuthorityNotice } from '../components/foundry/FoundryAuthorityNotice';
 
 export function Marketplace() {
   const { campaignId = '' } = useParams<{ campaignId: string }>();
-  const { isGM, myCharacter } = useCampaign(campaignId);
+  const { isGM, isFoundry, myCharacter } = useCampaign(campaignId);
   const [params, setParams] = useSearchParams();
   const [mode, setMode] = useState<'manage' | 'browse'>('manage');
   const shops = useQuery({ queryKey: ['shops', campaignId], queryFn: () => marketApi.shops(campaignId), enabled: Boolean(campaignId) });
@@ -21,6 +22,7 @@ export function Marketplace() {
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 p-4 md:p-8">
+      <FoundryAuthorityNotice isFoundry={isFoundry} />
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="mc-eyebrow">Partida</div>

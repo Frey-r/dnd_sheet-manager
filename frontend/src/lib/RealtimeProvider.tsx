@@ -5,6 +5,9 @@ import { RealtimeContext, RealtimeSendContext, type ConnectionStatus } from './R
 import { useAuth } from './hooks';
 import { getAuthToken } from '../services/authStorage';
 
+// Two 30 s heartbeats plus 20 s of grace (resilience.md: two missed pongs close the socket).
+const HEARTBEAT_TIMEOUT_MS = 80_000;
+
 export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
   const location = useLocation();
@@ -21,8 +24,14 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isAuthenticated || !campaignID) return;
     let socket: WebSocket | null = null;
-    let retry = 500;
+    // resilience.md: exponential backoff with jitter, base 1 s, max 30 s.
+    let retry = 1000;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    // The server sends a text heartbeat every 30 s; two missed ones (plus grace) mean a dead link.
+    let lastSeen = Date.now();
+    const watchdog = setInterval(() => {
+      if (socket && socket.readyState === WebSocket.OPEN && Date.now() - lastSeen > HEARTBEAT_TIMEOUT_MS) socket.close();
+    }, 10_000);
     let refreshTimer: ReturnType<typeof setTimeout> | undefined;
     let active = true;
     const connect = () => {
@@ -33,13 +42,16 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       socket = new WebSocket(`${protocol}//${window.location.host}/ws`);
       socketRef.current = socket;
       socket.onopen = () => {
-        retry = 500;
+        retry = 1000;
+        lastSeen = Date.now();
         setStatus('connected');
         socket?.send(JSON.stringify({ token, campaign_id: campaignID, last_event_id: lastEvent.current[campaignID] || 0 }));
       };
       socket.onmessage = (event) => {
+        lastSeen = Date.now();
         try {
           const message = JSON.parse(String(event.data)) as { type?: string; payload?: { event_id?: number; data?: unknown } };
+          if (message.type === 'heartbeat') return;
           const eventID = message.payload?.event_id;
           if (eventID) lastEvent.current[campaignID] = Math.max(lastEvent.current[campaignID] || 0, eventID);
           // Fine-grained events for screens that apply them directly (e.g. the VTT).
@@ -65,6 +77,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     connect();
     return () => {
       active = false;
+      clearInterval(watchdog);
       if (timer) clearTimeout(timer);
       if (refreshTimer) clearTimeout(refreshTimer);
       if (socket) { socket.onclose = null; socket.close(); }

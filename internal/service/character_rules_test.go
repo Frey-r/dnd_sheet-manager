@@ -27,6 +27,9 @@ func TestApplyStartingStatsFighterDwarf(t *testing.T) {
 	if c.MaxHP != 13 || c.AC != 11 || c.Speed != 25 {
 		t.Fatalf("unexpected stats: hp=%d ac=%d speed=%d", c.MaxHP, c.AC, c.Speed)
 	}
+	if c.SpellcastingAbility != "" {
+		t.Fatalf("martial class must have no spellcasting ability, got %q", c.SpellcastingAbility)
+	}
 }
 
 func TestApplyStartingStatsDefaultsAndLimits(t *testing.T) {

@@ -27,7 +27,7 @@ export function TopAppBar({ campaign, isGM }: { campaign?: CampaignSummary; isGM
   const status = useRealtime();
   const section = SECTION.find(([re]) => re.test(pathname))?.[1];
   const [wsLabel, wsDot] = WS[status] ?? WS.disconnected;
-  const roleLabel = campaign ? (isGM ? ['Dungeon Master', 'text-gold'] : ['Jugador', 'text-[color:var(--ok)]']) : user?.role === 'admin' ? ['Admin', 'text-bad'] : user?.role === 'dm' ? ['Dungeon Master', 'text-gold'] : ['Jugador', 'text-[color:var(--ok)]'];
+  const roleLabel = campaign ? (isGM ? ['Dungeon Master', 'text-role-dm'] : ['Jugador', 'text-role-player']) : user?.role === 'admin' ? ['Admin', 'text-role-admin'] : user?.role === 'dm' ? ['Dungeon Master', 'text-role-dm'] : ['Jugador', 'text-role-player'];
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-[color-mix(in_srgb,var(--bg)_84%,transparent)] px-4 backdrop-blur-md md:px-6">
       <nav aria-label="Ruta" className="flex min-w-0 items-center gap-1.5 text-[13px] text-muted">

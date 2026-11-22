@@ -268,16 +268,25 @@ func (h *VTTHandler) UpdateScene(c *gin.Context) {
 		h.fail(c, err, "could not update scene")
 		return
 	}
-	if in.Mode != nil && scene.Mode == "combat" && scene.IsActive {
-		if combats, err := h.repo.ActiveCombats(c.Request.Context(), scene.ID); err == nil && len(combats) == 0 {
-			monsters, players := h.sceneTokenIDs(c, scene.ID)
-			if _, err := h.play.StartEncounter(c.Request.Context(), scene, float64(scene.WidthPx)/2, float64(scene.HeightPx)/2, monsters, players); err != nil {
-				log.Printf("vtt: whole-scene combat: %v", err)
-			}
-		}
+	if in.Mode != nil && scene.IsActive {
+		h.startSceneCombat(c, scene)
 	}
 	h.publish(c, campaignID, "vtt.scene.updated", gin.H{"scene_id": scene.ID})
 	c.JSON(http.StatusOK, scene)
+}
+
+// startSceneCombat starts the whole-scene combat (every non-hidden token, vtt-modes.md) when an
+// active scene is in combat mode and has no combat running yet.
+func (h *VTTHandler) startSceneCombat(c *gin.Context, scene *domain.VTTScene) {
+	if scene.Mode != "combat" {
+		return
+	}
+	if combats, err := h.repo.ActiveCombats(c.Request.Context(), scene.ID); err == nil && len(combats) == 0 {
+		monsters, players := h.sceneTokenIDs(c, scene.ID)
+		if _, err := h.play.StartEncounter(c.Request.Context(), scene, float64(scene.WidthPx)/2, float64(scene.HeightPx)/2, monsters, players); err != nil {
+			log.Printf("vtt: whole-scene combat: %v", err)
+		}
+	}
 }
 
 func (h *VTTHandler) DeleteScene(c *gin.Context) {
@@ -301,6 +310,10 @@ func (h *VTTHandler) Activate(c *gin.Context) {
 	if err := h.repo.ActivateScene(c.Request.Context(), campaignID, sceneID); err != nil {
 		h.fail(c, err, "could not activate scene")
 		return
+	}
+	// A scene activated while already in combat mode plays its whole-scene combat right away.
+	if scene, err := h.repo.GetScene(c.Request.Context(), campaignID, sceneID); err == nil {
+		h.startSceneCombat(c, scene)
 	}
 	h.publish(c, campaignID, "vtt.scene.activated", gin.H{"scene_id": sceneID})
 	c.JSON(http.StatusOK, gin.H{"scene_id": sceneID, "is_active": true})
@@ -523,7 +536,11 @@ func (h *VTTHandler) MoveToken(c *gin.Context) {
 			c.JSON(http.StatusConflict, gin.H{"error": "Token is in combat: use the turn-based movement"})
 			return
 		}
-		limit := float64(max(5, token.SpeedFt)) * float64(scene.GridSizePx) / float64(max(1, scene.FeetPerCell))
+		speed := token.SpeedFt
+		if h.play != nil {
+			speed = h.play.TokenSpeed(ctx, token)
+		}
+		limit := float64(max(5, speed)) * float64(scene.GridSizePx) / float64(max(1, scene.FeetPerCell))
 		in.X, in.Y = service.ClampStep(token.X, token.Y, in.X, in.Y, limit)
 	}
 	x, y := service.SnapToGrid(in.X, in.Y, scene.GridSizePx, scene.GridOffsetX, scene.GridOffsetY, token.SizeCells)
@@ -542,7 +559,12 @@ func (h *VTTHandler) MoveToken(c *gin.Context) {
 	if token.Hidden {
 		h.publish(c, campaignID, "vtt.scene.updated", gin.H{"scene_id": token.SceneID})
 	} else {
-		h.publish(c, campaignID, "vtt.token.moved", gin.H{"scene_id": token.SceneID, "token_id": token.ID, "x": x, "y": y})
+		moved := gin.H{"scene_id": token.SceneID, "token_id": token.ID, "x": x, "y": y}
+		if h.play != nil {
+			h.play.BroadcastMoved(ctx, campaignID, moved) // ephemeral (vtt-modes.md)
+		} else {
+			h.publish(c, campaignID, "vtt.token.moved", moved)
+		}
 	}
 	c.JSON(http.StatusOK, gin.H{"id": token.ID, "x": x, "y": y})
 }

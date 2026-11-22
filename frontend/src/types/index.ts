@@ -47,6 +47,8 @@ export interface Campaign {
   game_mode: 'local' | 'foundry';
   /** Share of value_cp paid for Bastion goods (0–100, default 100). */
   bastion_sale_pct: number;
+  /** Cover image (uploaded file or URL); "" when none. */
+  cover_url?: string;
   created_at: string;
   updated_at: string;
 }
@@ -79,6 +81,8 @@ export interface Character {
   max_hp: number;
   current_hp: number;
   temp_hp: number;
+  /** JSON text of the physical traits ({age, height, weight, eyes, skin, hair}). */
+  physical_description?: string;
   ac: number;
   speed: number;
   initiative_bonus: number;
@@ -89,6 +93,10 @@ export interface Character {
   death_save_failures: number;
   xp: number;
   gold: number;
+  silver?: number;
+  copper?: number;
+  /** Non-blocking notes returned on creation (class or race not in the catalog). */
+  warnings?: string[];
   carrying_capacity: number;
   personality_traits: string;
   ideals: string;
@@ -138,6 +146,8 @@ export interface InventoryItem {
   is_tradeable: boolean;
   quest_bound: boolean;
   trade_locked: boolean;
+  /** srd_equipment row the item was copied from (catalog items only). */
+  srd_ref_id?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -165,6 +175,8 @@ export interface Spell {
   components: string;
   damage_type: string;
   prepared: boolean;
+  /** Set when the spell was copied from the catalog (srd_spells); custom spells have none. */
+  srd_ref_id?: number | null;
   created_at: string;
 }
 

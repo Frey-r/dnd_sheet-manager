@@ -8,7 +8,15 @@ const (
 	LoreTierCharacter    LoreTier = "character_lore"
 	LoreTierCampaignPlot LoreTier = "campaign_plot"
 	LoreTierGMHidden     LoreTier = "gm_hidden_lore"
+	// LoreScopeAll is a search scope, not a stored tier: the GM searches every tier at once.
+	LoreScopeAll LoreTier = "all"
 )
+
+// LoreSource is one lore entry cited by an Oracle answer: its title and tier (source type).
+type LoreSource struct {
+	Title string   `json:"title"`
+	Tier  LoreTier `json:"tier"`
+}
 
 type LoreEntry struct {
 	ID              int64     `db:"id" json:"id"`

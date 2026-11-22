@@ -54,9 +54,9 @@ export const authApi = {
 
 export const campaignApi = {
   list: () => api.get('/campaigns'),
-  create: (data: { name: string; description: string; game_mode?: 'local' | 'foundry' }) => api.post('/campaigns', data),
+  create: (data: { name: string; description: string; game_mode?: 'local' | 'foundry'; cover_url?: string }) => api.post('/campaigns', data),
   get: (id: number | string) => api.get(`/campaigns/${id}`),
-  update: (id: number | string, data: Partial<{ name: string; description: string; status: string; bastion_sale_pct: number }>) => api.put(`/campaigns/${id}`, data),
+  update: (id: number | string, data: Partial<{ name: string; description: string; status: string; bastion_sale_pct: number; cover_url: string }>) => api.put(`/campaigns/${id}`, data),
   delete: (id: number | string) => api.delete(`/campaigns/${id}`),
   join: (id: number | string, joinCode: string) => api.post(`/campaigns/${id}/join`, { join_code: joinCode }),
   members: (campaignId: number | string) => api.get(`/campaigns/${campaignId}/members`),
@@ -72,6 +72,7 @@ export const characterApi = {
   inventory: (id: number | string) => api.get(`/characters/${id}/inventory`),
   spells: (id: number | string) => api.get(`/characters/${id}/spells`),
   spellSlots: (id: number | string) => api.get(`/characters/${id}/spell-slots`),
+  setSpellSlotTotal: (id: number | string, level: number, total: number) => api.put(`/characters/${id}/spell-slots/${level}`, { total }),
   castSpell: (charId: number | string, spellId: number | string) => api.post(`/characters/${charId}/spells/${spellId}/cast`),
   features: (id: number | string) => api.get(`/characters/${id}/features`),
   addSpell: (charId: number | string, data: Record<string, unknown>) => api.post(`/characters/${charId}/spells`, data),
@@ -91,6 +92,7 @@ export const messageApi = {
   conversation: (campaignId: number | string, userId: number | string) => api.get(`/campaigns/${campaignId}/messages/${userId}`),
   send: (campaignId: number | string, data: { message_type: string; body: string; subject?: string; recipient_user_id?: number }) => api.post(`/campaigns/${campaignId}/messages`, data),
   markRead: (scope?: { campaignId: number | string; userId: number | string }) => api.post('/messages/mark-read', null, { params: scope ? { campaign_id: scope.campaignId, user_id: scope.userId } : undefined }),
+  presence: (campaignId: number | string) => api.get(`/campaigns/${campaignId}/presence`),
 };
 export const marketApi = {
   list: (campaignId: number | string) => api.get(`/campaigns/${campaignId}/marketplace`),
