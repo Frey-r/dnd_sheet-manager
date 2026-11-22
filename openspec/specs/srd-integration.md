@@ -1,5 +1,10 @@
 # SRD Integration — Linking Reference Data to Campaign Entities
 
+> **Status (2026-11-21): the "SRD Reference Layer" below is now the expanded content
+> catalog.** `content_entities` (full 5etools import via `cmd/content-import`) is the
+> source; the `srd_*` tables are its typed projection (see srd-data.md). Every requirement
+> here that says "SRD" applies to any imported book; `is_srd` is informational only.
+
 ## Purpose
 
 This specification defines how D&D 5e SRD ground-truth data integrates with campaign-specific entities. SRD data provides the "official rules" layer while campaign entities represent the "living game state".

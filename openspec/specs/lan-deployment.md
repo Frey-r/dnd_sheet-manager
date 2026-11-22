@@ -29,13 +29,26 @@ AND login, REST calls and the WebSocket SHALL work against the same origin
 ```
 
 ## 4. Optional AI (Ollama)
-- When Ollama is unreachable, the server **SHALL** start normally; lore search **SHALL** return a controlled error (`RAG_UNAVAILABLE`) and the UI **SHALL** show the Oracle as unavailable while every other feature keeps working.
+- When Ollama is unreachable, the server **SHALL** start normally and every other feature keeps working.
+- Lore search **SHALL** degrade instead of failing (decided 2026-11-21): it runs a keyword search
+  over the lore the caller may read (same tier rules) and answers with the matching passages,
+  prefixed "Sin IA en este servidor; esto es lo que dice el lore:", plus their `sources`.
+  Embedding failures **SHALL** be logged and the entry stays non-vectorized (keyword search still finds it).
+- `RAG_UNAVAILABLE` (503) **SHALL** be returned only when the lore query itself cannot run
+  (e.g. worker queue full or database error); `RAG_TIMEOUT` (504) when it exceeds the deadline.
+  The UI **SHALL** then show "El Oráculo no está disponible en este servidor".
+- The bot test (`POST /campaigns/:id/bot/test`) has no non-AI fallback: without a language model
+  it **SHALL** answer 503 `RAG_UNAVAILABLE`.
 
 ```gherkin
 GIVEN the stack started without the "ai" profile
 WHEN a player asks the Oracle a question
-THEN the UI SHALL show "El Oráculo no está disponible en este servidor"
+THEN the answer SHALL be the matching lore passages the player may read, with their sources
 AND no other screen SHALL be affected
+
+GIVEN the lore query cannot run (queue full or database error)
+WHEN a player asks the Oracle a question
+THEN the UI SHALL show "El Oráculo no está disponible en este servidor"
 ```
 
 ## 5. First run
