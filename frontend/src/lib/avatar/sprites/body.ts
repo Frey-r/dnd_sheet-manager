@@ -1,7 +1,7 @@
 /* Bare chibi body, heads and faces. Clothes, hair and race parts are drawn on top.
    Light comes from the top left (character-appearance.md, "Shading"). */
 import { mix, ramp, type Ramp } from '../color';
-import { FOOT_Y, HEAD_PROFILE, headSpan, mx, type Painter } from '../painter';
+import { FOOT_Y, HEAD_PROFILE, HEAD_PROFILES, headSpan, mx, type Painter } from '../painter';
 import { BONE, KERATIN } from '../palettes';
 import { EYE_WHITE, INK, type DrawCtx } from './context';
 
@@ -59,11 +59,12 @@ export function drawBody(c: DrawCtx) {
   p.tag = null;
 }
 
-/** Plain skull: rows of HEAD_PROFILE, lit from the top left. */
+/** Plain skull: rows of the head type's profile, lit from the top left. */
 function skull(c: DrawCtx, r: Ramp = c.skin) {
   const { p, f } = c;
+  const prof = HEAD_PROFILES[c.v.head];
   for (let y = f.hy; y <= f.chinY; y++) {
-    const s = headSpan(f, y);
+    const s = headSpan(f, y, prof);
     if (!s) continue;
     const [x1, x2] = s;
     p.hline(x1, x2, y, r.base);
@@ -72,9 +73,9 @@ function skull(c: DrawCtx, r: Ramp = c.skin) {
     if (row >= 2 && row <= 13) p.set(x1, y, r.light);
   }
   // Chin and jaw shadow.
-  const [cx1, cx2] = headSpan(f, f.chinY)!;
+  const [cx1, cx2] = headSpan(f, f.chinY, prof)!;
   p.hline(cx1, cx2, f.chinY, r.shadow);
-  const [jx1, jx2] = headSpan(f, f.chinY - 1)!;
+  const [jx1, jx2] = headSpan(f, f.chinY - 1, prof)!;
   p.hline(Math.round((jx1 + jx2) / 2), jx2, f.chinY - 1, r.shadow);
   p.set(jx1, f.chinY - 1, r.shadow);
 }
@@ -85,11 +86,14 @@ export function drawPlainEar(c: DrawCtx) {
   if (v.head !== 'human') return;
   for (const part of parts) if (part.startsWith('ears-')) return;
   p.tag = 'skin';
-  const y = f.eyeY;
-  p.sym([[13, y], [12, y + 1], [13, y + 1], [12, y + 2], [13, y + 2], [13, y + 3]], skin.base);
-  p.set(13, y + 1, skin.shadow);
-  p.set(mx(12), y + 1, skin.shadow);
-  p.set(mx(12), y + 2, skin.shadow);
+  // Small ear against the side of the face, from the brow row down.
+  const y = f.eyeY - 1;
+  for (let j = 0; j < 4; j++) {
+    const x1 = headSpan(f, y + j)![0];
+    const pts: [number, number][] = j === 0 || j === 3 ? [[x1 - 1, y + j]] : [[x1 - 1, y + j], [x1 - 2, y + j]];
+    p.sym(pts, skin.base);
+    if (j === 1 || j === 2) { p.set(x1 - 1, y + j, skin.shadow); p.set(mx(x1 - 2), y + j, skin.shadow); }
+  }
   p.tag = null;
 }
 
@@ -102,8 +106,9 @@ export function drawHead(c: DrawCtx) {
     case 'beast': {
       skull(c);
       // Fluffy cheeks and a pale muzzle with a dark nose.
-      p.sym([[13, hy + 13], [13, hy + 14], [14, hy + 16], [15, hy + 17], [12, hy + 14]], skin.base);
-      p.sym([[12, hy + 14], [14, hy + 16]], skin.shadow);
+      // Fur tufts break the cheek line so the head does not read as a ball.
+      p.sym([[14, hy + 12], [13, hy + 13], [14, hy + 13], [15, hy + 14], [14, hy + 15], [15, hy + 15], [16, hy + 16], [16, hy + 17], [17, hy + 17]], skin.base);
+      p.sym([[13, hy + 13], [14, hy + 15], [16, hy + 17]], skin.shadow);
       const muzzle = ramp(mix(skin.base, '#fff4e0', 0.45));
       for (let y = eyeY + 4; y <= chinY - 1; y++) {
         const hw = y === eyeY + 4 ? 2 : y === chinY - 1 ? 3 : 4;
@@ -117,7 +122,10 @@ export function drawHead(c: DrawCtx) {
     }
     case 'beak': {
       skull(c);
-      p.sym([[13, hy + 12], [12, hy + 13], [13, hy + 14], [13, hy + 15], [14, hy + 16]], skin.shadow);
+      // Ruffled cheek feathers.
+      p.sym([[14, hy + 12], [13, hy + 13], [14, hy + 14], [15, hy + 15], [15, hy + 16], [16, hy + 17]], skin.shadow);
+      // Feather tuft on the crown so the head is not a plain ball.
+      p.stamp(20, hy - 3, ['..l..l..', '.lb.lbs.', 'lbbsbbbs'], { l: skin.light, b: skin.base, s: skin.shadow });
       const beak = ramp(v.key === 'kenku' ? '#4a4a56' : KERATIN);
       const top = eyeY + 3;
       p.stamp(20, top, [
@@ -192,8 +200,9 @@ export function drawHead(c: DrawCtx) {
     case 'skull': {
       skull(c);
       p.stamp(21, eyeY + 5, ['..ab..', '.abba.'], { a: INK, b: mix(INK, skin.base, 0.3) });
-      p.stamp(18, chinY - 3, ['bbbbbbbbbbbb', 'kbkbkbkbkbkb', 'skbkbkbkbkbs'], { b: BONE, k: INK, s: skin.shadow });
-      p.sym([[15, eyeY + 6], [16, eyeY + 7]], skin.shadow);
+      p.stamp(20, chinY - 3, ['bbbbbbbb', 'kbkbkbkb', 'skbkbkbs'], { b: BONE, k: INK, s: skin.shadow });
+      // Cheekbones.
+      p.sym([[17, eyeY + 4], [18, eyeY + 5]], skin.shadow);
       break;
     }
     case 'fish': {
@@ -253,16 +262,16 @@ function eyeMap(c: DrawCtx, glow: boolean): Record<string, string> {
  * its top left and a 1-px one at its bottom right. Light comes from the top left, so the highlights
  * sit on the same side of both eyes; only the lash and the white are mirrored.
  */
-const EYE_L = ['kkkkk', 'khhdd', 'wssss', 'wiiii', 'wllhl', '.lll.'];
-const EYE_R = ['kkkkk', 'hhddk', 'ssssw', 'iiiiw', 'llhlw', '.lll.'];
+const EYE_L = ['kkkk', 'khdd', 'wsii', '.lll'];
+const EYE_R = ['kkkk', 'hddk', 'siiw', 'lll.'];
 
 function eye(c: DrawCtx, right: boolean, glow: boolean) {
   const { p, f, a } = c;
   const y0 = f.eyeY;
   p.tag = 'eye';
-  p.stamp(right ? 27 : 16, y0, right ? EYE_R : EYE_L, eyeMap(c, glow));
+  p.stamp(right ? 27 : 17, y0, right ? EYE_R : EYE_L, eyeMap(c, glow));
   // Outer lash flick for body B.
-  if (a.body === 1) p.set(right ? 32 : 15, y0 - 1, INK);
+  if (a.body === 1) p.set(right ? 31 : 16, y0, INK);
   p.tag = null;
 }
 
@@ -274,8 +283,8 @@ export function drawFace(c: DrawCtx) {
   const map = eyeMap(c, glow);
 
   if (parts.has('cyclops')) {
-    // One big centred eye, 6 × 7, white on both sides.
-    p.stamp(21, eyeY - 1, ['.kkkk.', 'kkkkkk', 'wddddw', 'whhssw', 'wiiiiw', 'wllhlw', '.llll.'], map);
+    // One centred eye, 6 × 5, white on both sides.
+    p.stamp(21, eyeY - 1, ['.kkkk.', 'kkkkkk', 'whddsw', 'wsiiiw', '.llll.'], map);
     p.hline(20, 27, eyeY - 3, skin.shadow);
     p.hline(23, 24, mouthY, skin.deep);
     return;
@@ -284,17 +293,16 @@ export function drawFace(c: DrawCtx) {
     case 'skull': {
       // Round dark sockets; glowing eyes show a pinpoint with a highlight.
       for (const right of [false, true]) {
-        const x0 = right ? 27 : 16;
-        p.stamp(x0, eyeY, ['.kkk.', 'kkkkk', 'kkkkk', 'kkkkk', '.kkk.'], { k: INK });
-        p.set(right ? x0 : x0 + 4, eyeY + 4, skin.shadow);
-        if (glow) p.stamp(x0 + 1, eyeY + 1, ['hi.', 'iil', '.l.'], { h: '#ffffff', i: eyes.hi, l: eyes.light });
+        const x0 = right ? 27 : 17;
+        p.stamp(x0, eyeY, ['.kk.', 'kkkk', 'kkkk', '.kk.'], { k: INK });
+        if (glow) p.stamp(x0 + 1, eyeY + 1, ['hi', 'il'], { h: '#ffffff', i: eyes.hi, l: eyes.light });
       }
       return;
     }
     case 'insect': {
       // Big faceted eyes with the same two highlights.
       for (const right of [false, true]) {
-        p.stamp(right ? 27 : 15, eyeY - 2, ['.ddd.', 'dhhsd', 'dhsid', 'dsiid', 'diihd', '.ddd.'],
+        p.stamp(right ? 28 : 15, eyeY - 2, ['.ddd.', 'dhsid', 'dsiid', 'diild', '.ddd.'],
           { ...map, d: eyes.deep, s: eyes.shadow, i: glow ? eyes.hi : eyes.base, h: '#ffffff' });
       }
       return;
@@ -315,9 +323,9 @@ export function drawFace(c: DrawCtx) {
     case 'reptile': {
       // Slit pupil, heavy lid slanting down towards the snout.
       for (const right of [false, true]) {
-        p.stamp(right ? 27 : 16, eyeY, right
-          ? ['.kkkk', 'khhdd', 'sskss', 'iikih', '.lll.']
-          : ['kkkk.', 'hhddk', 'sskss', 'iikih', '.lll.'],
+        p.stamp(right ? 27 : 17, eyeY, right
+          ? ['.kkk', 'kkdh', 'ikii', 'lkl.']
+          : ['kkk.', 'hdkk', 'iiki', '.lkl'],
         map);
       }
       return;
@@ -335,7 +343,7 @@ export function drawFace(c: DrawCtx) {
       if (v.head === 'human' || v.head === 'ooze') {
         const bearded = parts.has('beard-full') || parts.has('beard-braided') || parts.has('beard-short');
         const blush = mix(skin.base, '#ff7a7a', 0.32);
-        p.sym([[17, eyeY + 6], [18, eyeY + 6]], blush);
+        p.sym([[18, eyeY + 4], [19, eyeY + 4]], blush);
         p.set(24, eyeY + 4, skin.shadow);
         if (!bearded) {
           const lip = mix(skin.deep, '#8a2a3a', 0.35);

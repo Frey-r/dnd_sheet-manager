@@ -5,7 +5,7 @@
    face  – after the eyes, under the hair (marks, tusks, whiskers, visor)
    head  – over the hair (ears, horns, beards, crests, elemental hair, halo) */
 import { mix, ramp, type Ramp } from '../color';
-import { FOOT_Y, mx } from '../painter';
+import { FOOT_Y, HEAD_PROFILE, headSpan, mx } from '../painter';
 import { BONE, HORN } from '../palettes';
 import type { Part } from '../types';
 import { shadeSpan } from './body';
@@ -201,12 +201,12 @@ const SKIN: Partial<Record<Part, Drawer>> = {
   spots: (c) => {
     const { hy, eyeY } = c.f;
     const col = acc(c).shadow;
-    c.p.dots([[17, hy + 3], [19, hy + 2], [18, hy + 4], [30, hy + 4], [31, hy + 6], [15, eyeY + 5], [32, eyeY + 5], [31, eyeY + 6]], col);
+    c.p.dots([[17, hy + 3], [19, hy + 2], [18, hy + 4], [30, hy + 4], [31, hy + 6], [17, eyeY + 5], [30, eyeY + 5], [29, eyeY + 6]], col);
   },
   stripes: (c) => {
     const { hy, eyeY } = c.f;
     const col = acc(c).deep;
-    sym(c, [[21, hy + 1], [21, hy + 2], [21, hy + 3], [18, hy + 2], [18, hy + 3], [14, eyeY + 4], [15, eyeY + 4], [14, eyeY + 6], [15, eyeY + 6], [16, eyeY + 6]], col);
+    sym(c, [[21, hy + 1], [21, hy + 2], [21, hy + 3], [18, hy + 2], [18, hy + 3], [16, eyeY + 4], [17, eyeY + 4], [18, eyeY + 6], [19, eyeY + 6], [19, eyeY + 5]], col);
     c.p.dots([[23, hy + 1], [24, hy + 1], [23, hy + 2], [24, hy + 2], [23, hy + 4], [24, hy + 4]], col);
   },
 };
@@ -214,7 +214,7 @@ const SKIN: Partial<Record<Part, Drawer>> = {
 const FACE: Partial<Record<Part, Drawer>> = {
   freckles: (c) => {
     const { eyeY } = c.f;
-    sym(c, [[16, eyeY + 6], [19, eyeY + 6], [18, eyeY + 7]], mix(c.skin.shadow, '#7a3a1a', 0.35));
+    sym(c, [[17, eyeY + 4], [18, eyeY + 5], [20, eyeY + 4]], mix(c.skin.shadow, '#7a3a1a', 0.35));
   },
   scar: (c) => {
     const { eyeY } = c.f;
@@ -225,21 +225,21 @@ const FACE: Partial<Record<Part, Drawer>> = {
   tattoo: (c) => {
     const { eyeY, hy } = c.f;
     const col = c.v.hair ? '#2e4a7a' : acc(c).deep;
-    sym(c, [[15, eyeY + 5], [16, eyeY + 6], [17, eyeY + 6], [18, eyeY + 7]], col);
+    sym(c, [[16, eyeY + 1], [16, eyeY + 2], [16, eyeY + 3], [17, eyeY + 4], [18, eyeY + 5]], col);
     c.p.dots([[23, hy + 5], [24, hy + 5], [23, hy + 6], [24, hy + 6], [23, hy + 7], [24, hy + 7]], col);
   },
   mark: (c) => {
     const { eyeY } = c.f;
-    // Small rune on the cheek, under the outer corner of the eye.
-    c.p.dots([[16, eyeY + 6], [18, eyeY + 6], [18, eyeY + 7], [15, eyeY + 5]], '#8a3aa8');
-    c.p.set(17, eyeY + 6, '#c07ad8');
+    // Small diamond on the cheek, under the eye.
+    c.p.dots([[19, eyeY + 4], [18, eyeY + 5], [20, eyeY + 5], [19, eyeY + 6]], '#8a3aa8');
+    c.p.set(19, eyeY + 5, '#c07ad8');
   },
   plates: (c) => {
     const { hy, eyeY, mouthY, chinY, waistY } = c.f;
     const line = c.skin.deep;
     c.p.hline(15, 32, hy + 5, line);
-    c.p.vline(15, hy + 5, chinY - 3, line);
-    c.p.vline(32, hy + 5, chinY - 3, line);
+    // Seams down the temples, then along the jaw.
+    sym(c, [[16, hy + 5], [16, hy + 6], [16, hy + 7], [16, hy + 8], [16, hy + 9], [16, eyeY + 4], [17, eyeY + 5], [18, eyeY + 6], [19, chinY - 1]], line);
     c.p.hline(21, 26, mouthY, INK);
     c.p.dots([[22, mouthY], [24, mouthY]], c.skin.shadow);
     c.p.dots([[18, hy + 3], [19, hy + 2]], c.skin.hi);
@@ -248,20 +248,18 @@ const FACE: Partial<Record<Part, Drawer>> = {
   },
   visor: (c) => {
     const { eyeY } = c.f;
-    // Covers the 6-row eyes: rim, dark glass and a glowing band in the eye colour.
-    c.p.rect(15, eyeY, 18, 6, '#2b2b33');
+    // Rim, dark glass over the eye rows and a glowing band in the eye colour.
     c.p.hline(15, 32, eyeY - 1, '#4a4a55');
-    c.p.hline(16, 31, eyeY + 5, '#1d1d24');
+    c.p.rect(16, eyeY, 16, 4, '#2b2b33');
     c.p.hline(17, 30, eyeY + 1, c.eyes.light);
-    c.p.hline(17, 30, eyeY + 2, c.eyes.base);
-    c.p.hline(18, 29, eyeY + 3, c.eyes.shadow);
-    c.p.dots([[18, eyeY + 1], [19, eyeY + 1], [28, eyeY + 3]], '#ffffff');
+    c.p.hline(18, 29, eyeY + 2, c.eyes.base);
+    c.p.dots([[18, eyeY + 1], [19, eyeY + 1]], '#ffffff');
   },
   stitches: (c) => {
-    const { hy, chinY } = c.f;
+    const { hy } = c.f;
     const col = c.skin.deep;
-    for (let y = hy + 3; y <= chinY - 2; y++) c.p.set(30, y, col);
-    for (let y = hy + 4; y <= chinY - 2; y += 2) c.p.dots([[29, y], [31, y]], col);
+    for (let y = hy + 3; y <= hy + 14; y++) c.p.set(30, y, col);
+    for (let y = hy + 4; y <= hy + 14; y += 2) c.p.dots([[29, y], [31, y]], col);
   },
   tusks: (c) => {
     const { mouthY } = c.f;
@@ -275,11 +273,11 @@ const FACE: Partial<Record<Part, Drawer>> = {
   whiskers: (c) => {
     const { eyeY } = c.f;
     const col = '#ece6d4';
-    sym(c, [[19, eyeY + 6], [18, eyeY + 6], [17, eyeY + 6], [16, eyeY + 5], [15, eyeY + 5], [19, eyeY + 7], [18, eyeY + 8], [17, eyeY + 8]], col);
+    sym(c, [[18, eyeY + 5], [17, eyeY + 5], [16, eyeY + 4], [15, eyeY + 4], [18, eyeY + 6], [17, eyeY + 7], [16, eyeY + 7]], col);
   },
   gills: (c) => {
     const { eyeY } = c.f;
-    sym(c, [[15, eyeY + 4], [16, eyeY + 5], [15, eyeY + 6], [16, eyeY + 7]], c.skin.deep);
+    sym(c, [[16, eyeY + 1], [16, eyeY + 3], [17, eyeY + 4], [18, eyeY + 6]], c.skin.deep);
   },
   'trunk-tusks': (c) => {
     const { eyeY } = c.f;
@@ -383,7 +381,11 @@ const HEAD: Partial<Record<Part, Drawer>> = {
   sideburns: (c) => {
     const { eyeY } = c.f;
     const r = acc(c);
-    for (let y = eyeY - 1; y <= eyeY + 4; y++) { c.p.hline(14, 15, y, r.base); c.p.hline(32, 33, y, r.shadow); }
+    for (let y = eyeY - 1; y <= eyeY + 4; y++) {
+      const [x1, x2] = headSpan(c.f, y)!;
+      c.p.hline(x1, x1 + 1, y, r.base);
+      c.p.hline(x2 - 1, x2, y, r.shadow);
+    }
   },
   crest: (c) => {
     const r = acc(c);
@@ -493,8 +495,9 @@ function beard(c: DrawCtx, len: number) {
   const { eyeY, mouthY, chinY } = f;
   for (let y = eyeY + 3; y <= chinY + len; y++) {
     let hw: number;
-    if (y <= chinY) hw = 10 - Math.max(0, y - (chinY - 2));
-    else hw = Math.max(1, Math.round(9 * (1 - (y - chinY) / (len + 1))));
+    // Follows the jawline (one pixel of volume) and narrows to a point below the chin.
+    if (y <= chinY) hw = HEAD_PROFILE[y - f.hy] + 1;
+    else hw = Math.max(1, Math.round(7 * (1 - (y - chinY) / (len + 1))));
     const x1 = 24 - hw;
     const x2 = 23 + hw;
     if (y < mouthY - 1) {

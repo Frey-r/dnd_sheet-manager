@@ -1,6 +1,6 @@
 /* Pixel buffer + body frames for the chibi avatar (48×56, facing the viewer, feet on row 52).
    openspec/specs/character-appearance.md, "Art direction". */
-import type { Size } from './types';
+import type { HeadType, Size } from './types';
 
 export const W = 48;
 export const H = 56;
@@ -95,7 +95,7 @@ export interface Frame {
   hy: number;
   /** Head bounding box (skull only, without hair). */
   head: Rect;
-  /** Top row (lash) of the eyes; eyes are 5×6 at columns 16–20 and 27–31. */
+  /** Top row (lash) of the eyes; eyes are 4×4 at columns 17–20 and 27–30. */
   eyeY: number;
   mouthY: number;
   chinY: number;
@@ -116,12 +116,31 @@ export interface Frame {
 
 const r = (x: number, y: number, w: number, h: number): Rect => ({ x, y, w, h });
 
-/** Half widths of the skull, top to chin (19 rows). */
-export const HEAD_PROFILE = [5, 7, 8, 9, 9, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 9, 8, 6, 4];
+/**
+ * Half widths of the skull, top to chin (19 rows). The cranium (mostly under the hair) is round; the
+ * face is not: straight sides at the eyes, a jawline tapering one pixel per row and a 4-px chin.
+ */
+export const HEAD_PROFILE: readonly number[] = [5, 7, 8, 9, 9, 10, 10, 10, 10, 9, 9, 8, 8, 8, 7, 6, 5, 4, 2];
+
+/** Non-human heads keep their own silhouettes (character-appearance.md, "Face"). */
+export const HEAD_PROFILES: Record<HeadType, readonly number[]> = {
+  human: HEAD_PROFILE,
+  insect: HEAD_PROFILE,
+  skull: HEAD_PROFILE,
+  ooze: HEAD_PROFILE,
+  // Broad cheeks (with fur tufts added on top) and a blunt jaw for the muzzle.
+  beast: [5, 7, 8, 9, 9, 10, 10, 10, 10, 10, 10, 10, 9, 9, 8, 8, 7, 6, 4],
+  elephant: [5, 7, 8, 9, 9, 10, 10, 10, 10, 10, 10, 10, 9, 9, 8, 8, 7, 6, 4],
+  beak: [5, 7, 8, 9, 9, 10, 10, 10, 10, 10, 9, 9, 9, 8, 8, 7, 6, 5, 3],
+  // The reptile snout and the fish jaw are drawn wider than the skull on purpose: boxy, not round.
+  reptile: [5, 7, 8, 9, 9, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 9, 8, 6, 4],
+  fish: [5, 7, 8, 9, 9, 10, 10, 10, 10, 10, 10, 10, 10, 10, 9, 9, 9, 8, 7],
+  frog: HEAD_PROFILE,
+};
 
 /** Columns [x1, x2] of the skull on row y (or null above/below it). */
-export function headSpan(f: Frame, y: number): [number, number] | null {
-  const hw = HEAD_PROFILE[y - f.hy];
+export function headSpan(f: Frame, y: number, profile: readonly number[] = HEAD_PROFILE): [number, number] | null {
+  const hw = profile[y - f.hy];
   return hw === undefined ? null : [24 - hw, 23 + hw];
 }
 
