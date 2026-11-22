@@ -130,10 +130,7 @@ func projectLegacy(ctx context.Context, tx *sql.Tx, contentID int64, entity Enti
 		return err
 	case "monster":
 		ac := firstNumber(data["ac"], 10)
-		hp := 1
-		if hpData, ok := data["hp"].(map[string]any); ok {
-			hp = intValue(hpData["average"])
-		}
+		hp := monsterHP(data["hp"])
 		monsterType, subtype := monsterTypeParts(data["type"])
 		cr := flatText(data["cr"])
 		if crData, ok := data["cr"].(map[string]any); ok {
@@ -150,7 +147,10 @@ func projectLegacy(ctx context.Context, tx *sql.Tx, contentID int64, entity Enti
 			hitDie = intValue(hd["faces"])
 		}
 		var classID int64
-		err := tx.QueryRowContext(ctx, `INSERT INTO srd_classes(name,hit_die,primary_ability,saving_throws,armor_proficiencies,weapon_proficiencies,tool_proficiencies,skill_choices,starting_equipment,spellcasting_ability,description,is_srd,source,content_entity_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) ON CONFLICT(name,source) DO UPDATE SET hit_die=EXCLUDED.hit_die,spellcasting_ability=EXCLUDED.spellcasting_ability,description=EXCLUDED.description,is_srd=EXCLUDED.is_srd,content_entity_id=EXCLUDED.content_entity_id RETURNING id`, entity.Name, hitDie, jsonValue(data["primaryAbility"]), jsonValue(data["proficiency"]), jsonValue(data["startingProficiencies"]), jsonValue(data["startingProficiencies"]), jsonValue(data["startingProficiencies"]), jsonValue(data["startingProficiencies"]), flatText(data["startingEquipment"]), flatText(data["spellcastingAbility"]), flatText(data["entries"]), entity.IsSRD, entity.Source, contentID).Scan(&classID)
+		err := tx.QueryRowContext(ctx, `INSERT INTO srd_classes(name,hit_die,primary_ability,saving_throws,armor_proficiencies,weapon_proficiencies,tool_proficiencies,skill_choices,starting_equipment,spellcasting_ability,description,is_srd,source,content_entity_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) ON CONFLICT(name,source) DO UPDATE SET hit_die=EXCLUDED.hit_die,primary_ability=EXCLUDED.primary_ability,saving_throws=EXCLUDED.saving_throws,armor_proficiencies=EXCLUDED.armor_proficiencies,weapon_proficiencies=EXCLUDED.weapon_proficiencies,tool_proficiencies=EXCLUDED.tool_proficiencies,skill_choices=EXCLUDED.skill_choices,starting_equipment=EXCLUDED.starting_equipment,spellcasting_ability=EXCLUDED.spellcasting_ability,description=EXCLUDED.description,is_srd=EXCLUDED.is_srd,content_entity_id=EXCLUDED.content_entity_id RETURNING id`,
+			entity.Name, hitDie, jsonValue(primaryAbilities(data["primaryAbility"])), jsonValue(data["proficiency"]),
+			jsonValue(proficiencyList(data, "armor")), jsonValue(proficiencyList(data, "weapons")), jsonValue(proficiencyList(data, "tools")),
+			jsonValue(skillChoices(data)), startingEquipmentText(data["startingEquipment"]), flatText(data["spellcastingAbility"]), flatText(data["entries"]), entity.IsSRD, entity.Source, contentID).Scan(&classID)
 		if err != nil {
 			return err
 		}
@@ -347,7 +347,10 @@ func proficiency(cr string) int {
 	return 2
 }
 func crXP(cr string) int {
-	values := []int{0, 10, 25, 50, 100, 200, 450, 700, 1100, 1800, 2300, 2900, 3900, 5000, 5900, 7200, 8400, 10000, 11500, 13000, 15000, 18000, 20000, 22000, 25000, 33000, 41000, 50000, 62000, 75000, 90000, 105000, 120000, 135000, 155000}
+	// XP by integer CR 0..30 (DMG). The fractional CRs are handled below. The previous table
+	// also listed the fractional values here, which shifted every CR >= 1 (CR 1 gave 10 XP,
+	// CR 5 gave 200) and broke encounter budgets for the whole catalog.
+	values := []int{10, 200, 450, 700, 1100, 1800, 2300, 2900, 3900, 5000, 5900, 7200, 8400, 10000, 11500, 13000, 15000, 18000, 20000, 22000, 25000, 33000, 41000, 50000, 62000, 75000, 90000, 105000, 120000, 135000, 155000}
 	value := crValue(cr)
 	if value == 0.125 {
 		return 25
@@ -438,4 +441,100 @@ func schoolName(code string) string {
 		return name
 	}
 	return code
+}
+
+// primaryAbilities turns 5etools' [{"int":true},{"str":true,"dex":true}] into ["int","str","dex"].
+func primaryAbilities(value any) []string {
+	out := []string{}
+	seen := map[string]bool{}
+	list, _ := value.([]any)
+	for _, option := range list {
+		object, _ := option.(map[string]any)
+		for _, key := range []string{"str", "dex", "con", "int", "wis", "cha"} {
+			if object[key] == true && !seen[key] {
+				seen[key] = true
+				out = append(out, key)
+			}
+		}
+	}
+	return out
+}
+
+// proficiencyList reads one list of a class's startingProficiencies (armor, weapons, tools).
+// Before, the whole startingProficiencies object was stored in every column, so the UI showed
+// no armor, weapons or tools for any catalog class.
+func proficiencyList(data map[string]any, key string) []any {
+	starting, _ := data["startingProficiencies"].(map[string]any)
+	list, _ := starting[key].([]any)
+	if list == nil {
+		return []any{}
+	}
+	return list
+}
+
+// skillChoices maps startingProficiencies.skills ([{"choose":{"from":[...],"count":2}}]) to the
+// {count, options} shape the character creator reads.
+func skillChoices(data map[string]any) map[string]any {
+	starting, _ := data["startingProficiencies"].(map[string]any)
+	skills, _ := starting["skills"].([]any)
+	for _, entry := range skills {
+		object, _ := entry.(map[string]any)
+		if choose, ok := object["choose"].(map[string]any); ok {
+			count := intValue(choose["count"])
+			if count == 0 {
+				count = 1
+			}
+			options, _ := choose["from"].([]any)
+			return map[string]any{"count": count, "options": options}
+		}
+		if anyCount := intValue(object["any"]); anyCount > 0 {
+			return map[string]any{"count": anyCount, "options": []any{"any"}}
+		}
+	}
+	return map[string]any{}
+}
+
+// startingEquipmentText prefers the readable "entries" (2024 classes) or the "default" list
+// (2014 classes) over flattening the whole object, which mixed in machine data such as
+// "true dagger|xphb 500 5500".
+func startingEquipmentText(value any) string {
+	object, _ := value.(map[string]any)
+	if object == nil {
+		return flatText(value)
+	}
+	for _, key := range []string{"entries", "default"} {
+		if list, ok := object[key].([]any); ok && len(list) > 0 {
+			lines := make([]string, 0, len(list))
+			for _, line := range list {
+				if text := strings.TrimSpace(flatText(line)); text != "" {
+					lines = append(lines, text)
+				}
+			}
+			return strings.Join(lines, "\n")
+		}
+	}
+	return ""
+}
+
+// monsterHP reads a 5etools hp block: {"average": 7, "formula": "2d6"} or {"special": "7"}
+// ("special" is also used for text such as "equal to the summoner's level"). A leading number
+// in "special" is used; anything unreadable falls back to 1.
+func monsterHP(value any) int {
+	object, _ := value.(map[string]any)
+	if average := intValue(object["average"]); average > 0 {
+		return average
+	}
+	if special, ok := object["special"].(string); ok {
+		digits := ""
+		for _, r := range strings.TrimSpace(special) {
+			if r < '0' || r > '9' {
+				break
+			}
+			digits += string(r)
+		}
+		if n, err := strconv.Atoi(digits); err == nil && n > 0 {
+			return n
+		}
+	}
+	return 1
 }

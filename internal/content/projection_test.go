@@ -54,3 +54,31 @@ func TestSchoolName(t *testing.T) {
 		}
 	}
 }
+
+func TestCRXPMatchesTheDMGTable(t *testing.T) {
+	cases := map[string]int{"0": 10, "1/8": 25, "1/4": 50, "1/2": 100, "1": 200, "2": 450, "3": 700, "5": 1800, "10": 5900, "17": 18000, "20": 25000, "24": 62000, "30": 155000, "": 10}
+	for cr, want := range cases {
+		if got := crXP(cr); got != want {
+			t.Errorf("crXP(%q) = %d, want %d", cr, got, want)
+		}
+	}
+}
+
+func TestMonsterHP(t *testing.T) {
+	cases := []struct {
+		name  string
+		value any
+		want  int
+	}{
+		{"average", map[string]any{"average": float64(27), "formula": "5d8+5"}, 27},
+		{"numeric special (Dum-Dum Goblin)", map[string]any{"special": "7"}, 7},
+		{"special with text", map[string]any{"special": "40 + 10 per spell level"}, 40},
+		{"non-numeric special", map[string]any{"special": "equal to the summoner's level"}, 1},
+		{"missing", nil, 1},
+	}
+	for _, c := range cases {
+		if got := monsterHP(c.value); got != c.want {
+			t.Errorf("%s: monsterHP = %d, want %d", c.name, got, c.want)
+		}
+	}
+}
