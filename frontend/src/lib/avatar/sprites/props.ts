@@ -1,7 +1,10 @@
-/* Held prop by class (character-appearance.md, "Held prop"), drawn behind the raised fist in
-   canonical body coordinates. The fist grips at about (34, 34). */
+/* Held prop by class (character-appearance.md § Art direction → Held prop), canonical body coordinates.
+   The near hand (viewer's right) grips at CANON.nearHand: staves, maces, hammers and bows stand
+   upright at the side, swords, axes and daggers hang lowered, the lute is slung on the back. Front
+   props are drawn between the torso and the near arm, so the sleeve and the fist overlap the grip. */
 import { ramp, type Ramp } from '../color';
 import type { Painter } from '../painter';
+import { INK } from './context';
 
 export type Prop = 'staff' | 'sword' | 'axe' | 'bow' | 'dagger' | 'mace' | 'lute' | 'hammer';
 
@@ -25,171 +28,211 @@ export function propForClass(className: string | null | undefined): Prop | null 
   return null;
 }
 
+/** Props slung on the back, drawn behind the body. */
+export const BACK_PROPS: ReadonlySet<Prop> = new Set(['lute']);
+
 const WOOD = ramp('#8a5a32');
 const DARK_WOOD = ramp('#5a3a2c');
 const STEEL = ramp('#b9c4d0');
-const GOLD = ramp('#f2b632');
+const GOLD = ramp('#e0a83a');
 
-/** Two-pixel shaft from (x1, y1) (bottom) to (x2, y2) (top): lit left pixel, shaded right one. */
-function shaft(p: Painter, x1: number, y1: number, x2: number, y2: number, r: Ramp) {
-  for (let y = y1; y >= y2; y--) {
-    const x = Math.round(x1 + ((x2 - x1) * (y1 - y)) / Math.max(1, y1 - y2));
-    p.set(x, y, r.light);
-    p.set(x + 1, y, r.shadow);
-  }
+/** Template keys: steel h l b s d (three tones) · wood w W and t (ink) · dark wood u U · gold G M F · orb O o x + glint. */
+function keysOf(orb: Ramp): Record<string, string> {
+  return {
+    h: STEEL.hi, l: STEEL.light, b: STEEL.light, s: STEEL.shadow, d: STEEL.shadow,
+    w: WOOD.light, W: WOOD.shadow, t: INK,
+    u: DARK_WOOD.light, U: DARK_WOOD.shadow,
+    G: GOLD.light, M: GOLD.base, F: GOLD.shadow,
+    O: orb.light, o: orb.base, x: orb.shadow, '+': orb.hi,
+  };
 }
 
-const k = (r: Ramp, extra: Record<string, string> = {}) => ({ h: r.hi, l: r.light, b: r.base, s: r.shadow, d: r.deep, ...extra });
+interface PropArt { x: number; y: number; rows: readonly string[] }
 
+/* Staff: a dark shaft from the ground to above the shoulder, an orb of the class colour in a forked head. */
+const STAFF: PropArt = {
+  x: 34, y: 15,
+  rows: [
+    '.u...U',
+    '.uO+oU',
+    '.uooxU',
+    '..xxU.',
+    '..uUU.',
+    '..uU..',
+    ...Array.from({ length: 32 }, () => '..uU..'),
+  ],
+};
+
+/* Sword hanging from the fist: gold crossguard under the hand, blade to the shin. */
+const SWORD: PropArt = {
+  x: 33, y: 44,
+  rows: [
+    '..WW..',
+    'GMMMMF',
+    '..hs..',
+    '..ls..',
+    '..ls..',
+    '..ls..',
+    '..ls..',
+    '..ss..',
+    '..s...',
+  ],
+};
+
+/* Axe held low: the haft runs down from the fist, the crescent head hangs by the shin, edge out. */
+const AXE: PropArt = {
+  x: 36, y: 41,
+  rows: [
+    'wW....',
+    'wW....',
+    'wW....',
+    'wWsh..',
+    'wWllh.',
+    'wWlllh',
+    'wWsllh',
+    'wWsslh',
+    'wWssh.',
+    'wWsh..',
+    'wW....',
+    '.t....',
+  ],
+};
+
+/* Dagger: a short blade pointing down out of the fist. */
+const DAGGER: PropArt = {
+  x: 34, y: 44,
+  rows: [
+    '.WW.',
+    'GMMF',
+    '.hs.',
+    '.ls.',
+    '.ls.',
+    '.bs.',
+    '.d..',
+  ],
+};
+
+/* Mace upright: flanged steel head at shoulder height, wooden grip through the fist. */
+const MACE: PropArt = {
+  x: 34, y: 29,
+  rows: [
+    '..h...',
+    '.lhb..',
+    'lhbbs.',
+    'hbbbsd',
+    '.bbsd.',
+    '..sd..',
+    '..GF..',
+    '..wW..',
+    '..wW..',
+    '..wW..',
+    '..wW..',
+    '..wW..',
+    '..wW..',
+    '..wW..',
+    '..wW..',
+    '..wW..',
+    '..wW..',
+    '..wW..',
+    '..tt..',
+  ],
+};
+
+/* Hammer upright: a square steel head with a gold band, wooden haft through the fist. */
+const HAMMER: PropArt = {
+  x: 33, y: 29,
+  rows: [
+    '.hlllbs',
+    'hllbbbs',
+    'lbbbbsd',
+    'lGMMMFd',
+    '.sssdd.',
+    '...wW..',
+    '...wW..',
+    '...wW..',
+    '...wW..',
+    '...wW..',
+    '...wW..',
+    '...wW..',
+    '...wW..',
+    '...wW..',
+    '...wW..',
+    '...wW..',
+    '...wW..',
+    '...wW..',
+    '...tt..',
+  ],
+};
+
+/* Bow upright, held at the grip: limbs bowing out to the right, the string on the inner side. */
+const BOW: PropArt = {
+  x: 35, y: 26,
+  rows: [
+    '...w.',
+    '...wW',
+    'h...wW',
+    'h...wW',
+    'h....wW',
+    'h....wW',
+    'h....wW',
+    'h.....wW',
+    'h.....wW',
+    'h.....wW',
+    'h.....GF',
+    'h.....GF',
+    'h.....GF',
+    'h.....GF',
+    'h.....GF',
+    'h.....GF',
+    'h.....wW',
+    'h.....wW',
+    'h.....wW',
+    'h.....wW',
+    'h....wW',
+    'h....wW',
+    'h....wW',
+    'h...wW',
+    'h...wW',
+    '...wW',
+    '...w.',
+  ],
+};
+
+/* Lute slung on the back: the neck and pegbox rise over the near shoulder, the wooden bowl shows past
+   the near arm. */
+const LUTE: PropArt = {
+  x: 31, y: 22,
+  rows: [
+    '..tt.......',
+    '.twWt......',
+    '..wW.......',
+    '..wW.......',
+    '...wW......',
+    '...wW......',
+    '...wW......',
+    '....wW.....',
+    '....wW.....',
+    '....wW.....',
+    '....wwW....',
+    '...wwwwW...',
+    '..wwwwwWW..',
+    '..wwwwwwWW.',
+    '.wwwwwwwWWt',
+    '.wwwwwwWWWt',
+    '.wwwwwwWWWt',
+    '.wwwwwwWWWt',
+    '..wwwwWWWt.',
+    '..wwWWWWtt.',
+    '...ttttt...',
+  ],
+};
+
+const ART: Record<Prop, PropArt> = { staff: STAFF, sword: SWORD, axe: AXE, dagger: DAGGER, mace: MACE, hammer: HAMMER, bow: BOW, lute: LUTE };
+
+/** Draws the prop; staves carry an orb of the aura colour (pale blue without one). */
 export function drawProp(p: Painter, prop: Prop, aura: string | null) {
+  const art = ART[prop];
   p.tag = 'prop';
-  const orb = ramp(aura ?? '#7ad0f0');
-  switch (prop) {
-    case 'staff': {
-      // Thin dark shaft from below the fist to a big crescent opening to the upper left, with an
-      // orb of the class colour where they meet (like the reference staff).
-      shaft(p, 33, 38, 39, 20, DARK_WOOD);
-      // Hand-drawn crescent: thin tip at the top left, thick heavy base, lit outer rim.
-      p.stamp(38, 3, [
-        '....FLMG',
-        '..FL...MGY',
-        '.F......GY',
-        '........MG',
-        '.......LMG',
-        '.......LMG',
-        '......LMMG',
-        '......LMGY',
-        '.....LMMG',
-        '....FLMGG',
-        '...FLMMG',
-        '..FLLMG',
-        '.FLLMG',
-        '..FLL',
-      ], { Y: '#fdf780', G: '#fed958', M: '#f7b61f', L: '#eaa211', F: '#bd7720' });
-      p.stamp(39, 16, ['.xx.', 'xoOw', 'xooo', '.xx.'], { x: orb.deep, o: orb.base, O: orb.light, w: '#ffffff' });
-      // Sparkle beside the crescent (no outline, like the reference's).
-      p.tag = 'flow';
-      p.dots([[44, 22], [43, 23], [45, 23], [44, 24]], '#fed958');
-      p.set(44, 23, '#fdf780');
-      break;
-    }
-    case 'sword': {
-      // Pommel, grip in the fist, crossguard, long blade with a lit edge.
-      p.stamp(32, 13, [
-        '...h',
-        '..hl',
-        '..hl',
-        '..ls',
-        '..ls',
-        '..ls',
-        '..ls',
-        '..ls',
-        '..ls',
-        '..ls',
-        '..ls',
-        '..ls',
-        '..ls',
-        '..ls',
-        '..ls',
-        '..ls',
-        '.GMML.',
-        'FLLLLF',
-        '..cc',
-        '..cc',
-        '..cc',
-        '..cc',
-        '..cc',
-        '..GM',
-      ], { ...k(STEEL), G: GOLD.light, M: GOLD.base, L: GOLD.shadow, F: GOLD.deep, c: WOOD.shadow });
-      break;
-    }
-    case 'axe': {
-      shaft(p, 32, 46, 36, 16, WOOD);
-      p.stamp(35, 12, [
-        '..lh',
-        '.lbbh',
-        'sbbbbh',
-        'sbbbbbl',
-        'dsbbbbl',
-        '.dsbbbl',
-        '..dsbl',
-        '...dd',
-      ], k(STEEL));
-      p.stamp(35, 15, ['ll', 'ss'], k(WOOD));
-      break;
-    }
-    case 'bow': {
-      // Bow held upright, bulging right, with a straight string on the left.
-      const pts: [number, number][] = [];
-      for (let y = 14; y <= 52; y++) {
-        const t = (y - 33) / 19;
-        pts.push([Math.round(35 + 4 * (1 - t * t)), y]);
-      }
-      for (const [x, y] of pts) { p.set(x, y, WOOD.light); p.set(x + 1, y, WOOD.shadow); }
-      for (let y = 15; y <= 51; y++) p.set(34, y, '#e8e2d0aa');
-      p.stamp(38, 31, ['GM', 'LF', 'GM', 'LF'], { G: GOLD.light, M: GOLD.base, L: GOLD.shadow, F: GOLD.deep });
-      break;
-    }
-    case 'dagger': {
-      p.stamp(33, 22, [
-        '..h',
-        '.hl',
-        '.ls',
-        '.ls',
-        '.ls',
-        '.ls',
-        '.ls',
-        'GMML',
-        '.cc',
-        '.cc',
-        '.cc',
-        '.cc',
-        '.GM',
-      ], { ...k(STEEL), G: GOLD.light, M: GOLD.base, L: GOLD.shadow, c: WOOD.shadow });
-      break;
-    }
-    case 'mace': {
-      shaft(p, 33, 41, 35, 20, WOOD);
-      p.stamp(32, 13, [
-        '...h..',
-        '.l.hl.',
-        'lbbbbs',
-        'hbbbbs',
-        'lbbbbd',
-        '.s.ss.',
-        '..sd..',
-      ], k(STEEL));
-      p.stamp(34, 20, ['GM'], { G: GOLD.light, M: GOLD.base });
-      break;
-    }
-    case 'lute': {
-      // Neck rising from the fist to the head; round body resting against the far hip.
-      shaft(p, 34, 36, 39, 18, WOOD);
-      p.stamp(38, 15, ['.ll', 'lbb', 'bbs', '.s.'], k(WOOD));
-      const body = ramp('#c08a4a');
-      p.stamp(30, 35, [
-        '..lbbb.',
-        '.lbbbbbs',
-        'lbbdbbbs',
-        'lbdddbbs',
-        'lbbdbbbs',
-        '.bbbbbs',
-        '..sss',
-      ], k(body));
-      break;
-    }
-    case 'hammer': {
-      shaft(p, 32, 45, 36, 19, WOOD);
-      p.stamp(32, 13, [
-        '.lhhhhl',
-        'lbbbbbbs',
-        'lbbbbbbs',
-        'sbbbbbbd',
-        '.ssddss',
-      ], k(STEEL));
-      p.stamp(35, 18, ['GM'], { G: GOLD.light, M: GOLD.base });
-      break;
-    }
-  }
+  p.stamp(art.x, art.y, art.rows, keysOf(ramp(aura ?? '#7ad0f0')));
   p.tag = null;
 }

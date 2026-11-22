@@ -21,8 +21,8 @@ export interface Appearance {
 export const HAIR_STYLES = ['Calvo', 'Corto', 'Puntas', 'Coleta', 'Cresta', 'Largo', 'Trenza', 'Moño', 'Melena', 'Media melena', 'Dos coletas', 'Ondas'] as const;
 export const OUTFITS = ['Túnica', 'Jubón', 'Camisa y chaleco', 'Abrigo largo', 'Vestido', 'Corsé y falda', 'Blusa y pantalón', 'Capa corta', 'Armadura ligera', 'Túnica de mago'] as const;
 export const BODIES = ['Complexión ancha', 'Complexión esbelta'] as const;
-export const MAX_HAIR = HAIR_STYLES.length - 1;
-export const MAX_OUTFIT = OUTFITS.length - 1;
+const MAX_HAIR = HAIR_STYLES.length - 1;
+const MAX_OUTFIT = OUTFITS.length - 1;
 
 /** S small, D short and stocky (dwarves), M medium, L large. */
 export type Size = 'S' | 'D' | 'M' | 'L';
@@ -86,7 +86,9 @@ const clampInt = (v: unknown, min: number, max: number, fallback: number) =>
 /**
  * Accepts anything (stored JSON, partial edits) and returns a valid appearance for the race:
  * out-of-range indices and malformed colours fall back to the race default; a race option the race
- * does not have is clamped. When `strictSkin` is set, a skin outside the race palette is replaced.
+ * does not have is clamped. Any valid skin hex is kept, even outside the race palette: the palette is a
+ * suggestion and drawing/editing respects a custom tone (D-0034). `strictSkin` replaces a skin outside the
+ * palette with the race default; only the creator's race change uses it (creator/look.ts).
  */
 export function normalizeAppearance(raw: unknown, visual: RaceVisual, strictSkin = false): Appearance {
   const d = defaultAppearance(visual);

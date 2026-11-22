@@ -1,12 +1,12 @@
 /* Small colour helpers for the pixel-art avatar (openspec/specs/character-appearance.md). */
 
-export function hexToRgb(hex: string): [number, number, number] {
+function hexToRgb(hex: string): [number, number, number] {
   const h = hex.replace('#', '').slice(0, 6);
   const n = parseInt(h, 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
-export function rgbToHex(r: number, g: number, b: number): string {
+function rgbToHex(r: number, g: number, b: number): string {
   const c = (v: number) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0');
   return `#${c(r)}${c(g)}${c(b)}`;
 }
@@ -48,7 +48,7 @@ export function hslToHex(h: number, s: number, l: number): string {
   return rgbToHex(f(0) * 255, f(8) * 255, f(4) * 255);
 }
 
-export function hexToHsl(hex: string): [number, number, number] {
+function hexToHsl(hex: string): [number, number, number] {
   const [r, g, b] = hexToRgb(hex).map((v) => v / 255);
   const max = Math.max(r, g, b);
   const min = Math.min(r, g, b);
@@ -108,10 +108,4 @@ export function ramp(base: string): Ramp {
   if (rampCache.size > 500) rampCache.clear();
   rampCache.set(base, r);
   return r;
-}
-
-/** Alpha of a "#rrggbb" or "#rrggbbaa" colour, 0–255. */
-export function alphaOf(hex: string): number {
-  const h = hex.replace('#', '');
-  return h.length === 8 ? parseInt(h.slice(6), 16) : 255;
 }

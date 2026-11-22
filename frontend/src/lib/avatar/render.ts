@@ -1,14 +1,14 @@
-/* Composes the avatar layers into pixels, adds the selective outline and the class aura
-   (openspec/specs/character-appearance.md). */
-import { alphaOf, hexToHsl, hexToRgb, hslToHex } from './color';
+/* Composes the avatar layers into pixels and tags, adds the complete outline and the class aura
+   (openspec/specs/character-appearance.md § Art direction). */
+import { ramp } from './color';
 import { H, Painter, W, makeFrame, type Rect } from './painter';
+import type { Box, Tag } from './metrics';
 import { castHairShadow, drawFace, drawHands, drawHead, drawNeck, drawPlainEar } from './sprites/body';
-import type { DrawCtx } from './sprites/context';
+import { INK, type DrawCtx } from './sprites/context';
 import { drawFeatures } from './sprites/features';
 import { drawHairBack, drawHairFront } from './sprites/hair';
-import { drawOutfitBack, drawOutfitBody } from './sprites/outfits';
-import { drawProp, propForClass, type Prop } from './sprites/props';
-import { ramp } from './color';
+import { drawOutfitBack, drawOutfitBody, drawOutfitFront } from './sprites/outfits';
+import { BACK_PROPS, drawProp, propForClass, type Prop } from './sprites/props';
 import type { Appearance, Part, RaceVisual } from './types';
 
 export { W as AVATAR_W, H as AVATAR_H };
@@ -16,8 +16,12 @@ export { propForClass };
 
 const ELEMENT_HAIR: Part[] = ['flame-hair', 'water-hair', 'stone-hair', 'air-hair', 'mushroom-cap'];
 
-function paint(a: Appearance, v: RaceVisual, aura: string | null, prop: Prop | null): Painter {
-  const p = new Painter();
+/** One painter reused by every render: renders are synchronous, so it is never shared (RG-1.6). */
+const scratch = new Painter();
+
+function paint(a: Appearance, v: RaceVisual, aura: string | null, prop: Prop | null): DrawCtx {
+  const p = scratch;
+  p.reset();
   const f = makeFrame(v.size, a.body);
   const parts = new Set<Part>([...v.base, ...(v.options[a.feature]?.parts ?? v.options[0]?.parts ?? [])]);
   const c: DrawCtx = {
@@ -27,20 +31,22 @@ function paint(a: Appearance, v: RaceVisual, aura: string | null, prop: Prop | n
   };
   const hasHair = v.hair && !ELEMENT_HAIR.some((e) => parts.has(e));
 
-  // Body layers are drawn in canonical (medium) coordinates, then resized for the real body.
-  const back = new Painter();
-  const front = new Painter();
-  drawFeatures(c, 'body-back', back);
-  drawOutfitBack(c, back);
-  drawNeck(c, front);
-  drawOutfitBody(c, front);
-  if (prop) drawProp(front, prop, aura);
-  drawHands(c, front);
-
-  p.blit(back, f.rows, f.cols);
+  // Body layers are drawn in canonical (medium) coordinates and land on the real size through the
+  // frame's seams; the head and the hair are drawn in absolute coordinates.
+  p.frame = f;
+  drawFeatures(c, 'body-back', p);
+  drawOutfitBack(c, p);
+  if (prop && BACK_PROPS.has(prop)) drawProp(p, prop, aura);
+  p.frame = null;
   drawFeatures(c, 'back');
   if (hasHair) drawHairBack(c);
-  p.blit(front, f.rows, f.cols);
+  p.frame = f;
+  drawNeck(c, p);
+  drawOutfitBody(c, p);
+  if (prop && !BACK_PROPS.has(prop)) drawProp(p, prop, aura);
+  drawOutfitFront(c, p);
+  drawHands(c, p);
+  p.frame = null;
   drawHead(c);
   drawFeatures(c, 'skin');
   drawPlainEar(c);
@@ -49,81 +55,143 @@ function paint(a: Appearance, v: RaceVisual, aura: string | null, prop: Prop | n
   if (hasHair) drawHairFront(c);
   castHairShadow(c);
   drawFeatures(c, 'head');
-  return p;
+  return c;
 }
 
-const N4: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-const N8: [number, number][] = [...N4, [1, 1], [1, -1], [-1, 1], [-1, -1]];
+/** Painter tags → public tags (metrics.ts, Tag). Race parts ('part-head'…) are 'part'. */
+const TAG_OF: Readonly<Record<string, Tag>> = {
+  face: 'face', ear: 'face', scalp: 'face', skin: 'skin', eye: 'eye',
+  hair: 'hair', 'hair-back': 'hair-back', cloth: 'cloth', boot: 'cloth', trim: 'trim', flow: 'flow',
+  prop: 'prop', shade: 'shade', outline: 'outline', aura: 'aura',
+};
+const publicTag = (t: string | null): Tag => (t && TAG_OF[t]) || 'part';
 
-/** Materials whose edges are already drawn in their own dark tones (no extra outline), as in the reference. */
-const NO_OUTLINE = new Set(['hair', 'hair-back', 'flow']);
-
-/**
- * Outline tone next to a pixel: brown for skin, near black for cloth and props, nothing for hair and
- * flowing cloth or when the edge pixel is already dark.
- */
-function outlineOf(hex: string, tag: string | null): string | null {
-  if (tag && NO_OUTLINE.has(tag)) return null;
-  const [h, s, l] = hexToHsl(hex.slice(0, 7));
-  if (l < 0.2) return null;
-  if (tag === 'skin' || tag === 'shade') return hslToHex(h, s * 0.55, l * 0.46);
-  // Bright saturated props (gold) get a brown outline, like the reference staff.
-  if (tag === 'prop' && l > 0.45) return hslToHex(Math.max(0, h - 12), s * 0.55, l * 0.62);
-  return hslToHex(h, Math.min(1, s * 0.8), Math.min(0.15, l * 0.3));
+/** Packed RGBA of a "#rrggbb" or "#rrggbbaa" colour, cached (bounded). */
+const rgbaCache = new Map<string, number>();
+function rgba(hex: string): number {
+  let n = rgbaCache.get(hex);
+  if (n === undefined) {
+    const h = hex.slice(1);
+    n = (parseInt(h.slice(0, 6), 16) * 256 + (h.length === 8 ? parseInt(h.slice(6, 8), 16) : 255)) >>> 0;
+    if (rgbaCache.size > 4096) rgbaCache.clear();
+    rgbaCache.set(hex, n);
+  }
+  return n;
 }
 
-/**
- * RGBA pixels (W×H): the sprite, a selective outline (only around the outer silhouette, in a dark
- * tint of the neighbouring material, skipped where the edge is already dark) and, when given, a
- * two-pixel aura of that colour.
- */
-export function renderPixels(a: Appearance, v: RaceVisual, aura?: string | null, prop: Prop | null = null): Uint8ClampedArray<ArrayBuffer> {
-  const { px, tags } = paint(a, v, aura ?? null, prop);
-  const out = new Uint8ClampedArray(W * H * 4);
-  const filled = new Uint8Array(W * H);
-  const put = (i: number, hex: string, alpha = alphaOf(hex)) => {
-    const [r, g, b] = hexToRgb(hex);
-    out[i * 4] = r; out[i * 4 + 1] = g; out[i * 4 + 2] = b; out[i * 4 + 3] = alpha;
-  };
-  const inside = (x: number, y: number) => x >= 0 && y >= 0 && x < W && y < H;
+/** Entries in the colour cache (tests and tools; bounded at 4097). */
+export function rgbaCacheSize(): number {
+  return rgbaCache.size;
+}
 
-  px.forEach((c, i) => { if (c) { put(i, c); filled[i] = 1; } });
+function put(out: Uint8ClampedArray, i: number, c: number, alpha = c & 255) {
+  const o = i * 4;
+  out[o] = c >>> 24;
+  out[o + 1] = (c >>> 16) & 255;
+  out[o + 2] = (c >>> 8) & 255;
+  out[o + 3] = alpha;
+}
 
-  const outline: number[] = [];
+/** Box of the visible face plane and the boot pixels, read from the painter tags (spriteMetrics). */
+export interface PaintMeta { face: Box; feetRow: number }
+
+export interface Composed {
+  px: Uint8ClampedArray<ArrayBuffer>;
+  tags: (Tag | null)[];
+}
+
+const N4: readonly (readonly [number, number])[] = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+/** Aura ring level of each pixel (0 = none), reused between renders. */
+const ring = new Uint8Array(W * H);
+
+/** Every transparent pixel touching the sprite (4-neighbourhood) becomes the 1-px near-black outline. */
+function outline(src: readonly (string | null)[], out: Uint8ClampedArray, tags: (Tag | null)[]) {
+  const ink = rgba(INK);
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const i = y * W + x;
-      if (filled[i]) continue;
+      if (src[i]) continue;
       for (const [dx, dy] of N4) {
-        const nx = x + dx, ny = y + dy;
-        const n = inside(nx, ny) ? px[ny * W + nx] : null;
-        if (n && alphaOf(n) > 150) {
-          const o = outlineOf(n, tags[ny * W + nx]);
-          if (o) { put(i, o); outline.push(i); break; }
-        }
+        const nx = x + dx;
+        // Columns must not wrap into the next row; rows outside the canvas read as empty (undefined).
+        if (nx < 0 || nx >= W || !src[(y + dy) * W + nx]) continue;
+        put(out, i, ink);
+        tags[i] = 'outline';
+        break;
       }
     }
   }
-  for (const i of outline) filled[i] = 1;
-
-  if (aura) {
-    const ring = (from: number, alpha: number) => {
-      const next: number[] = [];
-      for (let y = 0; y < H; y++) {
-        for (let x = 0; x < W; x++) {
-          const i = y * W + x;
-          if (filled[i]) continue;
-          if (N8.some(([dx, dy]) => inside(x + dx, y + dy) && filled[(y + dy) * W + x + dx] === from)) next.push(i);
-        }
-      }
-      for (const i of next) { put(i, aura, alpha); filled[i] = from + 1; }
-    };
-    ring(1, 150);
-    ring(2, 60);
-  }
-  return out;
 }
 
+/** Two fading rings of the class colour (8-neighbourhood) around the outlined sprite. */
+function aura(out: Uint8ClampedArray, tags: (Tag | null)[], hex: string) {
+  const col = rgba(hex);
+  ring.fill(0);
+  for (const [level, alpha] of [[1, 150], [2, 60]] as const) {
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const i = y * W + x;
+        if (tags[i]) continue;
+        search: for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const nx = x + dx, ny = y + dy;
+            if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+            const j = ny * W + nx;
+            // Ring 1 hugs the sprite; ring 2 hugs ring 1 (still untagged while this pass runs).
+            if (level === 1 ? tags[j] !== null : ring[j] === 1) { ring[i] = level; break search; }
+          }
+        }
+      }
+    }
+    for (let i = 0; i < W * H; i++) {
+      if (ring[i] !== level || tags[i]) continue;
+      put(out, i, col, alpha);
+      tags[i] = 'aura';
+    }
+  }
+}
+
+/**
+ * Paints once and returns the RGBA pixels and one public tag per pixel, with the complete outline and,
+ * when given, the aura. When `meta` is given it receives the face-plane box and the last boot row.
+ */
+export function compose(a: Appearance, v: RaceVisual, auraColor: string | null, prop: Prop | null, meta?: PaintMeta): Composed {
+  const { px: src, tags: srcTags } = paint(a, v, auraColor, prop).p;
+  const out = new Uint8ClampedArray(W * H * 4);
+  const tags = new Array<Tag | null>(W * H).fill(null);
+  let fx0 = W, fy0 = H, fx1 = -1, fy1 = -1, feet = -1;
+  for (let i = 0; i < W * H; i++) {
+    const hex = src[i];
+    if (!hex) continue;
+    put(out, i, rgba(hex));
+    const t = srcTags[i];
+    tags[i] = publicTag(t);
+    if (!meta) continue;
+    const x = i % W;
+    const y = (i - x) / W;
+    if (t === 'face') {
+      if (x < fx0) fx0 = x;
+      if (x > fx1) fx1 = x;
+      if (y < fy0) fy0 = y;
+      if (y > fy1) fy1 = y;
+    } else if (t === 'boot' && y > feet) feet = y;
+  }
+  if (meta) {
+    meta.face = fx1 < 0 ? { x: 0, y: 0, w: 0, h: 0 } : { x: fx0, y: fy0, w: fx1 - fx0 + 1, h: fy1 - fy0 + 1 };
+    meta.feetRow = feet;
+  }
+  outline(src, out, tags);
+  if (auraColor) aura(out, tags, auraColor);
+  return { px: out, tags };
+}
+
+/** RGBA pixels (W×H) of the avatar: the sprite, its complete outline and, when given, the aura. */
+export function renderPixels(a: Appearance, v: RaceVisual, aura?: string | null, prop: Prop | null = null): Uint8ClampedArray<ArrayBuffer> {
+  return compose(a, v, aura ?? null, prop ?? null).px;
+}
+
+/** Canvases kept: the creator shows ~277 races × 2 bodies as thumbnails; ~10,7 KB each, ≤ ~8,6 MB. */
+const CACHE_MAX = 800;
 const cache = new Map<string, HTMLCanvasElement>();
 
 /** Cached 48×56 canvas of the full avatar; `klass` adds the class prop (full sprite only). */
@@ -137,7 +205,7 @@ export function avatarCanvas(a: Appearance, v: RaceVisual, aura?: string | null,
   canvas.height = H;
   const ctx = canvas.getContext('2d');
   if (ctx) ctx.putImageData(new ImageData(renderPixels(a, v, aura, prop), W, H), 0, 0);
-  if (cache.size > 400) cache.clear();
+  if (cache.size >= CACHE_MAX) cache.clear();
   cache.set(key, canvas);
   return canvas;
 }

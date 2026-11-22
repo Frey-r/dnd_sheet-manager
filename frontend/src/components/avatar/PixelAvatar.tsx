@@ -25,7 +25,7 @@ interface Props {
 
 export function PixelAvatar({ appearance, race, raceSize, klass, aura = true, pulse = false, crop = 'full', scale = 4, className = '', label, decorative = false }: Props) {
   const visual = useMemo(() => resolveRaceVisual(race, raceSize), [race, raceSize]);
-  const app = useMemo(() => normalizeAppearance(parseStoredAppearance(appearance), visual, true), [appearance, visual]);
+  const app = useMemo(() => normalizeAppearance(parseStoredAppearance(appearance), visual), [appearance, visual]);
   const auraColor = aura ? auraForClass(klass) : null;
   const r = cropRect(visual, app, crop);
   const ref = useRef<HTMLCanvasElement>(null);

@@ -18,7 +18,7 @@ export interface DrawCtx {
   aura: string | null;
 }
 
-export const INK = '#1f1a22';
+export const INK = '#261a14';
 export const EYE_WHITE = '#eef6f4';
 
 /**
