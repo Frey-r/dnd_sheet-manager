@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 
 	"dnd-campaign-manager/internal/middleware"
 	"dnd-campaign-manager/internal/repository"
+	"dnd-campaign-manager/internal/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -112,8 +114,37 @@ func validateResource(kind string, input map[string]any) error {
 		if _, err := time.Parse("2006-01-02", date); err != nil {
 			return errors.New("event_date must be YYYY-MM-DD")
 		}
-		return validateEventRelations(input)
 	}
+	return validateFields(kind, input)
+}
+
+// validateFields checks the optional fields that create and update share, normalising them in place.
+func validateFields(kind string, input map[string]any) error {
+	switch kind {
+	case "events":
+		return validateEventRelations(input)
+	case "npcs":
+		return normalizeAppearance(input)
+	}
+	return nil
+}
+
+// normalizeAppearance validates an NPC appearance exactly like a character's (service.ValidateAppearance)
+// and replaces it with the normalised document; null yields an empty one, which is stored as SQL NULL.
+func normalizeAppearance(input map[string]any) error {
+	value, exists := input["appearance"]
+	if !exists {
+		return nil
+	}
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return service.ErrInvalidAppearance
+	}
+	appearance, err := service.ValidateAppearance(raw)
+	if err != nil {
+		return err
+	}
+	input["appearance"] = appearance
 	return nil
 }
 
@@ -165,11 +196,9 @@ func (h *CampaignResourceHandler) Update(kind string) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid JSON"})
 			return
 		}
-		if kind == "events" {
-			if err := validateEventRelations(input); err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-				return
-			}
+		if err := validateFields(kind, input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
 		}
 		row, err := h.repo.Update(c.Request.Context(), parseID(c.Param("id")), parseID(c.Param("resource_id")), middleware.GetUserID(c), kind, input)
 		h.respond(c, row, err)

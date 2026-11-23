@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 
+	"dnd-campaign-manager/internal/domain"
+
 	"github.com/jmoiron/sqlx"
 )
 
@@ -19,7 +21,7 @@ type resourceDefinition struct {
 }
 
 var campaignResources = map[string]resourceDefinition{
-	"npcs":   {table: "campaign_npcs", fields: []string{"name", "role", "status", "description", "stats", "image_url"}, jsonFields: map[string]bool{"stats": true}},
+	"npcs":   {table: "campaign_npcs", fields: []string{"name", "role", "status", "description", "stats", "image_url", "race", "class", "appearance"}, jsonFields: map[string]bool{"stats": true, "appearance": true}},
 	"maps":   {table: "campaign_maps", fields: []string{"name", "location", "image_url", "description", "pins"}, jsonFields: map[string]bool{"pins": true}},
 	"events": {table: "campaign_events", fields: []string{"title", "description", "event_date", "event_time", "related_npcs", "related_locations"}, jsonFields: map[string]bool{"related_npcs": true, "related_locations": true}},
 	"notes":  {table: "campaign_notes", fields: []string{"title", "content"}},
@@ -100,6 +102,12 @@ func cleanInput(resource resourceDefinition, input map[string]any) (map[string]a
 			continue
 		}
 		if resource.jsonFields[field] {
+			// Validated and normalised by the handler (NPC appearance): passed through as is, and
+			// its driver.Valuer stores an empty document as SQL NULL instead of the JSON value null.
+			if raw, ok := value.(domain.RawJSON); ok {
+				clean[field] = raw
+				continue
+			}
 			data, err := json.Marshal(value)
 			if err != nil {
 				return nil, err
