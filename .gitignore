@@ -7,8 +7,9 @@
 
 # Local build / main executables
 main
-server
-import_srd
+/server
+/import_srd
+/content-import
 
 # Logs
 *.log
@@ -48,3 +49,10 @@ ehthumbs.db
 .env
 .env.*
 !.env.example
+
+# AI agent tooling (local only, not part of the app)
+.claude/
+.agents/
+skills-lock.json
+.harness/harness.db*
+.harness/cache/

@@ -8,9 +8,9 @@ import (
 )
 
 type MessageService struct {
-	msgRepo     *repository.MessageRepository
+	msgRepo      *repository.MessageRepository
 	campaignRepo *repository.CampaignRepository
-	userRepo    *repository.UserRepository
+	userRepo     *repository.UserRepository
 }
 
 func NewMessageService(msgRepo *repository.MessageRepository, campaignRepo *repository.CampaignRepository, userRepo *repository.UserRepository) *MessageService {
@@ -39,8 +39,22 @@ func (s *MessageService) SendMessage(ctx context.Context, senderID, campaignID i
 		IsRead:       false,
 	}
 
+	if req.MessageType == domain.MessageTypeGMBroadcast {
+		// One row per player: a single NULL-recipient row is invisible to every inbox query.
+		if _, err := s.msgRepo.CreateBroadcast(ctx, msg); err != nil {
+			return nil, err
+		}
+		return msg, nil
+	}
+
 	if req.RecipientUserID != nil {
+		isMember, err := s.campaignRepo.IsMember(ctx, campaignID, *req.RecipientUserID)
+		if err != nil || !isMember || *req.RecipientUserID == senderID {
+			return nil, ErrForbidden
+		}
 		msg.RecipientUserID = req.RecipientUserID
+	} else {
+		return nil, ErrForbidden
 	}
 
 	if err := s.msgRepo.Create(ctx, msg); err != nil {
@@ -64,6 +78,10 @@ func (s *MessageService) GetGMMessages(ctx context.Context, campaignID, userID i
 
 func (s *MessageService) MarkAsRead(ctx context.Context, userID int64) error {
 	return s.msgRepo.MarkAsRead(ctx, userID)
+}
+
+func (s *MessageService) MarkConversationAsRead(ctx context.Context, campaignID, userID, otherUserID int64) error {
+	return s.msgRepo.MarkConversationAsRead(ctx, campaignID, userID, otherUserID)
 }
 
 func (s *MessageService) GetUnreadCount(ctx context.Context, userID int64) (int, error) {

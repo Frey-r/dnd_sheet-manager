@@ -24,10 +24,10 @@ export function RegisterPage() {
     setLoading(true);
     try {
       const res = await authApi.register({ username, email, password });
-      login(res.data.user, res.data.token);
+      login(res.data.user, res.data.token, res.data.refresh_token);
       navigate('/campaigns');
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al registrarse');
+    } catch (err) {
+      setError((err as { response?: { data?: { error?: string } } }).response?.data?.error || 'Error al registrarse');
     } finally {
       setLoading(false);
     }
@@ -39,8 +39,8 @@ export function RegisterPage() {
         <div className="absolute inset-0 bg-cover bg-center opacity-10" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800)' }} />
         <div className="relative z-10 text-center max-w-md">
           <div className="flex items-center justify-center gap-2 mb-6">
-            <span className="material-symbols-outlined text-primary text-5xl">hub</span>
-            <span className="font-display-lg text-on-surface">Campaign Manager</span>
+            <span className="material-symbols-outlined text-primary text-5xl">casino</span>
+            <span className="font-display-lg text-on-surface">Mesa de Ceniza</span>
           </div>
           <p className="font-body-lg text-on-surface-variant">
             Precisión, stats y coordinación para campañas de alto nivel.
@@ -50,8 +50,8 @@ export function RegisterPage() {
 
       <div className="w-full md:w-1/2 flex flex-col justify-center px-4 md:px-10 py-12 bg-surface">
         <div className="md:hidden flex items-center gap-2 mb-8">
-          <span className="material-symbols-outlined text-primary text-4xl">hub</span>
-          <span className="font-headline-md text-on-surface font-bold">Campaign Manager</span>
+          <span className="material-symbols-outlined text-primary text-4xl">casino</span>
+          <span className="font-headline-md text-on-surface font-bold">Mesa de Ceniza</span>
         </div>
 
         <div className="max-w-md w-full mx-auto">

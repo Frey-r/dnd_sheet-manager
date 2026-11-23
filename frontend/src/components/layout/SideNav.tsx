@@ -1,136 +1,88 @@
-import { NavLink, useParams, useLocation } from 'react-router-dom';
-import type { UserRole } from '../../types';
+import { NavLink } from 'react-router-dom';
+import type { CampaignSummary } from '../../lib/useCampaign';
+import { campaignNav, type NavEntry } from '../../lib/nav';
 
-interface NavItem {
-  to: string;
-  icon: string;
-  label: string;
-  iconFilled?: boolean;
-  gmOnly?: boolean;
-  adminOnly?: boolean;
-  disabled?: boolean;
+function Item({ entry }: { entry: NavEntry }) {
+  return (
+    <NavLink
+      to={entry.to}
+      end={entry.end}
+      title={entry.label}
+      className={({ isActive }) => `group relative flex items-center gap-2.5 px-2.5 py-[7px] rounded-md text-[13.5px] font-medium whitespace-nowrap transition-colors ${
+        isActive ? 'bg-card-2 text-ink' : 'text-ink-2 hover:bg-card-2 hover:text-ink'}`}
+    >
+      {({ isActive }) => (
+        <>
+          {isActive && <span className="absolute -left-2.5 top-[7px] bottom-[7px] w-[3px] rounded-r bg-accent" />}
+          <span className={`material-symbols-outlined text-[19px] ${isActive ? 'text-accent' : 'text-muted'}`}>{entry.icon}</span>
+          <span className="nav-label">{entry.label}</span>
+        </>
+      )}
+    </NavLink>
+  );
 }
 
-function buildNavItems(campaignId?: string): NavItem[] {
-  const c = campaignId ? `/campaign/${campaignId}` : '';
-  const hasCampaign = !!campaignId;
-  return [
-    { to: '/campaigns', icon: 'groups', label: 'Campaigns' },
-    { to: c || '/campaigns', icon: 'person', label: 'Character Hub', iconFilled: true, disabled: !hasCampaign },
-    { to: c ? `${c}/combat` : '/campaigns', icon: 'swords', label: 'Combat (Foundry)', disabled: !hasCampaign },
-    { to: c ? `${c}/gm/npcs` : '/campaigns', icon: 'groups', label: 'NPCs', gmOnly: true, disabled: !hasCampaign },
-    { to: c ? `${c}/gm/bestiary` : '/campaigns', icon: 'pets', label: 'Bestiary', gmOnly: true, disabled: !hasCampaign },
-    { to: c ? `${c}/gm/maps` : '/campaigns', icon: 'map', label: 'Maps', gmOnly: true, disabled: !hasCampaign },
-    { to: c ? `${c}/gm/events` : '/campaigns', icon: 'event_note', label: 'Events', gmOnly: true, disabled: !hasCampaign },
-    { to: c ? `${c}/gm/notes` : '/campaigns', icon: 'edit_note', label: 'Notes', gmOnly: true, disabled: !hasCampaign },
-    { to: c ? `${c}/gm/lore` : '/campaigns', icon: 'menu_book', label: 'Lore Editor', gmOnly: true, disabled: !hasCampaign },
-    { to: c ? `${c}/gm/bot` : '/campaigns', icon: 'smart_toy', label: 'Bot Manager', gmOnly: true, disabled: !hasCampaign },
-    { to: '/settings', icon: 'settings', label: 'Settings' },
-  ];
+function Label({ children, gm }: { children: React.ReactNode; gm?: boolean }) {
+  return (
+    <div className="nav-label flex items-center gap-1.5 px-2.5 pb-1.5 pt-4 text-[11px] font-semibold uppercase tracking-[.06em] text-faint">
+      {children}{gm && <span className="rounded-full bg-gold-soft px-1.5 text-[10px] text-gold">DM</span>}
+    </div>
+  );
 }
 
 interface SideNavProps {
-  username?: string;
-  campaignName?: string;
-  version?: string;
-  isGM?: boolean;
-  userRole?: UserRole;
+  campaignId?: string;
+  campaign?: CampaignSummary;
+  myCharacterId?: number;
+  isGM: boolean;
+  collapsed: boolean;
+  onToggleCollapse: () => void;
+  onCycleTheme: () => void;
+  themeIcon: string;
 }
 
-const roleLabel: Record<UserRole, string> = {
-  admin: 'Administrador',
-  dm: 'Dungeon Master',
-  player: 'Jugador',
-};
-
-const roleBadgeClass: Record<UserRole, string> = {
-  admin: 'bg-error-container text-on-error-container',
-  dm: 'bg-primary-container text-on-primary-container',
-  player: 'bg-surface-container text-on-surface-variant',
-};
-
-const avatarInitial: Record<UserRole, string> = {
-  admin: 'A',
-  dm: 'DM',
-  player: 'P',
-};
-
-export function SideNav({ username = 'Guest', campaignName, version = 'v2.4.0', isGM = false, userRole = 'player' }: SideNavProps) {
-  const { campaignId } = useParams<{ campaignId?: string }>();
-  const location = useLocation();
-  const navItems = buildNavItems(campaignId);
-
-  const filteredNav = navItems.filter((item) => {
-    if (item.gmOnly && !isGM) return false;
-    if (item.adminOnly && userRole !== 'admin') return false;
-    return true;
-  });
-
+export function SideNav({ campaignId, campaign, myCharacterId, isGM, collapsed, onToggleCollapse, onCycleTheme, themeIcon }: SideNavProps) {
+  const nav = campaignId ? campaignNav(campaignId, myCharacterId, isGM, campaign?.game_mode === 'foundry') : null;
   return (
-    <nav className="hidden md:flex flex-col h-full w-72 bg-surface-container-lowest border-r border-border-low-contrast shadow-md fixed left-0 top-0 z-40 overflow-y-auto p-4">
-      <div className="mb-6 pb-4 border-b border-border-low-contrast">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-label-bold text-xs">
-            {avatarInitial[userRole]}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="font-label-bold text-on-surface truncate">{username}</div>
-            {campaignName && (
-              <div className="font-label-sm text-on-surface-variant truncate">{campaignName}</div>
-            )}
-            {!campaignId && (
-              <div className="font-label-sm text-outline">Select a campaign</div>
-            )}
-          </div>
-        </div>
-        {/* Role badge */}
-        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold mt-1 ${roleBadgeClass[userRole]}`}>
-          {roleLabel[userRole]}
+    <aside className={`hidden md:flex fixed inset-y-0 left-0 z-40 flex-col border-r border-line bg-bg-elev transition-[width] ${collapsed ? 'w-[68px] sidenav-collapsed' : 'w-[252px]'}`}>
+      <div className="flex h-14 items-center gap-2.5 border-b border-line px-4">
+        <span className="grid h-7 w-7 flex-none place-items-center rounded-lg bg-accent text-accent-ink">
+          <svg viewBox="0 0 24 24" className="h-[18px] w-[18px] fill-none stroke-current" strokeWidth={2} strokeLinejoin="round"><path d="M12 2.5 20.5 7.3v9.4L12 21.5l-8.5-4.8V7.3z" /><path d="M12 2.5 7.5 15h9z" /></svg>
         </span>
-        <div className="font-label-sm text-secondary mt-2">{version}</div>
+        <b className="nav-label whitespace-nowrap text-[15px] font-semibold tracking-tight">Mesa de Ceniza <span className="font-medium text-muted">· D&amp;D</span></b>
       </div>
-
-      <div className="flex flex-col gap-1 flex-1">
-        {filteredNav.map((item) => {
-          const isActive = item.to !== '/' && location.pathname === item.to ||
-            item.to !== '/' && location.pathname.startsWith(item.to + '/') ||
-            item.to === '/' && location.pathname === '/';
-
-          if (item.disabled) {
-            return (
-              <div
-                key={item.to + item.label}
-                className="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant/40 cursor-not-allowed select-none"
-                title="Selecciona una campaña primero"
-              >
-                <span className="material-symbols-outlined">{item.icon}</span>
-                <span className="font-body-md">{item.label}</span>
-                <span className="material-symbols-outlined text-xs ml-auto opacity-50">lock</span>
-              </div>
-            );
-          }
-
-          return (
-            <NavLink
-              key={item.to + item.label}
-              to={item.to}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                isActive
-                  ? 'bg-surface-container text-primary font-bold border-l-4 border-primary'
-                  : 'text-on-surface-variant hover:bg-surface-subtle'
-              }`}
-            >
-              <span
-                className="material-symbols-outlined"
-                style={item.iconFilled && isActive ? { fontVariationSettings: "'FILL' 1" } : {}}
-              >
-                {item.icon}
-              </span>
-              <span className="font-body-md">{item.label}</span>
-            </NavLink>
-          );
-        })}
+      {campaign && (
+        <NavLink to="/campaigns" title="Cambiar de campaña" className="mx-3 mb-1 mt-3 flex items-center gap-2.5 rounded-lg border border-line bg-card p-2.5 transition-colors hover:border-line-strong hover:bg-card-2">
+          <span className="grid h-8 w-8 flex-none place-items-center rounded-md bg-accent-soft font-display text-[15px] font-semibold text-accent">{campaign.name.slice(0, 1)}</span>
+          <span className="nav-label min-w-0">
+            <b className="block truncate text-[13px] font-semibold">{campaign.name}</b>
+            <small className="text-xs text-muted">{isGM ? 'Diriges' : 'Juegas'} · {campaign.game_mode === 'foundry' ? 'Foundry' : 'Mesa local'}</small>
+          </span>
+        </NavLink>
+      )}
+      <nav className="flex-1 overflow-y-auto px-2.5 pb-4">
+        {nav ? (
+          <>
+            <Label>Partida</Label>
+            {nav.play.map((e) => <Item key={e.to} entry={e} />)}
+            {nav.gm.length > 0 && <><Label gm>Dirección</Label>{nav.gm.map((e) => <Item key={e.to} entry={e} />)}</>}
+            <Label>Cuenta</Label>
+          </>
+        ) : <Label>General</Label>}
+        <Item entry={{ to: '/campaigns', icon: 'dashboard', label: 'Mis campañas', end: true }} />
+        <Item entry={{ to: '/settings', icon: 'settings', label: 'Ajustes y perfil' }} />
+        {!campaignId && (
+          <p className="nav-label mx-1 mt-4 rounded-lg border border-dashed border-line-strong p-3 text-[12.5px] text-muted">Entra a una campaña para ver la mesa, tu hoja y las herramientas de juego.</p>
+        )}
+      </nav>
+      <div className="flex gap-1.5 border-t border-line p-2.5">
+        <button type="button" onClick={onToggleCollapse} className="mc-btn mc-btn-ghost mc-btn-sm mc-btn-icon" aria-label={collapsed ? 'Expandir navegación' : 'Contraer navegación'}>
+          <span className="material-symbols-outlined text-[19px]">{collapsed ? 'left_panel_open' : 'left_panel_close'}</span>
+        </button>
+        <button type="button" onClick={onCycleTheme} className="mc-btn mc-btn-ghost mc-btn-sm mc-btn-icon" aria-label="Cambiar tema">
+          <span className="material-symbols-outlined text-[19px]">{themeIcon}</span>
+        </button>
       </div>
-    </nav>
+    </aside>
   );
 }

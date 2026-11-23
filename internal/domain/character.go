@@ -2,38 +2,44 @@ package domain
 
 import (
 	"encoding/json"
+	"strings"
 	"time"
 )
 
 type Character struct {
-	ID                  int64     `db:"id" json:"id"`
-	UserID              int64     `db:"user_id" json:"user_id"`
-	CampaignID          int64     `db:"campaign_id" json:"campaign_id"`
-	Name                string    `db:"name" json:"name"`
-	Race                string    `db:"race" json:"race"`
-	Class               string    `db:"class" json:"class"`
-	Level               int       `db:"level" json:"level"`
-	Background          string    `db:"background" json:"background"`
-	Alignment           string    `db:"alignment" json:"alignment"`
-	StrScore            int       `db:"str_score" json:"str_score"`
-	DexScore            int       `db:"dex_score" json:"dex_score"`
-	ConScore            int       `db:"con_score" json:"con_score"`
-	IntScore            int       `db:"int_score" json:"int_score"`
-	WisScore            int       `db:"wis_score" json:"wis_score"`
-	ChaScore            int       `db:"cha_score" json:"cha_score"`
-	MaxHP               int       `db:"max_hp" json:"max_hp"`
-	CurrentHP           int       `db:"current_hp" json:"current_hp"`
-	TempHP              int       `db:"temp_hp" json:"temp_hp"`
-	AC                  int       `db:"ac" json:"ac"`
-	Speed               int       `db:"speed" json:"speed"`
-	InitiativeBonus     int       `db:"initiative_bonus" json:"initiative_bonus"`
-	ProficiencyBonus    int       `db:"proficiency_bonus" json:"proficiency_bonus"`
+	ID               int64  `db:"id" json:"id"`
+	UserID           int64  `db:"user_id" json:"user_id"`
+	CampaignID       int64  `db:"campaign_id" json:"campaign_id"`
+	Name             string `db:"name" json:"name"`
+	Race             string `db:"race" json:"race"`
+	Class            string `db:"class" json:"class"`
+	Level            int    `db:"level" json:"level"`
+	Background       string `db:"background" json:"background"`
+	Alignment        string `db:"alignment" json:"alignment"`
+	StrScore         int    `db:"str_score" json:"str_score"`
+	DexScore         int    `db:"dex_score" json:"dex_score"`
+	ConScore         int    `db:"con_score" json:"con_score"`
+	IntScore         int    `db:"int_score" json:"int_score"`
+	WisScore         int    `db:"wis_score" json:"wis_score"`
+	ChaScore         int    `db:"cha_score" json:"cha_score"`
+	MaxHP            int    `db:"max_hp" json:"max_hp"`
+	CurrentHP        int    `db:"current_hp" json:"current_hp"`
+	TempHP           int    `db:"temp_hp" json:"temp_hp"`
+	AC               int    `db:"ac" json:"ac"`
+	Speed            int    `db:"speed" json:"speed"`
+	InitiativeBonus  int    `db:"initiative_bonus" json:"initiative_bonus"`
+	ProficiencyBonus int    `db:"proficiency_bonus" json:"proficiency_bonus"`
+	// Warnings are non-blocking notes returned on creation (class/race not in the catalog:
+	// srd-integration.md, Character creation). Not stored.
+	Warnings            []string  `db:"-" json:"warnings,omitempty"`
 	Inspiration         bool      `db:"inspiration" json:"inspiration"`
 	PassivePerception   int       `db:"passive_perception" json:"passive_perception"`
 	DeathSaveSuccesses  int       `db:"death_save_successes" json:"death_save_successes"`
 	DeathSaveFailures   int       `db:"death_save_failures" json:"death_save_failures"`
 	XP                  int       `db:"xp" json:"xp"`
 	Gold                int       `db:"gold" json:"gold"`
+	Silver              int       `db:"silver" json:"silver"`
+	Copper              int       `db:"copper" json:"copper"`
 	CarryingCapacity    int       `db:"carrying_capacity" json:"carrying_capacity"`
 	PersonalityTraits   string    `db:"personality_traits" json:"personality_traits"`
 	Ideals              string    `db:"ideals" json:"ideals"`
@@ -43,6 +49,7 @@ type Character struct {
 	BackstoryText       string    `db:"backstory_text" json:"backstory_text"`
 	Notes               string    `db:"notes" json:"notes"`
 	SpellcastingAbility string    `db:"spellcasting_ability" json:"spellcasting_ability"`
+	Appearance          RawJSON   `db:"appearance" json:"appearance"`
 	FoundryUUID         *string   `db:"foundry_uuid" json:"foundry_uuid,omitempty"`
 	IsFoundryOrphan     bool      `db:"is_foundry_orphan" json:"is_foundry_orphan"`
 	CreatedAt           time.Time `db:"created_at" json:"created_at"`
@@ -112,6 +119,8 @@ type UpdateCharacterRequest struct {
 	Inspiration         *bool   `json:"inspiration"`
 	XP                  *int    `json:"xp"`
 	Gold                *int    `json:"gold"`
+	Silver              *int    `json:"silver"`
+	Copper              *int    `json:"copper"`
 	PersonalityTraits   *string `json:"personality_traits"`
 	Ideals              *string `json:"ideals"`
 	Bonds               *string `json:"bonds"`
@@ -119,6 +128,23 @@ type UpdateCharacterRequest struct {
 	BackstoryText       *string `json:"backstory_text"`
 	Notes               *string `json:"notes"`
 	SpellcastingAbility *string `json:"spellcasting_ability"`
+	// PhysicalDescription edits the physical traits card (age, height, weight, eyes, skin, hair).
+	PhysicalDescription *PhysicalDescription `json:"physical_description"`
+}
+
+// EncodePhysicalDescription stores the physical traits as the JSON text of the
+// physical_description column, trimming each value to 60 characters.
+func EncodePhysicalDescription(pd PhysicalDescription) string {
+	clip := func(s string) string {
+		s = strings.TrimSpace(s)
+		if r := []rune(s); len(r) > 60 {
+			return string(r[:60])
+		}
+		return s
+	}
+	pd = PhysicalDescription{Height: clip(pd.Height), Weight: clip(pd.Weight), Age: clip(pd.Age), Eyes: clip(pd.Eyes), Skin: clip(pd.Skin), Hair: clip(pd.Hair)}
+	data, _ := json.Marshal(pd)
+	return string(data)
 }
 
 type CharacterWithOwner struct {
@@ -126,12 +152,14 @@ type CharacterWithOwner struct {
 	Username string `db:"username" json:"username"`
 }
 
+// SpellSlot is serialized in snake_case like the rest of the API: without json tags the
+// frontend received Level/Total/Used and rendered every slot as "NaN".
 type SpellSlot struct {
-	ID          int64 `db:"id"`
-	CharacterID int64 `db:"character_id"`
-	Level       int   `db:"level"`
-	Total       int   `db:"total"`
-	Used        int   `db:"used"`
+	ID          int64 `db:"id" json:"id"`
+	CharacterID int64 `db:"character_id" json:"character_id"`
+	Level       int   `db:"level" json:"level"`
+	Total       int   `db:"total" json:"total"`
+	Used        int   `db:"used" json:"used"`
 }
 
 func (s *SpellSlot) Remaining() int {
@@ -153,4 +181,21 @@ type CreateCharacterRequest struct {
 	Race       string `json:"race" binding:"required"`
 	Class      string `json:"class" binding:"required"`
 	CampaignID int64  `json:"campaign_id" binding:"required"`
+	Background string `json:"background"`
+	Alignment  string `json:"alignment"`
+	// Optional ability scores (3–20); 0 means "use 10".
+	StrScore int `json:"str_score"`
+	DexScore int `json:"dex_score"`
+	ConScore int `json:"con_score"`
+	IntScore int `json:"int_score"`
+	WisScore int `json:"wis_score"`
+	ChaScore int `json:"cha_score"`
+	// Rolled characters: the server-made roll set and the scores before increases, so the
+	// assignment and the +2/+1 or +1/+1/+1 increases can be verified.
+	StatRollID *int64  `json:"stat_roll_id"`
+	BaseScores *[6]int `json:"base_scores"`
+	// Walking speed from the chosen race (ft); 0 = derive from the race name.
+	Speed int `json:"speed"`
+	// Pixel-art avatar (character-appearance.md); optional.
+	Appearance RawJSON `json:"appearance"`
 }

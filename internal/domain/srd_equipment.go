@@ -26,19 +26,21 @@ type SRDEquipment struct {
 	ArmorCategory       string    `db:"armor_category" json:"armor_category"`
 	IsSRD               bool      `db:"is_srd" json:"is_srd"`
 	CreatedAt           time.Time `db:"created_at" json:"created_at"`
+	Rank                float64   `db:"rank" json:"rank,omitempty"`
 }
 
 // SRDMagicItem represents a D&D 5e SRD magic item entry.
 type SRDMagicItem struct {
-	ID                int64     `db:"id" json:"id"`
-	Name              string    `db:"name" json:"name"`
-	Rarity            string    `db:"rarity" json:"rarity"`
-	RequiresAttunement bool    `db:"requires_attunement" json:"requires_attunement"`
-	AttunementDesc    string    `db:"attunement_desc" json:"attunement_desc"`
-	Description       string    `db:"description" json:"description"`
-	Category          string    `db:"category" json:"category"`
-	IsSRD             bool      `db:"is_srd" json:"is_srd"`
-	CreatedAt         time.Time `db:"created_at" json:"created_at"`
+	ID                 int64     `db:"id" json:"id"`
+	Name               string    `db:"name" json:"name"`
+	Rarity             string    `db:"rarity" json:"rarity"`
+	RequiresAttunement bool      `db:"requires_attunement" json:"requires_attunement"`
+	AttunementDesc     string    `db:"attunement_desc" json:"attunement_desc"`
+	Description        string    `db:"description" json:"description"`
+	Category           string    `db:"category" json:"category"`
+	IsSRD              bool      `db:"is_srd" json:"is_srd"`
+	CreatedAt          time.Time `db:"created_at" json:"created_at"`
+	Rank               float64   `db:"rank" json:"rank,omitempty"`
 }
 
 // EquipmentFilters holds search/filter parameters for SRD equipment queries.

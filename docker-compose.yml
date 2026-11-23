@@ -1,0 +1,80 @@
+# Mesa de Ceniza — full stack for a local network (openspec/specs/lan-deployment.md).
+#
+#   docker compose up -d --build              # app + postgres + redis
+#   docker compose --profile ai up -d         # + Ollama for the lore Oracle
+#   docker compose --profile foundry up -d    # + Foundry relay (optional "foundry" campaigns)
+#
+# Then open http://<this-machine-ip>:8080 from any device on the same network.
+# Requires JWT_SECRET in .env (copy .env.example; scripts/lan-up.ps1 creates it for you).
+
+services:
+  app:
+    build: .
+    image: mesa-de-ceniza:latest
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    environment:
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env (see .env.example)}
+      DATABASE_DSN: postgres://${POSTGRES_USER:-dnduser}:${POSTGRES_PASSWORD:-dndsharp}@postgres:5432/${POSTGRES_DB:-dndmanager}?sslmode=disable
+      REDIS_ADDR: redis:6379
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      FOUNDRY_RELAY_BASE_URL: http://foundry-relay:3010
+      FOUNDRY_API_KEY: ${FOUNDRY_API_KEY:-}
+      FOUNDRY_CLIENT_ID: ${FOUNDRY_CLIENT_ID:-}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+    volumes:
+      - uploads:/data/uploads
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-dndmanager}
+      POSTGRES_USER: ${POSTGRES_USER:-dnduser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dndsharp}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dnduser} -d ${POSTGRES_DB:-dndmanager}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["ai"]
+    restart: unless-stopped
+    volumes:
+      - ollama:/root/.ollama
+
+  foundry-relay:
+    image: ghcr.io/threehats/foundryvtt-rest-api-relay:latest
+    profiles: ["foundry"]
+    restart: unless-stopped
+    environment:
+      PORT: "3010"
+      API_KEY: ${FOUNDRY_API_KEY:-change-me}
+
+volumes:
+  # Reuses the database of the development stack (infra/docker-compose.yml) so the
+  # imported SRD/5etools catalogue is kept. Do not run both stacks at the same time.
+  pgdata:
+    name: ${DB_VOLUME:-infra_pgdata}
+  redisdata:
+  uploads:
+  ollama:

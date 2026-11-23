@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { foundryApi } from '../services/api';
-import { useAuth } from '../lib/hooks';
+import { useCampaign } from '../lib/useCampaign';
+import { itemCount } from '../lib/plural';
 
 const FOUNDRY_URL = import.meta.env.VITE_FOUNDRY_URL as string | undefined;
 
@@ -28,7 +29,8 @@ interface SyncState {
  */
 export function FoundryCombat() {
   const { campaignId } = useParams<{ campaignId: string }>();
-  const { isDM } = useAuth();
+  // Only the campaign's GM may trigger a sync; players just see the Foundry client.
+  const { isGM: isDM } = useCampaign(campaignId);
   const [state, setState] = useState<SyncState | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -44,6 +46,7 @@ export function FoundryCombat() {
   }, [campaignId]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga inicial al montar
     loadStatus();
   }, [loadStatus]);
 
@@ -55,7 +58,7 @@ export function FoundryCombat() {
       const res = await foundryApi.sync(campaignId);
       const c: SyncCounts = res.data.counts;
       setMsg(
-        `Sincronizado: ${c.characters} personajes, ${c.npcs} NPCs, ${c.items} objetos, ${c.scenes} mapas, ${c.journal} entradas de lore.`,
+        `Sincronizado: ${c.characters} personajes, ${c.npcs} NPCs, ${itemCount(c.items)}, ${c.scenes} mapas, ${c.journal} entradas de lore.`,
       );
     } catch (e: unknown) {
       const err = e as { response?: { data?: { error?: string } } };

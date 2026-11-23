@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
+	"unicode"
 
 	"dnd-campaign-manager/internal/config"
 	"dnd-campaign-manager/internal/domain"
@@ -30,6 +32,7 @@ type EmbeddingRequest struct {
 
 type EmbeddingResponse struct {
 	Embeddings [][]float32 `json:"embeddings"`
+	Embedding  []float32   `json:"embedding"`
 }
 
 type GenerateRequest struct {
@@ -53,7 +56,10 @@ func (s *RAGService) GetEmbedding(ctx context.Context, text string) ([]float32, 
 		return nil, err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", s.ollamaConfig.BaseURL+"/api/embeddings", bytes.NewReader(body))
+	// /api/embed takes {"model","input"} and returns {"embeddings":[[...]]}. The legacy
+	// /api/embeddings expects "prompt" instead and answers an empty vector to "input", which
+	// silently disabled semantic lore search (everything fell back to keyword search).
+	req, err := http.NewRequestWithContext(ctx, "POST", s.ollamaConfig.BaseURL+"/api/embed", bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
@@ -75,11 +81,13 @@ func (s *RAGService) GetEmbedding(ctx context.Context, text string) ([]float32, 
 		return nil, err
 	}
 
-	if len(embResp.Embeddings) == 0 {
-		return nil, fmt.Errorf("no embedding returned")
+	if len(embResp.Embeddings) > 0 {
+		return embResp.Embeddings[0], nil
 	}
-
-	return embResp.Embeddings[0], nil
+	if len(embResp.Embedding) > 0 {
+		return embResp.Embedding, nil
+	}
+	return nil, fmt.Errorf("no embedding returned")
 }
 
 func (s *RAGService) GenerateResponse(ctx context.Context, prompt string) (string, error) {
@@ -134,32 +142,47 @@ func (s *RAGService) VectorizeLoreEntry(ctx context.Context, entryID int64) erro
 	return s.loreRepo.UpdateVector(ctx, entryID, embedding)
 }
 
-func (s *RAGService) Query(ctx context.Context, campaignID int64, characterID *int64, userID int64, isGM bool, loreTier domain.LoreTier, query string) (string, []string, error) {
-	// Get query embedding
-	queryEmbedding, err := s.GetEmbedding(ctx, query)
-	if err != nil {
-		return "", nil, err
+func (s *RAGService) Query(ctx context.Context, campaignID int64, characterID *int64, userID int64, isGM bool, loreTier domain.LoreTier, query string) (string, []domain.LoreSource, error) {
+	if !isGM && (loreTier == domain.LoreTierGMHidden || loreTier == domain.LoreScopeAll) {
+		return "", nil, ErrForbidden
+	}
+	if characterID != nil {
+		character, err := s.charRepo.GetByID(ctx, *characterID)
+		if err != nil || character == nil || character.CampaignID != campaignID {
+			return "", nil, ErrNotFound
+		}
+		if !isGM && character.UserID != userID {
+			return "", nil, ErrForbidden
+		}
 	}
 
-	// Determine which lore tier to search based on role
-	searchTier := loreTier
-	if !isGM && loreTier == domain.LoreTierGMHidden {
-		searchTier = domain.LoreTierCampaignPlot // downgrade to campaign plot
-	}
-
-	// Search for relevant entries
+	// Search for relevant entries: vectors when Ollama is reachable, Spanish full-text otherwise
+	// (and also when no entry has been vectorized yet).
 	var entries []domain.LoreEntry
-	if characterID != nil && searchTier == domain.LoreTierCharacter {
-		// Character lore search — find character's lore entries
-		charEntries, err := s.loreRepo.GetByCharacter(ctx, *characterID)
+	var err error
+	if characterID != nil && loreTier == domain.LoreTierCharacter {
+		entries, err = s.loreRepo.GetByCharacter(ctx, *characterID, isGM)
 		if err != nil {
 			return "", nil, err
 		}
-		entries = charEntries
 	} else {
-		entries, err = s.loreRepo.SearchByTier(ctx, campaignID, searchTier, queryEmbedding, 5)
-		if err != nil {
-			return "", nil, err
+		scope := repository.LoreSearchScope{CampaignID: campaignID, Tier: loreTier}
+		if !isGM && loreTier == domain.LoreTierCharacter {
+			// A player searching character lore without naming a character only sees the
+			// lore of their own characters (security.md: no access to other players' lore).
+			scope.OwnerUserID = userID
+		}
+		if queryEmbedding, embErr := s.GetEmbedding(ctx, query); embErr == nil {
+			entries, err = s.loreRepo.SearchByTier(ctx, scope, queryEmbedding, 5)
+			if err != nil {
+				return "", nil, err
+			}
+		}
+		if len(entries) == 0 {
+			entries, err = s.loreRepo.SearchTextByTier(ctx, scope, searchWords(query), 5)
+			if err != nil {
+				return "", nil, err
+			}
 		}
 	}
 
@@ -169,12 +192,11 @@ func (s *RAGService) Query(ctx context.Context, campaignID int64, characterID *i
 
 	// Build context from entries
 	contextText := buildContextFromEntries(entries)
-	sources := make([]string, len(entries))
+	sources := make([]domain.LoreSource, len(entries))
 	for i, entry := range entries {
-		if entry.Title != "" {
-			sources[i] = entry.Title
-		} else {
-			sources[i] = fmt.Sprintf("Entrada de lore #%d", entry.ID)
+		sources[i] = domain.LoreSource{Title: entry.Title, Tier: entry.LoreTier}
+		if entry.Title == "" {
+			sources[i].Title = fmt.Sprintf("Entrada de lore #%d", entry.ID)
 		}
 	}
 
@@ -192,10 +214,40 @@ Responde basándote únicamente en el contexto proporcionado.`, contextText, que
 
 	response, err := s.GenerateResponse(ctx, fullPrompt)
 	if err != nil {
-		return "", nil, err
+		// No language model on this server: answer with the matching passages themselves.
+		return "Sin IA en este servidor; esto es lo que dice el lore:\n\n" + excerpts(entries), sources, nil
 	}
 
 	return response, sources, nil
+}
+
+// searchWords keeps the meaningful words of a question (letters/digits, 3+ chars) so they
+// can be OR-ed safely in a tsquery.
+func searchWords(query string) []string {
+	seen := map[string]bool{}
+	words := []string{}
+	for _, w := range strings.FieldsFunc(strings.ToLower(query), func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) }) {
+		if len([]rune(w)) >= 3 && !seen[w] && len(words) < 12 {
+			seen[w] = true
+			words = append(words, w)
+		}
+	}
+	return words
+}
+
+func excerpts(entries []domain.LoreEntry) string {
+	var buf strings.Builder
+	for _, entry := range entries {
+		if entry.Title != "" {
+			buf.WriteString("• " + entry.Title + "\n")
+		}
+		text := []rune(strings.TrimSpace(entry.ContentText))
+		if len(text) > 600 {
+			text = append(text[:600], '…')
+		}
+		buf.WriteString(string(text) + "\n\n")
+	}
+	return strings.TrimSpace(buf.String())
 }
 
 func buildContextFromEntries(entries []domain.LoreEntry) string {
@@ -223,16 +275,16 @@ func (s *RAGService) VectorizeCharacterBackstory(ctx context.Context, charID int
 
 	// Create a lore entry for the character's backstory
 	entry := &domain.LoreEntry{
-		CampaignID:  char.CampaignID,
+		CampaignID:   char.CampaignID,
 		CharacterID:  &charID,
 		ContentText:  char.BackstoryText,
-		LoreTier:    domain.LoreTierCharacter,
-		Title:       fmt.Sprintf("Historia de %s", char.Name),
+		LoreTier:     domain.LoreTierCharacter,
+		Title:        fmt.Sprintf("Historia de %s", char.Name),
 		ChapterOrder: 0,
 	}
 
 	// Check if lore entry already exists for this character
-	existing, _ := s.loreRepo.GetByCharacter(ctx, charID)
+	existing, _ := s.loreRepo.GetByCharacter(ctx, charID, true)
 	if len(existing) > 0 {
 		// Update existing
 		entry.ID = existing[0].ID

@@ -42,14 +42,14 @@ func main() {
 
 	ex := &exporter{outDir: *out, moduleID: *moduleID, repo: repo, ctx: ctx, stamp: *stamp}
 
-	// pack name -> document type (for the compendium UUID and module.json)
+	// pack name -> document type (for the compendium UUID and module.json).
+	// Classes/subclasses/races are intentionally NOT exported here: dnd5e class
+	// machinery (advancement, features) is not reconstructable from the flat srd_*
+	// schema. Use Plutonium to import those from 5etools (see FOUNDRY_PLUTONIUM.md).
 	packs := []packDef{
 		{"spells", "Item", "Spells"},
 		{"monsters", "Actor", "Monsters"},
 		{"items", "Item", "Items"},
-		{"classes", "Item", "Classes"},
-		{"subclasses", "Item", "Subclasses"},
-		{"races", "Item", "Races"},
 	}
 
 	// Spells
@@ -75,22 +75,8 @@ func main() {
 	for _, mi := range magic {
 		ex.write("items", "Item", "srd_magic_items", mi.ID, foundry.BuildMagicItemDoc(mi))
 	}
-	// Classes / subclasses / races (descriptive)
-	classes, err := repo.AllClasses(ctx)
-	must(err, "classes")
-	for _, c := range classes {
-		ex.write("classes", "Item", "srd_classes", c.ID, foundry.BuildClassDoc(c))
-	}
-	subs, err := repo.AllSubclasses(ctx)
-	must(err, "subclasses")
-	for _, sc := range subs {
-		ex.write("subclasses", "Item", "srd_subclasses", sc.ID, foundry.BuildSubclassDoc(sc))
-	}
-	races, err := repo.AllRaces(ctx)
-	must(err, "races")
-	for _, rc := range races {
-		ex.write("races", "Item", "srd_races", rc.ID, foundry.BuildRaceDoc(rc))
-	}
+	// Classes / subclasses / races are handled by Plutonium (see FOUNDRY_PLUTONIUM.md),
+	// not exported here.
 
 	if err := ex.writeModuleJSON(packs); err != nil {
 		log.Fatalf("module.json: %v", err)

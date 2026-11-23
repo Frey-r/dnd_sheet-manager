@@ -1,0 +1,13 @@
+# Perfil del harness 528hz (schema/harness.schema.json)
+version: 1
+enabled: true
+nivel: N1
+modo: mejora
+idioma: es
+comandos:
+  test: "go test ./... && npm --prefix frontend test"
+  test_afectados: "npm --prefix frontend test"
+  lint: "npm --prefix frontend run lint"
+  tipos: "cd frontend && npx tsc -b"
+  build: "go build ./... && npm --prefix frontend run build"
+  run: "npm --prefix frontend run dev"

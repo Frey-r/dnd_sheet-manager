@@ -9,11 +9,11 @@ import type {
   PaginatedResult,
 } from '../types/srd';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 const API_BASE = `${API_URL}/srd`;
 
 // Helper to build query string from filters
-function toQueryString(filters: any): string {
+function toQueryString(filters: object): string {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(filters)) {
     if (value !== undefined && value !== null && value !== '') {
@@ -143,6 +143,13 @@ export const MONSTER_TYPES = [
   'Elemental', 'Fey', 'Fiend', 'Giant', 'Humanoid',
   'Monstrosity', 'Ooze', 'Plant', 'Undead',
 ] as const;
+
+/** Spanish labels for MONSTER_TYPES; the API keeps the English lowercase value. */
+export const MONSTER_TYPE_LABELS: Record<(typeof MONSTER_TYPES)[number], string> = {
+  Aberration: 'Aberración', Beast: 'Bestia', Celestial: 'Celestial', Construct: 'Constructo', Dragon: 'Dragón',
+  Elemental: 'Elemental', Fey: 'Feérico', Fiend: 'Infernal', Giant: 'Gigante', Humanoid: 'Humanoide',
+  Monstrosity: 'Monstruosidad', Ooze: 'Cieno', Plant: 'Planta', Undead: 'Muerto viviente',
+};
 
 export const MONSTER_SIZES = [
   'Tiny', 'Small', 'Medium', 'Large', 'Huge', 'Gargantuan',

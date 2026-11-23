@@ -1,12 +1,13 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 
 	"dnd-campaign-manager/internal/domain"
 	"dnd-campaign-manager/internal/middleware"
-	"dnd-campaign-manager/internal/service"
 	"dnd-campaign-manager/internal/repository"
+	"dnd-campaign-manager/internal/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -91,10 +92,11 @@ type CampaignHandler struct {
 	campaignSvc *service.CampaignService
 	charSvc     *service.CharacterService
 	itemRepo    *repository.ItemRepository
+	tradeSvc    *service.TradeService
 }
 
-func NewCampaignHandler(campaignSvc *service.CampaignService, charSvc *service.CharacterService, itemRepo *repository.ItemRepository) *CampaignHandler {
-	return &CampaignHandler{campaignSvc: campaignSvc, charSvc: charSvc, itemRepo: itemRepo}
+func NewCampaignHandler(campaignSvc *service.CampaignService, charSvc *service.CharacterService, itemRepo *repository.ItemRepository, tradeSvc *service.TradeService) *CampaignHandler {
+	return &CampaignHandler{campaignSvc: campaignSvc, charSvc: charSvc, itemRepo: itemRepo, tradeSvc: tradeSvc}
 }
 
 func (h *CampaignHandler) List(c *gin.Context) {
@@ -117,6 +119,10 @@ func (h *CampaignHandler) Create(c *gin.Context) {
 
 	userID := middleware.GetUserID(c)
 	campaign, err := h.campaignSvc.Create(c.Request.Context(), userID, &req)
+	if errors.Is(err, service.ErrInvalidCover) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create campaign"})
 		return
@@ -157,6 +163,10 @@ func (h *CampaignHandler) Update(c *gin.Context) {
 	campaignID := parseID(c.Param("id"))
 
 	campaign, err := h.campaignSvc.Update(c.Request.Context(), campaignID, userID, &req)
+	if errors.Is(err, service.ErrInvalidCover) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 	if err != nil {
 		if err == service.ErrForbidden {
 			c.JSON(http.StatusForbidden, gin.H{"error": "only GM can update campaign"})
@@ -250,7 +260,7 @@ func parseID(s string) int64 {
 		if c >= '0' && c <= '9' {
 			id = id*10 + int64(c-'0')
 		} else {
-			break
+			return 0
 		}
 	}
 	return id
@@ -314,7 +324,6 @@ func (h *CampaignHandler) CreateMarketplaceItem(c *gin.Context) {
 func (h *CampaignHandler) PurchaseMarketplaceItem(c *gin.Context) {
 	campaignID := parseID(c.Param("id"))
 	userID := middleware.GetUserID(c)
-
 	var req struct {
 		ItemID int64 `json:"item_id" binding:"required"`
 	}
@@ -322,48 +331,26 @@ func (h *CampaignHandler) PurchaseMarketplaceItem(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-
 	char, err := h.charSvc.GetByUserAndCampaign(c.Request.Context(), userID, campaignID)
 	if err != nil || char == nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "no character found in this campaign"})
 		return
 	}
-
-	mItem, err := h.itemRepo.GetMarketplaceItemByID(c.Request.Context(), req.ItemID)
-	if err != nil || mItem == nil || mItem.CampaignID != campaignID {
-		c.JSON(http.StatusNotFound, gin.H{"error": "marketplace item not found"})
+	if err := h.tradeSvc.Purchase(c.Request.Context(), campaignID, req.ItemID, char.ID, userID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	c.JSON(http.StatusOK, gin.H{"message": "purchase successful"})
+}
 
-	if char.Gold < mItem.Price {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "insufficient gold"})
+// TradeableItems lists the tradeable items of a character of this campaign for the trade
+// picker. Any member may call it (RBAC checks membership); it returns only trade-relevant
+// fields instead of the full inventory, which stays owner/GM-only.
+func (h *CampaignHandler) TradeableItems(c *gin.Context) {
+	items, err := h.itemRepo.TradeableByCharacter(c.Request.Context(), parseID(c.Param("id")), parseID(c.Param("character_id")))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not load items"})
 		return
 	}
-
-	char.Gold -= mItem.Price
-	if err := h.charSvc.UpdateGold(c.Request.Context(), char.ID, userID, false, char.Gold); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "transaction failed (gold deduction)"})
-		return
-	}
-
-	invItem := &domain.InventoryItem{
-		CharacterID:        char.ID,
-		Name:               mItem.Name,
-		ItemType:           mItem.ItemType,
-		Rarity:             mItem.Rarity,
-		Weight:             mItem.Weight,
-		Quantity:           1,
-		Description:        mItem.Description,
-		IsEquipped:         false,
-		RequiresAttunement: mItem.AttunementRequired,
-		SRDRefID:           mItem.SRDRefID,
-	}
-
-	if err := h.itemRepo.Create(c.Request.Context(), invItem); err != nil {
-		_ = h.charSvc.UpdateGold(c.Request.Context(), char.ID, userID, false, char.Gold+mItem.Price)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "transaction failed (item creation)"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "purchase successful", "gold_remaining": char.Gold})
+	c.JSON(http.StatusOK, items)
 }

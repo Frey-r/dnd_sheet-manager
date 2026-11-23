@@ -7,6 +7,7 @@ export interface User {
   email: string;
   avatar_url?: string;
   role: UserRole;
+  totp_enabled: boolean;
 }
 
 
@@ -25,6 +26,14 @@ export interface AuthResponse {
   token: string;
   refresh_token: string;
   user: User;
+  requires_totp?: boolean;
+}
+
+export interface AuthChallenge {
+  token?: string;
+  refresh_token?: string;
+  user: User;
+  requires_totp?: boolean;
 }
 
 // Campaign
@@ -35,6 +44,11 @@ export interface Campaign {
   join_code: string;
   gm_user_id: number;
   status: 'active' | 'paused';
+  game_mode: 'local' | 'foundry';
+  /** Share of value_cp paid for Bastion goods (0–100, default 100). */
+  bastion_sale_pct: number;
+  /** Cover image (uploaded file or URL); "" when none. */
+  cover_url?: string;
   created_at: string;
   updated_at: string;
 }
@@ -67,6 +81,8 @@ export interface Character {
   max_hp: number;
   current_hp: number;
   temp_hp: number;
+  /** JSON text of the physical traits ({age, height, weight, eyes, skin, hair}). */
+  physical_description?: string;
   ac: number;
   speed: number;
   initiative_bonus: number;
@@ -77,6 +93,10 @@ export interface Character {
   death_save_failures: number;
   xp: number;
   gold: number;
+  silver?: number;
+  copper?: number;
+  /** Non-blocking notes returned on creation (class or race not in the catalog). */
+  warnings?: string[];
   carrying_capacity: number;
   personality_traits: string;
   ideals: string;
@@ -85,6 +105,8 @@ export interface Character {
   backstory_text: string;
   notes: string;
   spellcasting_ability: string;
+  /** Pixel-art avatar (character-appearance.md); null → race default. */
+  appearance?: unknown;
   created_at: string;
   updated_at: string;
 }
@@ -124,6 +146,8 @@ export interface InventoryItem {
   is_tradeable: boolean;
   quest_bound: boolean;
   trade_locked: boolean;
+  /** srd_equipment row the item was copied from (catalog items only). */
+  srd_ref_id?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -151,6 +175,8 @@ export interface Spell {
   components: string;
   damage_type: string;
   prepared: boolean;
+  /** Set when the spell was copied from the catalog (srd_spells); custom spells have none. */
+  srd_ref_id?: number | null;
   created_at: string;
 }
 
@@ -222,22 +248,31 @@ export interface LoreEntry {
   created_at: string;
   updated_at: string;
   vectorized?: boolean;
+  /** Derivado en el backend: la entrada ya tiene embedding y el Oráculo puede encontrarla. */
+  is_vectorized?: boolean;
 }
 
 // GM entities
+/** Campaign NPC (campaign_npcs; character-appearance.md § NPC creator, D-0041). AC, HP, speed and the
+    abilities live in `stats`; race, class and appearance give it a pixel avatar ('' and null on NPCs
+    created before them). */
 export interface NPC {
   id: number;
   campaign_id: number;
   name: string;
   role: string;
-  status: 'ally' | 'enemy' | 'neutral';
-  avatar_url?: string;
-  ac?: number;
-  hp?: number;
-  speed?: number;
-  description?: string;
-  notes?: string;
+  /** 'ally' | 'enemy' | 'neutral' (older rows may hold other text). */
+  status: string;
+  description: string;
+  stats: Record<string, unknown> | null;
+  /** Optional uploaded portrait. */
+  image_url: string;
+  race: string;
+  class: string;
+  /** Pixel-art avatar, validated like a character's; null → race default. */
+  appearance: unknown;
 }
+export type NPCInput = Partial<Omit<NPC, 'id' | 'campaign_id'>>;
 
 export interface Creature {
   id: number;

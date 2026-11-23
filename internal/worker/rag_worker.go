@@ -13,25 +13,25 @@ import (
 )
 
 type RAGJob struct {
-	Query      string
-	CampaignID int64
+	Query       string
+	CampaignID  int64
 	CharacterID *int64
-	UserID     int64
-	IsGM       bool
-	LoreTier   string
-	ResultChan chan RAGResult
+	UserID      int64
+	IsGM        bool
+	LoreTier    string
+	ResultChan  chan RAGResult
 }
 
 type RAGResult struct {
 	Answer  string
-	Sources []string
+	Sources []domain.LoreSource
 	Error   error
 }
 
 type RAGWorkerPool struct {
-	pool     *Pool
-	ragSvc   *service.RAGService
-	timeout  time.Duration
+	pool    *Pool
+	ragSvc  *service.RAGService
+	timeout time.Duration
 }
 
 func NewRAGWorkerPool(ragSvc *service.RAGService, ollamaCfg config.OllamaConfig, workerCfg config.WorkerConfig) *RAGWorkerPool {
@@ -84,10 +84,10 @@ func init() {
 }
 
 type TradeExpiryWorker struct {
-	tradeSvc  *service.TradeService
-	interval  time.Duration
-	stopChan  chan struct{}
-	wg        sync.WaitGroup
+	tradeSvc *service.TradeService
+	interval time.Duration
+	stopChan chan struct{}
+	wg       sync.WaitGroup
 }
 
 func NewTradeExpiryWorker(tradeSvc *service.TradeService, interval time.Duration) *TradeExpiryWorker {

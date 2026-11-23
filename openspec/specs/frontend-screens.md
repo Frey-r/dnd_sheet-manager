@@ -217,7 +217,7 @@ All character sheet views share: TopAppBar + sub-tab navigation (Stats | Spells 
 ### 10.1 NPC List / Manager (`gestor_de_npcs/code.html`)
 - **Grid of NPC cards**: Avatar image + Name + Role/Business + Status
 - **Status badges**: Ally (green), Enemy (red), Neutral (gray)
-- **"Añadir NPC" button** to create new
+- **"Añadir NPC" button** opens the NPC creator (same layout as the player creator; see `character-appearance.md` § NPC creator); cards show the NPC pixel avatar
 - **Search/filter by name or status**
 
 ### 10.2 NPC Detail (`detalle_de_npc/code.html`)
@@ -308,7 +308,7 @@ All character sheet views share: TopAppBar + sub-tab navigation (Stats | Spells 
   - Traits section: collapsible with passive/action tags
   - Actions section: multi-column grid of action cards with hit/Save DC badges
   - Lore & GM Notes section: text block
-- **Actions**: "Añadir a Combate" + "Editar NPC" buttons
+- **Actions**: "Añadir a Combate" + "Editar NPC" buttons (Editar opens the NPC creator prefilled); the profile card shows the full pixel avatar when the NPC has one
 
 ---
 
@@ -342,6 +342,25 @@ All character sheet views share: TopAppBar + sub-tab navigation (Stats | Spells 
 - **Character status card**: big avatar + name, HP/AC stats with mini bars, status chip
 - **Combat log**: clean list entries with colored left borders, actor actions
 - **Bottom nav (mobile)**: Ataques | Hechizos | Objetos | Acciones tabs
+
+---
+
+## 21. Compendium (`/campaign/:id/reference`, no mockup)
+
+Any campaign member can browse the imported 5etools catalogue (`content_entities`, every book).
+- Search box over the whole catalogue, a category select (from `GET /api/content/categories`) and a
+  source select (from `GET /api/content/sources`).
+- Results list (name, category, source, SRD badge) with the total count; selecting a row shows the
+  entry rendered from its 5etools `entries` (`GET /api/content/:id`).
+- Loading, empty and error states with retry. Spanish UI.
+
+## 22. GM Spell Book (`/campaign/:id/gm/spells-srd`, GM only, no mockup)
+
+- Filters: free text (name or description), spell level (trucos, 1–9), school, class spell list,
+  and tri-state Concentración / Ritual toggles; results come from `GET /api/srd/spells`.
+- List rows show name, level, school and concentration/ritual markers; the detail panel shows
+  casting time, range, components, materials, duration, description, higher levels and classes.
+- Players cannot open it (GM guard). Spanish UI.
 
 ---
 

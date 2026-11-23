@@ -37,11 +37,18 @@ export interface SRDMonster {
   skills: Record<string, number>;
   proficiency_bonus: number;
   is_srd: boolean;
+  /** Book code from the 5etools catalog (e.g. "XMM") or "Homebrew". */
+  source: string;
+  /** Set only for user-made homebrew; imported content is read-only. */
+  created_by: number | null;
+  is_homebrew: boolean;
 }
 
 export interface MonsterAction {
   name: string;
-  desc: string;
+  /** Homebrew creatures; catalog creatures carry 5etools `entries` instead. */
+  desc?: string;
+  entries?: unknown;
   attack_bonus?: number;
   damage_dice?: string;
   damage_type?: string;
@@ -57,6 +64,8 @@ export interface MonsterListItem {
   hp: number;
   ac: number;
   is_srd: boolean;
+  source: string;
+  is_homebrew: boolean;
 }
 
 export interface MonsterFilters {
@@ -101,6 +110,7 @@ export interface SpellListItem {
   level: number;
   school: string;
   casting_time: string;
+  range: string;
   concentration: boolean;
   ritual: boolean;
   is_srd: boolean;
@@ -181,6 +191,8 @@ export interface MagicItemFilters {
 export interface SRDClass {
   id: number;
   name: string;
+  /** 5etools book code (e.g. "XPHB", "PHB"). */
+  source?: string;
   hit_die: number;
   primary_ability: string;
   saving_throws: string[];
@@ -226,12 +238,16 @@ export interface SRDClassSpellSlot {
 export interface SRDRace {
   id: number;
   name: string;
+  /** 5etools book code (e.g. "XPHB", "PHB"). */
+  source?: string;
   speed: number;
   size: string;
   ability_bonuses: Record<string, number>;
   traits: { name: string; description: string }[];
   languages: string[];
   subraces: { name: string; description: string; ability_bonuses?: Record<string, number> }[];
+  /** Skills the race always grants (JSON array as sent by the API, e.g. '["perception"]'). */
+  skill_proficiencies?: string[] | string;
   description: string;
   is_srd: boolean;
 }
@@ -282,6 +298,7 @@ export interface PartyBudget {
 }
 
 export interface MonsterSuggestion {
+  monster_id: number;
   name: string;
   cr: string;
   xp: number;

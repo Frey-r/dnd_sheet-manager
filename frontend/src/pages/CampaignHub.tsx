@@ -1,139 +1,52 @@
-import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { campaignApi, characterApi } from '../services/api';
 import { useAuth } from '../lib/hooks';
+import { useRealtime } from '../lib/RealtimeContext';
 import type { Campaign, Character, CampaignMember } from '../types';
+import { getApiError } from '../services/errors';
+import { ErrorState, LoadingState } from '../components/ui/Feedback';
+import { PixelAvatar } from '../components/avatar/PixelAvatar';
+import { splitSource } from '../lib/avatar';
+import { requestRoll } from '../lib/dice';
+import { ABILITIES, abilityMod } from '../lib/abilities';
+import { scoreOf, useSkillRows } from '../lib/skills';
+import { CampaignCoverEditor } from '../components/CampaignCoverEditor';
+
+const hpPct = (character: Character) => (character.max_hp > 0 ? Math.max(0, Math.min(100, (character.current_hp / character.max_hp) * 100)) : 0);
+const hpColor = (pct: number) => (pct < 30 ? 'bg-hp-danger' : pct < 70 ? 'bg-gm-amber' : 'bg-success-active');
+const sign = (n: number) => (n >= 0 ? `+${n}` : `−${Math.abs(n)}`);
 
 export function CampaignHub() {
-  const { campaignId } = useParams<{ campaignId: string }>();
-  const { isDM } = useAuth();
-  const [campaign, setCampaign] = useState<Campaign | null>(null);
-  const [members, setMembers] = useState<CampaignMember[]>([]);
-  const [characters, setCharacters] = useState<Character[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!campaignId) return;
-    setLoading(true);
-    Promise.all([
-      campaignApi.get(campaignId).then(r => setCampaign(r.data)).catch(() => {}),
-      campaignApi.members(campaignId).then(r => setMembers(r.data)).catch(() => {}),
-    ]).finally(() => setLoading(false));
-  }, [campaignId]);
-
-  useEffect(() => {
-    if (!members.length) return;
-    Promise.all(
-      members.map(() =>
-        characterApi.listByCampaign(campaignId!).then(r => r.data || []).catch(() => [])
-      )
-    ).then((results) => {
-      const all = results.flat().filter(Boolean);
-      // Remove duplicates by ID to be extra clean
-      const unique = Array.from(new Map(all.map(ch => [ch.id, ch])).values());
-      setCharacters(unique);
-    });
-  }, [members, campaignId]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center">
-        <div className="font-body-lg text-secondary">Cargando campaña...</div>
-      </div>
-    );
-  }
-
-  if (!campaign) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-        <div className="font-body-lg text-secondary">Campaña no encontrada</div>
-        <Link to="/campaigns" className="text-primary font-label-bold">Volver a campañas</Link>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen flex flex-col">
-      <header className="sticky top-0 z-40 bg-surface border-b border-border-low-contrast h-16 flex items-center justify-between px-4">
-        <div className="flex items-center gap-2">
-          <Link to="/campaigns" className="p-2 rounded-full hover:bg-surface-container transition-colors">
-            <span className="material-symbols-outlined">arrow_back</span>
-          </Link>
-          <div>
-            <h1 className="font-headline-md text-on-surface font-bold">{campaign.name}</h1>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          {isDM && (
-            <Link
-              to={`/campaign/${campaignId}/gm`}
-              className="flex items-center gap-2 px-4 py-2 bg-primary-container text-on-primary-container rounded-lg font-label-bold text-sm hover:bg-surface-tint transition-colors"
-            >
-              <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>admin_panel_settings</span>
-              GM Console
-            </Link>
-          )}
-          <div className="flex items-center gap-2 bg-surface-container px-3 py-1 rounded-full border border-border-low-contrast">
-            <div className="w-2 h-2 rounded-full bg-success-active animate-pulse" />
-            <span className="font-label-bold text-on-surface text-xs">Connected</span>
-          </div>
-        </div>
-      </header>
-
-      <main className="flex-1 p-4 md:p-10">
-        <div className="max-w-4xl mx-auto space-y-6">
-          {campaign.description && (
-            <p className="font-body-md text-on-surface-variant bg-surface-container-lowest border border-border-low-contrast rounded-lg p-4">
-              {campaign.description}
-            </p>
-          )}
-
-          {characters.length > 0 && (
-            <>
-              <h2 className="font-label-bold text-on-surface-variant uppercase tracking-wider border-b border-border-low-contrast pb-2">Personajes</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {characters.map((ch) => (
-                  <Link
-                    key={ch.id}
-                    to={`/campaign/${campaignId}/character/${ch.id}`}
-                    className="bg-surface-container-lowest border border-border-low-contrast rounded-lg p-4 hover:border-primary transition-colors"
-                  >
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-10 h-10 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-label-bold">
-                        {ch.name.charAt(0)}
-                      </div>
-                      <div>
-                        <h3 className="font-label-bold text-on-surface">{ch.name}</h3>
-                        <p className="font-label-sm text-on-surface-variant">{ch.race} {ch.class} Lvl {ch.level}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="font-label-sm text-on-surface-variant">HP</span>
-                      <div className="w-24 bg-surface-container-high rounded-full h-1.5 overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${ch.current_hp < ch.max_hp * 0.3 ? 'bg-hp-danger' : ch.current_hp < ch.max_hp * 0.7 ? 'bg-gm-amber' : 'bg-success-active'}`}
-                          style={{ width: `${Math.min((ch.current_hp / ch.max_hp) * 100, 100)}%` }}
-                        />
-                      </div>
-                      <span className="font-label-sm text-on-surface-variant ml-1">{ch.current_hp}/{ch.max_hp}</span>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </>
-          )}
-
-          {characters.length === 0 && (
-            <div className="text-center py-20 flex flex-col items-center">
-              <span className="material-symbols-outlined text-5xl text-outline mb-4 block">person_add</span>
-              <p className="font-body-lg text-secondary mb-2">No hay personajes en esta campaña</p>
-              <Link to={`/campaign/${campaignId}/character/new`} className="text-primary font-label-bold hover:underline">
-                Crea tu primer personaje ahora
-              </Link>
-            </div>
-          )}
-        </div>
-      </main>
-    </div>
-  );
+  const { campaignId = '' } = useParams();
+  const { user } = useAuth();
+  const connection = useRealtime();
+  const campaign = useQuery({ queryKey: ['campaign', campaignId], queryFn: () => campaignApi.get(campaignId).then((response) => response.data as Campaign) });
+  const members = useQuery({ queryKey: ['campaign-members', campaignId], queryFn: () => campaignApi.members(campaignId).then((response) => response.data as CampaignMember[]) });
+  const characters = useQuery({ queryKey: ['characters', campaignId], queryFn: () => characterApi.listByCampaign(campaignId).then((response) => response.data as Character[]) });
+  const isGM = members.data?.some((member) => member.user_id === user?.id && member.role === 'gm');
+  const mine = characters.data?.find((character) => character.user_id === user?.id);
+  const skills = useSkillRows(mine);
+  const rollMod = (mod: number, label: string) => requestRoll(`1d20${mod >= 0 ? '+' : '-'}${Math.abs(mod)}`, label);
+  if (campaign.isLoading) return <LoadingState label="Cargando campaña…" />;
+  if (campaign.error || !campaign.data) return <div className="p-8"><ErrorState message="Campaña no encontrada" /><Link to="/campaigns" className="text-primary font-label-bold">Volver a campañas</Link></div>;
+  return <div className="min-h-screen flex flex-col">
+    <header className="sticky top-0 z-40 bg-surface border-b border-border-low-contrast min-h-16 flex items-center justify-between px-4 py-2 gap-2"><div className="flex items-center gap-2"><Link to="/campaigns" aria-label="Volver" className="p-2"><span className="material-symbols-outlined">arrow_back</span></Link><h1 className="font-headline-md font-bold">{campaign.data.name}</h1></div><div className="flex gap-2 items-center"><Link to={`/campaign/${campaignId}/reference`} className="text-primary font-label-bold px-2">Biblioteca 5e</Link>{isGM && <Link to={`/campaign/${campaignId}/gm`} className="px-4 py-2 bg-primary-container text-on-primary-container rounded-lg font-label-bold">Consola GM</Link>}<span className={`w-2 h-2 rounded-full ${connection === 'connected' ? 'bg-success-active' : 'bg-gm-amber'}`} title={`Conexión: ${connection}`} /></div></header>
+    <main className="flex-1 p-4 md:p-10"><div className="max-w-5xl mx-auto space-y-6">
+      {campaign.data.description && <p className="p-4 border border-border-low-contrast rounded-lg text-on-surface-variant">{campaign.data.description}</p>}
+      {isGM && <div className="p-4 bg-surface-container-lowest border border-border-low-contrast rounded-lg"><span className="font-label-bold">Código de invitación</span><button type="button" onClick={() => void navigator.clipboard?.writeText(campaign.data.join_code)} className="ml-3 font-mono text-primary" title="Copiar código">{campaign.data.join_code}</button><p className="text-sm text-secondary mt-1">Comparte este código solo con las personas que participarán en esta campaña.</p></div>}
+      {isGM && <CampaignCoverEditor campaignId={campaignId} coverUrl={campaign.data.cover_url ?? ''} />}
+      {mine && <section aria-label="Estadísticas rápidas"><h2 className="font-headline-md mb-3">Estadísticas rápidas · {mine.name}</h2><div className="grid grid-cols-2 md:grid-cols-4 gap-3">{[['CA', String(mine.ac)], ['Iniciativa', sign(mine.initiative_bonus)], ['Velocidad', `${mine.speed} pies`], ['Percepción pasiva', String(mine.passive_perception)]].map(([label, value]) => <div key={label} className="border border-border-low-contrast bg-surface-container-lowest rounded-lg p-3 text-center"><span className="font-stat-number text-2xl">{value}</span><p className="text-xs text-secondary">{label}</p></div>)}</div>
+      <div className="flex flex-wrap gap-2 mt-3" role="group" aria-label="Tiradas rápidas"><span className="font-label-bold self-center text-sm">Tiradas rápidas</span><button type="button" onClick={() => requestRoll(`1d20${mine.initiative_bonus >= 0 ? '+' : '-'}${Math.abs(mine.initiative_bonus)}`, 'Iniciativa')} className="px-3 py-2 rounded-lg border border-border-low-contrast hover:border-primary">Iniciativa</button>{[['d20', '1d20'], ['d12', '1d12'], ['d10', '1d10'], ['d8', '1d8'], ['d6', '1d6'], ['d4', '1d4'], ['d100', '1d100']].map(([label, expr]) => <button key={label} type="button" onClick={() => requestRoll(expr, label)} className="px-3 py-2 rounded-lg border border-border-low-contrast hover:border-primary">{label}</button>)}</div>
+      <div className="flex flex-wrap gap-2 mt-3" role="group" aria-label="Pruebas de característica"><span className="font-label-bold self-center text-sm">Pruebas</span>{ABILITIES.map(([key, short, full]) => { const mod = abilityMod(scoreOf(mine, key)); return <button key={key} type="button" title={full} onClick={() => rollMod(mod, `Prueba de ${full}`)} className="px-3 py-2 rounded-lg border border-border-low-contrast hover:border-primary">{short} {sign(mod)}</button>; })}
+      <label className="flex items-center gap-2 text-sm"><span className="sr-only">Tirada de habilidad</span><select value="" onChange={(event) => { const skill = skills.find((row) => row.key === event.target.value); if (skill) rollMod(skill.mod, skill.label); }} className="h-10 rounded-lg border border-border-low-contrast bg-surface-subtle px-2"><option value="">Tirar habilidad…</option>{skills.map((skill) => <option key={skill.key} value={skill.key}>{skill.label} {sign(skill.mod)}</option>)}</select></label></div></section>}
+      <section aria-label="Estado del grupo"><h2 className="font-headline-md mb-3">Estado del grupo</h2>{characters.error ? <ErrorState message={getApiError(characters.error, 'No se pudieron cargar los personajes')} onRetry={() => void characters.refetch()} /> : characters.isLoading ? <LoadingState /> : (characters.data ?? []).length === 0 ? <p className="text-secondary">Sin personajes en el grupo.</p> : <ul className="space-y-2">{characters.data?.map((character) => <li key={character.id} className="flex items-center gap-3"><span className="w-40 truncate font-label-bold">{character.name}</span><div className="flex-1 bg-surface-container h-3 rounded-full overflow-hidden" role="progressbar" aria-valuemin={0} aria-valuemax={character.max_hp} aria-valuenow={character.current_hp} aria-label={`PV de ${character.name}`}><div className={`h-full rounded-full ${hpColor(hpPct(character))}`} style={{ width: `${hpPct(character)}%` }} /></div><span className="text-sm w-20 text-right">{character.current_hp}/{character.max_hp}</span><span className="text-sm text-secondary w-14 text-right">CA {character.ac}</span></li>)}</ul>}</section>
+      <section><div className="flex items-center justify-between mb-3"><h2 className="font-headline-md">Personajes</h2><Link to={`/campaign/${campaignId}/character/new`} className="bg-primary-container text-on-primary-container px-4 py-2 rounded-lg font-label-bold">Crear personaje</Link></div>
+      {characters.isLoading ? <LoadingState /> : <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">{characters.data?.map((character) => <Link key={character.id} to={`/campaign/${campaignId}/character/${character.id}`} className="border border-border-low-contrast bg-surface-container-lowest rounded-lg p-4 hover:border-primary"><div className="flex items-center gap-3"><div className="avatar-stage grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-lg border border-border-low-contrast"><PixelAvatar appearance={character.appearance} race={character.race} klass={character.class} crop="bust" scale={2} /></div><div className="min-w-0"><h3 className="font-label-bold text-lg truncate">{character.name}</h3><p className="text-sm text-secondary truncate">{splitSource(character.race).base} · {splitSource(character.class).base} · Nivel {character.level}</p></div></div><div className="flex gap-2 items-center mt-3"><div className="flex-1 bg-surface-container h-2 rounded-full"><div className={`h-full rounded-full ${hpColor(hpPct(character))}`} style={{ width: `${hpPct(character)}%` }} /></div><span className="text-sm">{character.current_hp}/{character.max_hp}</span></div></Link>)}</div>}
+      {characters.data?.length === 0 && <p className="text-secondary text-center py-10">Todavía no hay personajes. Crea el tuyo con cualquier raza o clase importada.</p>}</section>
+      {mine && <div className="h-14" aria-hidden="true" />}
+      <nav className="grid grid-cols-2 md:grid-cols-4 gap-3"><Link className="p-4 border border-border-low-contrast rounded-lg font-label-bold" to={`/campaign/${campaignId}/lore`}>Trama y lore</Link><Link className="p-4 border border-border-low-contrast rounded-lg font-label-bold" to={`/campaign/${campaignId}/chat`}>Mensajes</Link><Link className="p-4 border border-border-low-contrast rounded-lg font-label-bold" to={`/campaign/${campaignId}/market`}>Mercado</Link><Link className="p-4 border border-border-low-contrast rounded-lg font-label-bold" to={`/campaign/${campaignId}/trade`}>Intercambios</Link><Link className="p-4 border border-border-low-contrast rounded-lg font-label-bold" to={`/campaign/${campaignId}/encounter`}>Encuentro</Link></nav>
+    </div></main>
+    {mine && <Link to={`/campaign/${campaignId}/character/${mine.id}`} aria-label={`PV de ${mine.name}: ${mine.current_hp} de ${mine.max_hp}`} className="fixed bottom-4 left-4 z-30 w-56 rounded-xl border border-border-low-contrast bg-surface/95 px-3 py-2 shadow-lg backdrop-blur"><div className="flex justify-between text-xs"><span className="font-label-bold truncate">{mine.name}</span><span>{mine.current_hp}/{mine.max_hp} PV{mine.temp_hp > 0 ? ` +${mine.temp_hp}` : ''}</span></div><div className="mt-1 h-2 rounded-full bg-surface-container overflow-hidden"><div className={`h-full rounded-full ${hpColor(hpPct(mine))}`} style={{ width: `${hpPct(mine)}%` }} /></div></Link>}
+  </div>;
 }

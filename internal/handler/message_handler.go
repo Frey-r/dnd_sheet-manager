@@ -12,12 +12,46 @@ import (
 )
 
 type MessageHandler struct {
-	msgSvc     *service.MessageService
+	msgSvc      *service.MessageService
 	campaignSvc *service.CampaignService
+	presence    Presence
 }
 
 func NewMessageHandler(msgSvc *service.MessageService, campaignSvc *service.CampaignService) *MessageHandler {
 	return &MessageHandler{msgSvc: msgSvc, campaignSvc: campaignSvc}
+}
+
+// Presence tells whether a member has a live socket (satisfied by *realtime.Hub).
+type Presence interface {
+	IsOnline(campaignID, userID int64) bool
+	OnlineUsers(campaignID int64) []int64
+}
+
+// Presence answers GET /campaigns/:id/presence: the members connected right now (chat header).
+func (h *MessageHandler) Presence(c *gin.Context) {
+	online := []int64{}
+	if h.presence != nil {
+		online = h.presence.OnlineUsers(parseID(c.Param("id")))
+	}
+	c.JSON(http.StatusOK, gin.H{"online_user_ids": online})
+}
+
+// WithPresence lets SendMessage answer delivered vs queued (user-stories.md).
+func (h *MessageHandler) WithPresence(p Presence) *MessageHandler {
+	h.presence = p
+	return h
+}
+
+// deliveryStatus is "delivered" when the recipient is connected now and "queued" otherwise;
+// broadcasts and handlers without presence report "delivered" (stored for every member).
+func deliveryStatus(p Presence, msg *domain.Message) string {
+	if p == nil || msg.RecipientUserID == nil || msg.MessageType == domain.MessageTypeGMBroadcast {
+		return "delivered"
+	}
+	if p.IsOnline(msg.CampaignID, *msg.RecipientUserID) {
+		return "delivered"
+	}
+	return "queued"
 }
 
 func (h *MessageHandler) SendMessage(c *gin.Context) {
@@ -41,7 +75,10 @@ func (h *MessageHandler) SendMessage(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, msg)
+	c.JSON(http.StatusCreated, struct {
+		*domain.Message
+		Delivery string `json:"delivery"`
+	}{msg, deliveryStatus(h.presence, msg)})
 }
 
 func (h *MessageHandler) GetConversations(c *gin.Context) {
@@ -86,6 +123,16 @@ func (h *MessageHandler) GetConversation(c *gin.Context) {
 
 func (h *MessageHandler) MarkAsRead(c *gin.Context) {
 	userID := middleware.GetUserID(c)
+
+	// Optional scope: ?campaign_id=X&user_id=Y marks only that conversation.
+	if campaignID, otherID := parseID(c.Query("campaign_id")), parseID(c.Query("user_id")); campaignID > 0 && otherID > 0 {
+		if err := h.msgSvc.MarkConversationAsRead(c.Request.Context(), campaignID, userID, otherID); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to mark as read"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "marked as read"})
+		return
+	}
 
 	if err := h.msgSvc.MarkAsRead(c.Request.Context(), userID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to mark as read"})

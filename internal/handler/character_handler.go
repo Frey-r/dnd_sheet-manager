@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"log"
 	"net/http"
+	"strconv"
 
 	"dnd-campaign-manager/internal/domain"
 	"dnd-campaign-manager/internal/middleware"
@@ -29,7 +31,14 @@ func (h *CharacterHandler) Create(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	char, err := h.charSvc.Create(c.Request.Context(), userID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create character"})
+		switch err {
+		case service.ErrInvalidAbilityScore, service.ErrRolledScoresMismatch, service.ErrInvalidBonuses, service.ErrInvalidAppearance:
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		case service.ErrForbidden:
+			c.JSON(http.StatusForbidden, gin.H{"error": "campaign membership required"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create character"})
+		}
 		return
 	}
 
@@ -82,6 +91,28 @@ func (h *CharacterHandler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, char)
 }
 
+// UpdateAppearance replaces the pixel-art avatar (owner or campaign GM).
+func (h *CharacterHandler) UpdateAppearance(c *gin.Context) {
+	raw, err := c.GetRawData()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body"})
+		return
+	}
+	char, err := h.charSvc.UpdateAppearance(c.Request.Context(), parseID(c.Param("id")), middleware.GetUserID(c), raw)
+	switch err {
+	case nil:
+		c.JSON(http.StatusOK, char)
+	case service.ErrInvalidAppearance:
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	case service.ErrNotFound:
+		c.JSON(http.StatusNotFound, gin.H{"error": "character not found"})
+	case service.ErrForbidden:
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update appearance"})
+	}
+}
+
 func (h *CharacterHandler) UpdateHP(c *gin.Context) {
 	var req struct {
 		CurrentHP int `json:"current_hp"`
@@ -111,7 +142,7 @@ func (h *CharacterHandler) UpdateHP(c *gin.Context) {
 func (h *CharacterHandler) LongRest(c *gin.Context) {
 	charID := parseID(c.Param("id"))
 
-	if err := h.charSvc.LongRest(c.Request.Context(), charID); err != nil {
+	if err := h.charSvc.Rest(c.Request.Context(), charID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to perform long rest"})
 		return
 	}
@@ -155,18 +186,49 @@ func (h *CharacterHandler) GetSpellSlots(c *gin.Context) {
 	c.JSON(http.StatusOK, slots)
 }
 
-func (h *CharacterHandler) CastSpell(c *gin.Context) {
-	charID := parseID(c.Param("id"))
-
-	char, err := h.charSvc.GetByID(c.Request.Context(), charID, 0, false)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get character"})
+// SetSpellSlotTotal changes the total of one spell-slot level (owner or GM; the character
+// middleware authorizes the route). Body: {"total": n}.
+func (h *CharacterHandler) SetSpellSlotTotal(c *gin.Context) {
+	var req struct {
+		Total *int `json:"total" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	level, err := strconv.Atoi(c.Param("level"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid slot level"})
+		return
+	}
+	slots, err := h.charSvc.SetSpellSlotTotal(c.Request.Context(), parseID(c.Param("id")), level, *req.Total)
+	if err != nil {
+		if err == service.ErrInvalidSpellSlot {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "nivel de 1 a 9 y total de 0 a 9"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update spell slot"})
+		return
+	}
+	c.JSON(http.StatusOK, slots)
+}
 
-	// Deduct spell slot — for now simplified, would need spell level from request
-	// This needs enhancement to get spell level from request
-	c.JSON(http.StatusOK, gin.H{"message": "spell cast", "remaining_slots": char.CurrentHP}) // placeholder
+func (h *CharacterHandler) CastSpell(c *gin.Context) {
+	charID := parseID(c.Param("id"))
+	spellID := parseID(c.Param("spellId"))
+	slots, err := h.charSvc.CastSpell(c.Request.Context(), charID, spellID)
+	if err != nil {
+		switch err {
+		case service.ErrNoSpellSlots:
+			c.JSON(http.StatusConflict, gin.H{"error": "no quedan espacios de conjuro de ese nivel"})
+		case service.ErrNotFound:
+			c.JSON(http.StatusNotFound, gin.H{"error": "spell not found"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to cast spell"})
+		}
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "spell cast", "spell_slots": slots})
 }
 
 func (h *CharacterHandler) GetFeatures(c *gin.Context) {
@@ -191,6 +253,7 @@ func (h *CharacterHandler) AddSpell(c *gin.Context) {
 
 	spell, err := h.charSvc.AddSpell(c.Request.Context(), charID, &req)
 	if err != nil {
+		log.Printf("character %d: add spell %q: %v", charID, req.Name, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to add spell"})
 		return
 	}
@@ -232,9 +295,23 @@ func (h *CharacterHandler) EquipItem(c *gin.Context) {
 	itemID := parseID(c.Param("itemId"))
 
 	if err := h.charSvc.EquipItem(c.Request.Context(), charID, itemID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to toggle equip status"})
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "equip status toggled"})
+}
+
+func (h *CharacterHandler) UpdateItem(c *gin.Context) {
+	var req domain.UpdateItemRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	item, err := h.charSvc.UpdateItem(c.Request.Context(), parseID(c.Param("id")), parseID(c.Param("itemId")), &req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, item)
 }

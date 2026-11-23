@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"strings"
@@ -36,6 +37,8 @@ type Client struct {
 	apiKey   string
 	clientID string
 	http     *http.Client
+	retries  int
+	backoff  func(attempt int) time.Duration
 }
 
 // New builds a Client from the FoundryConfig.
@@ -45,6 +48,8 @@ func New(cfg config.FoundryConfig) *Client {
 		apiKey:   cfg.APIKey,
 		clientID: cfg.ClientID,
 		http:     &http.Client{Timeout: cfg.TimeoutDuration()},
+		retries:  cfg.RetryCount(),
+		backoff:  backoff,
 	}
 }
 
@@ -82,39 +87,80 @@ type ClientInfo struct {
 	Connected bool   `json:"connected"`
 }
 
+// retryable reports whether an HTTP status is a transient relay failure.
+func retryable(status int) bool {
+	return status == http.StatusTooManyRequests || status >= 500
+}
+
+// backoff returns the delay before retry number attempt (0-based): exponential
+// from 250ms, capped at 4s, plus up to 25% jitter.
+func backoff(attempt int) time.Duration {
+	d := 250 * time.Millisecond << uint(attempt)
+	if d > 4*time.Second || d <= 0 {
+		d = 4 * time.Second
+	}
+	return d + time.Duration(rand.Int63n(int64(d/4)+1))
+}
+
+// do performs a GET with bounded retries (c.retries) on network errors and
+// transient statuses (429, 5xx). Other 4xx responses fail immediately.
 func (c *Client) do(ctx context.Context, path string, query url.Values) ([]byte, error) {
-	// The relay scopes most endpoints to a connected world via the clientId query
-	// param (only /clients is exempt).
-	if c.clientID != "" && path != pathClients {
-		if query == nil {
-			query = url.Values{}
+	var lastErr error
+	for attempt := 0; attempt <= c.retries; attempt++ {
+		if attempt > 0 {
+			select {
+			case <-ctx.Done():
+				return nil, fmt.Errorf("foundry relay request to %s aborted: %w (last error: %v)", path, ctx.Err(), lastErr)
+			case <-time.After(c.backoff(attempt - 1)):
+			}
 		}
-		if query.Get("clientId") == "" {
-			query.Set("clientId", c.clientID)
+		body, status, err := c.doOnce(ctx, path, query)
+		if err == nil {
+			return body, nil
+		}
+		lastErr = err
+		if status != 0 && !retryable(status) {
+			return nil, err
+		}
+		if ctx.Err() != nil {
+			return nil, err
 		}
 	}
+	return nil, fmt.Errorf("%w (after %d attempts)", lastErr, c.retries+1)
+}
+
+func (c *Client) doOnce(ctx context.Context, path string, query url.Values) ([]byte, int, error) {
+	// The relay scopes most endpoints to a connected world via the clientId query
+	// param (only /clients is exempt).
+	q := url.Values{}
+	for k, v := range query {
+		q[k] = v
+	}
+	if c.clientID != "" && path != pathClients && q.Get("clientId") == "" {
+		q.Set("clientId", c.clientID)
+	}
 	u := c.baseURL + path
-	if len(query) > 0 {
-		u += "?" + query.Encode()
+	if len(q) > 0 {
+		u += "?" + q.Encode()
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
-		return nil, err
+		return nil, -1, err
 	}
 	req.Header.Set("x-api-key", c.apiKey)
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("foundry relay request to %s: %w", path, err)
+		return nil, 0, fmt.Errorf("foundry relay request to %s: %w", path, err)
 	}
 	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("foundry relay %s returned %d: %s", path, resp.StatusCode, truncate(string(body), 300))
+		return nil, resp.StatusCode, fmt.Errorf("foundry relay %s returned %d: %s", path, resp.StatusCode, truncate(string(body), 300))
 	}
-	return body, nil
+	return body, resp.StatusCode, nil
 }
 
 // Health verifies the relay is reachable and the configured world is connected.

@@ -171,6 +171,7 @@ func BuildClassDoc(c domain.SRDClass) Doc {
 			"hitDiceUsed":  0,
 			"advancement":  []interface{}{},
 			"spellcasting": map[string]interface{}{"ability": strings.ToLower(c.SpellcastingAbility)},
+			"saves":        classSaves(c.SavingThrows),
 			"source":       map[string]interface{}{"custom": originLabel(c.IsSRD)},
 		},
 	}}
@@ -205,11 +206,49 @@ func BuildRaceDoc(r domain.SRDRace) Doc {
 
 // ── helpers ─────────────────────────────────────────────────
 
+// classSaves turns the stored saving-throw list (JSON array such as ["str","con"] or
+// ["Strength","Constitution"]) into dnd5e ability keys, descriptive only (foundry-integration.md).
+func classSaves(raw string) []string {
+	var names []string
+	if json.Unmarshal([]byte(raw), &names) != nil {
+		return []string{}
+	}
+	out := make([]string, 0, len(names))
+	for _, n := range names {
+		key := strings.ToLower(strings.TrimSpace(n))
+		if len(key) >= 3 {
+			key = key[:3]
+		}
+		switch key {
+		case "str", "dex", "con", "int", "wis", "cha":
+			out = append(out, key)
+		}
+	}
+	return out
+}
+
+// homebrewLabel is the source.custom value the export writes for non-SRD content.
+const homebrewLabel = "Homebrew"
+
+// IsSRDDocument reports whether a compendium document is SRD content: anything the export marked
+// as homebrew in system.source.custom is not (foundry-integration.md keeps homebrew is_srd=FALSE).
+func IsSRDDocument(doc *Document) bool {
+	var probe struct {
+		Source struct {
+			Custom string `json:"custom"`
+		} `json:"source"`
+	}
+	if doc == nil || json.Unmarshal(doc.System, &probe) != nil {
+		return true
+	}
+	return !strings.EqualFold(strings.TrimSpace(probe.Source.Custom), homebrewLabel)
+}
+
 func originLabel(isSRD bool) string {
 	if isSRD {
 		return "SRD 5.1"
 	}
-	return "Homebrew"
+	return homebrewLabel
 }
 
 func activationType(castingTime string) string {

@@ -1,5 +1,20 @@
 # SRD Reference Data — Ground-Truth D&D 5e
 
+> **Status (2026-11-21): source superseded by the expanded content catalog.** This is a
+> personal project, so rules content is NOT limited to the SRD. The source of truth is the
+> full local 5etools data set imported by `cmd/content-import` into `content_entities`
+> (all books, `source` = 5etools book code). The import also **projects** every monster,
+> spell, item, class (incl. its spell-slot table), race, subclass, condition and rule into
+> the `srd_*` tables below, which therefore act as the typed *rules index* of the whole
+> catalog — the `srd_` prefix is historical. Consequences:
+> - `is_srd` is informational only (marks SRD membership); features MUST NOT filter or gate
+>   content on it.
+> - Counts in the table below are the original SRD seed; a full 5etools v2.30 import holds
+>   ~4.5k monsters, ~940 spells, ~2.4k items, 160 races and all classes.
+> - Homebrew creatures are rows with `created_by` set (source `Homebrew`), editable only by
+>   their creator or an admin; imported rows (`created_by` NULL) are read-only.
+> - The attribution and CC-BY requirements below apply only if SRD-only data is shipped.
+
 ## Data Source & Attribution
 
 - Data sourced from [5e-bits/5e-database](https://github.com/5e-bits/5e-database) via [dnd-oracle](https://github.com/gregario/dnd-oracle).
