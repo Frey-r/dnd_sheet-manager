@@ -23,3 +23,10 @@ El cambio de raza en el creador (`creator/look.ts`) **sigue** reseteando la piel
 4. **P4 Cambio de raza:** elegir otra raza de distinta familia en el creador sigue reseteando la piel a la de la familia
    nueva (no regresión de D-0027).
 5. **P5 VTT:** el token del VTT dibuja la piel personalizada (TableCanvas sin `strictSkin`).
+
+## Anexo (cierre del verificador)
+
+6. **P6 Mutación de los archivos tocados:** `hz mutar --tarea T-11` ≥ 0,9 en `PixelAvatar.tsx`, `TableCanvas.tsx` y
+   `EditAppearance.tsx`, con tests complementarios no bloqueados (precedente D-0031) en
+   `frontend/src/components/avatar/__tests__/`, `frontend/src/components/vtt/__tests__/` y `frontend/src/pages/__tests__/`.
+   Reemplaza la excepción de D-0037: el VTT queda cubierto en lo que la muestra alcanza (niebla, muros, regla, tokens).
