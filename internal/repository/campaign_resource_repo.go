@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -13,6 +14,14 @@ import (
 )
 
 type CampaignResourceRepository struct{ db *sqlx.DB }
+
+// ResourceInputError is input the campaign resource repository rejects before reaching the database (no known
+// field to update, an oversized text). Its message is safe to show the client; any other error is internal.
+type ResourceInputError struct{ Msg string }
+
+func (e ResourceInputError) Error() string { return e.Msg }
+
+var errNoFieldsToUpdate = ResourceInputError{Msg: "no valid fields to update"}
 
 type resourceDefinition struct {
 	table      string
@@ -117,7 +126,7 @@ func cleanInput(resource resourceDefinition, input map[string]any) (map[string]a
 		}
 		if text, ok := value.(string); ok {
 			if len(text) > 1_000_000 {
-				return nil, fmt.Errorf("field %s is too long", field)
+				return nil, ResourceInputError{Msg: fmt.Sprintf("field %s is too long", field)}
 			}
 		}
 		clean[field] = value
@@ -130,12 +139,12 @@ func (r *CampaignResourceRepository) Create(ctx context.Context, campaignID, use
 	if err != nil {
 		return nil, err
 	}
+	if kind == "bot" {
+		return r.SaveBot(ctx, campaignID, input)
+	}
 	clean, err := cleanInput(resource, input)
 	if err != nil {
 		return nil, err
-	}
-	if kind == "bot" {
-		return r.SaveBot(ctx, campaignID, clean)
 	}
 	clean["campaign_id"] = campaignID
 	if kind == "notes" {
@@ -161,15 +170,11 @@ func (r *CampaignResourceRepository) Update(ctx context.Context, campaignID, id,
 		return nil, err
 	}
 	if kind == "bot" {
-		clean, err := cleanInput(resource, input)
-		if err != nil {
-			return nil, err
-		}
-		return r.SaveBot(ctx, campaignID, clean)
+		return r.SaveBot(ctx, campaignID, input)
 	}
 	clean, err := cleanInput(resource, input)
 	if err != nil || len(clean) == 0 {
-		return nil, fmt.Errorf("no valid fields to update")
+		return nil, errNoFieldsToUpdate
 	}
 	sets, args := []string{}, []any{}
 	for column, value := range clean {
@@ -203,31 +208,22 @@ func (r *CampaignResourceRepository) Delete(ctx context.Context, campaignID, id 
 	return nil
 }
 
+// SaveBot validates the input and upserts the bot settings: a field the input leaves out keeps its stored value
+// (or the default of a first save), so it costs one read, the upsert and the read back.
 func (r *CampaignResourceRepository) SaveBot(ctx context.Context, campaignID int64, input map[string]any) (map[string]any, error) {
-	row := map[string]any{"campaign_id": campaignID, "enabled": false, "personality": "", "actions": map[string]any{}}
-	if err := r.db.QueryRowxContext(ctx, `SELECT enabled, personality, actions FROM campaign_bot_settings WHERE campaign_id=$1`, campaignID).MapScan(row); err != nil && err != sql.ErrNoRows {
-		return nil, err
-	}
 	clean, err := cleanInput(campaignResources["bot"], input)
 	if err != nil {
 		return nil, err
 	}
-	enabled, personality := row["enabled"], row["personality"]
-	var actions any = "{}"
-	if value, ok := clean["enabled"]; ok {
-		enabled = value
+	row := map[string]any{"enabled": false, "personality": "", "actions": "{}"}
+	if err := r.db.QueryRowxContext(ctx, `SELECT enabled, personality, actions FROM campaign_bot_settings WHERE campaign_id=$1`, campaignID).MapScan(row); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, err
 	}
-	if value, ok := clean["personality"]; ok {
-		personality = value
-	}
-	if value, ok := clean["actions"]; ok {
-		actions = value
-	}
-	if bytes, ok := actions.([]byte); ok {
-		actions = json.RawMessage(bytes)
+	for field, value := range clean {
+		row[field] = value
 	}
 	_, err = r.db.ExecContext(ctx, `INSERT INTO campaign_bot_settings (campaign_id, enabled, personality, actions) VALUES ($1,$2,$3,$4)
-		ON CONFLICT (campaign_id) DO UPDATE SET enabled=$2, personality=$3, actions=$4, updated_at=NOW()`, campaignID, enabled, personality, actions)
+		ON CONFLICT (campaign_id) DO UPDATE SET enabled=$2, personality=$3, actions=$4, updated_at=NOW()`, campaignID, row["enabled"], row["personality"], row["actions"])
 	if err != nil {
 		return nil, err
 	}
@@ -238,9 +234,12 @@ func (r *CampaignResourceRepository) SaveBot(ctx context.Context, campaignID int
 func (r *CampaignResourceRepository) GetBot(ctx context.Context, campaignID int64) (map[string]any, error) {
 	row := map[string]any{}
 	err := r.db.QueryRowxContext(ctx, `SELECT * FROM campaign_bot_settings WHERE campaign_id=$1`, campaignID).MapScan(row)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrResourceNotFound
 	}
+	if err != nil {
+		return nil, err
+	}
 	cleanRecord(row, campaignResources["bot"])
-	return row, err
+	return row, nil
 }

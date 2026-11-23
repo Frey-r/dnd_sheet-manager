@@ -447,8 +447,8 @@ func TestCampaignResourceListEmptyAndErrors(t *testing.T) {
 	wantResponse(t, request(r, http.MethodGet, resourcePath("notes"), ""), http.StatusOK, `[]`)
 
 	r, _ = resourceRouter(t, true, sqlRule{"select", sqlReply{err: errScriptedDown}})
-	wantResponse(t, request(r, http.MethodGet, resourcePath("maps"), ""), http.StatusBadRequest, `{"error":"database is down"}`)
-	wantResponse(t, request(r, http.MethodGet, resourcePath("maps", resID), ""), http.StatusBadRequest, `{"error":"database is down"}`)
+	wantInternalError(t, request(r, http.MethodGet, resourcePath("maps"), ""), errScriptedDown.Error())
+	wantInternalError(t, request(r, http.MethodGet, resourcePath("maps", resID), ""), errScriptedDown.Error())
 }
 
 func TestCampaignResourceGetMissingIsNotFound(t *testing.T) {
@@ -506,7 +506,7 @@ func TestCampaignResourceUpdateFailures(t *testing.T) {
 	t.Run("database error", func(t *testing.T) {
 		r, db := resourceRouter(t, true, sqlRule{"update campaign_maps", sqlReply{err: errScriptedDown}})
 		w := request(r, http.MethodPut, resourcePath("maps", resID), `{"name":"Puerto"}`)
-		wantResponse(t, w, http.StatusBadRequest, `{"error":"database is down"}`)
+		wantInternalError(t, w, errScriptedDown.Error())
 		db.none(t, "select")
 	})
 	t.Run("no known field", func(t *testing.T) {
@@ -547,7 +547,7 @@ func TestCampaignResourceDeleteEachKind(t *testing.T) {
 			wantResponse(t, request(r, http.MethodDelete, resourcePath(f.kind, resID), ""), http.StatusNotFound, `{"error":"not found"}`)
 
 			r, _ = resourceRouter(t, true, sqlRule{del, sqlReply{err: errScriptedDown}})
-			wantResponse(t, request(r, http.MethodDelete, resourcePath(f.kind, resID), ""), http.StatusBadRequest, `{"error":"database is down"}`)
+			wantInternalError(t, request(r, http.MethodDelete, resourcePath(f.kind, resID), ""), errScriptedDown.Error())
 		})
 	}
 }
@@ -601,7 +601,7 @@ func TestCampaignBotRead(t *testing.T) {
 	})
 	t.Run("database error", func(t *testing.T) {
 		r, _ := resourceRouter(t, true, sqlRule{botRead, sqlReply{err: errScriptedDown}})
-		wantResponse(t, request(r, http.MethodGet, resourcePath("bot"), ""), http.StatusBadRequest, `{"error":"database is down"}`)
+		wantInternalError(t, request(r, http.MethodGet, resourcePath("bot"), ""), errScriptedDown.Error())
 	})
 }
 
@@ -654,7 +654,7 @@ func TestCampaignBotSave(t *testing.T) {
 	t.Run("reading the current settings fails", func(t *testing.T) {
 		r, db := resourceRouter(t, true, sqlRule{botCurrent, sqlReply{err: errScriptedDown}})
 		w := request(r, http.MethodPut, resourcePath("bot"), `{"enabled":true}`)
-		wantResponse(t, w, http.StatusBadRequest, `{"error":"database is down"}`)
+		wantInternalError(t, w, errScriptedDown.Error())
 		db.none(t, "insert")
 	})
 	t.Run("the upsert fails", func(t *testing.T) {
@@ -663,7 +663,7 @@ func TestCampaignBotSave(t *testing.T) {
 			sqlRule{"insert into campaign_bot_settings", sqlReply{err: errScriptedDown}},
 		)
 		w := request(r, http.MethodPut, resourcePath("bot"), `{"enabled":true}`)
-		wantResponse(t, w, http.StatusBadRequest, `{"error":"database is down"}`)
+		wantInternalError(t, w, errScriptedDown.Error())
 		db.none(t, botRead)
 	})
 	t.Run("invalid JSON", func(t *testing.T) {

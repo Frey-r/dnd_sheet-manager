@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -54,8 +55,7 @@ func (h *CampaignResourceHandler) RegisterRoutes(auth *gin.RouterGroup) {
 // and every screen that lists them sits behind the GM guard.
 func (h *CampaignResourceHandler) List(kind string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if !middleware.IsGM(c) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "gm membership required"})
+		if !requireGM(c) {
 			return
 		}
 		rows, err := h.repo.List(c.Request.Context(), parseID(c.Param("id")), kind)
@@ -65,8 +65,7 @@ func (h *CampaignResourceHandler) List(kind string) gin.HandlerFunc {
 
 func (h *CampaignResourceHandler) Get(kind string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if !middleware.IsGM(c) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "gm membership required"})
+		if !requireGM(c) {
 			return
 		}
 		row, err := h.repo.Get(c.Request.Context(), parseID(c.Param("id")), parseID(c.Param("resource_id")), kind)
@@ -76,8 +75,7 @@ func (h *CampaignResourceHandler) Get(kind string) gin.HandlerFunc {
 
 func (h *CampaignResourceHandler) Create(kind string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if !middleware.IsGM(c) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "gm membership required"})
+		if !requireGM(c) {
 			return
 		}
 		var input map[string]any
@@ -187,8 +185,7 @@ func validateEventRelations(input map[string]any) error {
 
 func (h *CampaignResourceHandler) Update(kind string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if !middleware.IsGM(c) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "gm membership required"})
+		if !requireGM(c) {
 			return
 		}
 		var input map[string]any
@@ -207,17 +204,20 @@ func (h *CampaignResourceHandler) Update(kind string) gin.HandlerFunc {
 
 func (h *CampaignResourceHandler) Delete(kind string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if !middleware.IsGM(c) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "gm membership required"})
+		if !requireGM(c) {
 			return
 		}
 		h.respond(c, gin.H{"message": "deleted"}, h.repo.Delete(c.Request.Context(), parseID(c.Param("id")), parseID(c.Param("resource_id")), kind))
 	}
 }
 
+// Bot is GM-only: the personality and the enabled actions are DM preparation material like the other resources.
 func (h *CampaignResourceHandler) Bot(c *gin.Context) {
+	if !requireGM(c) {
+		return
+	}
 	row, err := h.repo.GetBot(c.Request.Context(), parseID(c.Param("id")))
-	if err == repository.ErrResourceNotFound {
+	if errors.Is(err, repository.ErrResourceNotFound) {
 		h.respond(c, gin.H{"enabled": false, "personality": "", "actions": map[string]any{}}, nil)
 		return
 	}
@@ -225,8 +225,7 @@ func (h *CampaignResourceHandler) Bot(c *gin.Context) {
 }
 
 func (h *CampaignResourceHandler) SaveBot(c *gin.Context) {
-	if !middleware.IsGM(c) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "gm membership required"})
+	if !requireGM(c) {
 		return
 	}
 	var input map[string]any
@@ -238,14 +237,19 @@ func (h *CampaignResourceHandler) SaveBot(c *gin.Context) {
 	h.respond(c, row, err)
 }
 
+// respond answers 404 for a missing resource and 400 with the message of an input the repository rejected; any
+// other error is internal: it is logged and the client only gets a generic 500 (openspec/specs/security.md).
 func (h *CampaignResourceHandler) respond(c *gin.Context, data any, err error) {
-	if err == repository.ErrResourceNotFound {
+	var invalid repository.ResourceInputError
+	switch {
+	case err == nil:
+		c.JSON(http.StatusOK, data)
+	case errors.Is(err, repository.ErrResourceNotFound):
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
-		return
+	case errors.As(err, &invalid):
+		c.JSON(http.StatusBadRequest, gin.H{"error": invalid.Msg})
+	default:
+		log.Printf("campaign resources: %s %s: %v", c.Request.Method, c.FullPath(), err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 	}
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, data)
 }
