@@ -89,7 +89,7 @@ func (h *CampaignResourceHandler) Create(kind string) gin.HandlerFunc {
 		}
 		row, err := h.repo.Create(c.Request.Context(), parseID(c.Param("id")), middleware.GetUserID(c), kind, input)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "could not create resource"})
+			h.fail(c, err)
 			return
 		}
 		c.JSON(http.StatusCreated, row)
@@ -237,13 +237,21 @@ func (h *CampaignResourceHandler) SaveBot(c *gin.Context) {
 	h.respond(c, row, err)
 }
 
-// respond answers 404 for a missing resource and 400 with the message of an input the repository rejected; any
-// other error is internal: it is logged and the client only gets a generic 500 (openspec/specs/security.md).
+// respond answers 200 with data, or the error through fail.
 func (h *CampaignResourceHandler) respond(c *gin.Context, data any, err error) {
+	if err != nil {
+		h.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, data)
+}
+
+// fail is the single point that answers a repository error: 404 for a missing resource and 400 with the message
+// of an input the repository rejected; any other error is internal: it is logged and the client only gets a
+// generic 500 (openspec/specs/security.md).
+func (h *CampaignResourceHandler) fail(c *gin.Context, err error) {
 	var invalid repository.ResourceInputError
 	switch {
-	case err == nil:
-		c.JSON(http.StatusOK, data)
 	case errors.Is(err, repository.ErrResourceNotFound):
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 	case errors.As(err, &invalid):

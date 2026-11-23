@@ -386,7 +386,7 @@ func TestCampaignResourceCreateFailsWhenTheDatabaseFails(t *testing.T) {
 		t.Run(f.kind, func(t *testing.T) {
 			r, db := resourceRouter(t, true, sqlRule{"insert into " + f.table, sqlReply{err: errScriptedDown}})
 			w := request(r, http.MethodPost, resourcePath(f.kind), f.createBody)
-			wantResponse(t, w, http.StatusInternalServerError, `{"error":"could not create resource"}`)
+			wantResponse(t, w, http.StatusInternalServerError, `{"error":"internal error"}`)
 			db.none(t, "select")
 		})
 	}
