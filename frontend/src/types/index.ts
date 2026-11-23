@@ -253,19 +253,26 @@ export interface LoreEntry {
 }
 
 // GM entities
+/** Campaign NPC (campaign_npcs; character-appearance.md § NPC creator, D-0041). AC, HP, speed and the
+    abilities live in `stats`; race, class and appearance give it a pixel avatar ('' and null on NPCs
+    created before them). */
 export interface NPC {
   id: number;
   campaign_id: number;
   name: string;
   role: string;
-  status: 'ally' | 'enemy' | 'neutral';
-  avatar_url?: string;
-  ac?: number;
-  hp?: number;
-  speed?: number;
-  description?: string;
-  notes?: string;
+  /** 'ally' | 'enemy' | 'neutral' (older rows may hold other text). */
+  status: string;
+  description: string;
+  stats: Record<string, unknown> | null;
+  /** Optional uploaded portrait. */
+  image_url: string;
+  race: string;
+  class: string;
+  /** Pixel-art avatar, validated like a character's; null → race default. */
+  appearance: unknown;
 }
+export type NPCInput = Partial<Omit<NPC, 'id' | 'campaign_id'>>;
 
 export interface Creature {
   id: number;

@@ -4,28 +4,28 @@
    stays mounted on every step. */
 import { useCallback, useMemo, useReducer, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { Sparkles } from 'lucide-react';
 import { characterApi } from '../services/api';
 import { getApiError } from '../services/errors';
-import { listClasses, listRaces } from '../services/srdService';
 import type { SRDClass, SRDRace } from '../types/srd';
 import { ErrorState } from '../components/ui/Feedback';
 import { AbilityScores, type AbilityState } from '../components/character/AbilityScores';
-import { ActionBar, StepIndicator } from '../components/character/creator/ActionBar';
 import { ClassPanel } from '../components/character/creator/ClassPanel';
+import { CreatorFrame } from '../components/character/creator/CreatorFrame';
 import { CreatorStage } from '../components/character/creator/CreatorStage';
 import { CustomizePanel } from '../components/character/creator/CustomizePanel';
 import { BackgroundPanel, NameField, SummaryPanel } from '../components/character/creator/DetailsPanels';
 import { RacePanel } from '../components/character/creator/RacePanel';
 import { initialLook, lookReducer } from '../components/character/creator/look';
+import { originProblem } from '../components/character/creator/rules';
 import { TokenPreview } from '../components/character/creator/TokenPreview';
+import { useCreatorCatalog } from '../components/character/creator/useCatalog';
 import { abilityLabels, abilityMod, raceAbilityBonuses, suggestedIncreases } from '../lib/abilities';
 import { resolveRaceVisual, splitSource, type Appearance } from '../lib/avatar';
 import { versionedRaceName } from '../lib/raceSkills';
 
 const STEPS = ['Origen', 'Personalización', 'Características', 'Detalles'] as const;
-const STEP_KEYS = ['origin', 'custom', 'abilities', 'details'] as const;
 const PRIMARY = ['Personalizar', 'Siguiente', 'Siguiente', 'Crear personaje'] as const;
 
 export function CreateCharacterPage() {
@@ -44,8 +44,7 @@ export function CreateCharacterPage() {
   const [created, setCreated] = useState<{ id: number; warnings: string[] } | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const races = useQuery({ queryKey: ['srd-races'], queryFn: async () => (await listRaces()).data ?? [], staleTime: 300_000 });
-  const classes = useQuery({ queryKey: ['srd-classes'], queryFn: async () => (await listClasses()).data ?? [], staleTime: 300_000 });
+  const { races, classes } = useCreatorCatalog();
   const suggestion = useMemo(() => suggestedIncreases(raceAbilityBonuses(race?.ability_bonuses)), [race]);
   const visual = useMemo(() => resolveRaceVisual(race?.name ?? 'Human', race?.size), [race]);
 
@@ -67,18 +66,14 @@ export function CreateCharacterPage() {
   const caption = `${raceBase || 'Raza'} · ${classBase || 'Clase'}`;
 
   const stepProblem = [
-    race && klass ? '' : !race && !klass ? 'Elige una raza y una clase.' : !race ? 'Elige una raza.' : 'Elige una clase.',
+    originProblem(Boolean(race), Boolean(klass)),
     '',
     abilities?.valid ? '' : (abilities?.problem ?? 'Asigna tus características.'),
     name.trim() ? '' : 'Ponle nombre a tu personaje.',
   ];
-  const firstBlocked = stepProblem.findIndex(Boolean);
-  const canReach = (i: number) => firstBlocked === -1 || i <= firstBlocked;
-  const ready = firstBlocked === -1;
-  const last = step === STEPS.length - 1;
 
   const submit = async () => {
-    if (!ready || !abilities || !race || !klass) return;
+    if (!abilities || !race || !klass) return;
     setSubmitting(true); setError('');
     const f = abilities.final, b = abilities.base;
     try {
@@ -100,23 +95,18 @@ export function CreateCharacterPage() {
     } finally { setSubmitting(false); }
   };
 
-  const next = () => (last ? void submit() : setStep((s) => Math.min(STEPS.length - 1, s + 1)));
-  const primaryLabel = last && submitting ? 'Creando…' : PRIMARY[step];
-
   return (
-    <div className="cc" data-step={STEP_KEYS[step]}>
-      <h1 className="sr-only">Crear personaje</h1>
-      {error && <ErrorState message={error} />}
-      {created && (
-        <section role="status" className="rounded-lg border border-warn bg-warn-soft p-4 space-y-2">
-          <p className="font-label-bold">Personaje creado con avisos</p>
-          <ul className="list-disc pl-5 text-sm">{created.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>
-          <button type="button" onClick={() => navigate(`/campaign/${campaignId}/character/${created.id}`)} className="mc-btn mc-btn-primary">Ir a la ficha</button>
-        </section>
-      )}
-      {(races.error || classes.error) && <ErrorState message="No se pudo cargar el catálogo de razas y clases" />}
-
-      <div className="cc-layout">
+    <CreatorFrame
+      title="Crear personaje"
+      steps={STEPS}
+      step={step}
+      onStep={setStep}
+      problems={stepProblem}
+      primaryLabels={PRIMARY}
+      busy={submitting}
+      busyLabel="Creando…"
+      onSubmit={() => void submit()}
+      stage={(
         <CreatorStage
           eyebrow={name.trim() || 'Nuevo personaje'}
           caption={caption}
@@ -128,8 +118,9 @@ export function CreateCharacterPage() {
         >
           {step === 3 && <NameField value={name} onChange={setName} />}
         </CreatorStage>
-
-        <div className="cc-side cc-side--start">
+      )}
+      start={(
+        <>
           {/* Origen panels stay mounted (search, scroll and race portraits survive the steps). */}
           <div className="cc-slot" hidden={step !== 0}>
             <RacePanel races={races.data ?? []} loading={races.isLoading} race={race} body={appearance.body} onChoose={chooseRace} onBody={chooseBody} />
@@ -147,9 +138,10 @@ export function CreateCharacterPage() {
             </section>
           </div>
           {step === 3 && <BackgroundPanel background={background} alignment={alignment} onBackground={setBackground} onAlignment={setAlignment} />}
-        </div>
-
-        <div className="cc-side cc-side--end">
+        </>
+      )}
+      end={(
+        <>
           <div className="cc-slot" hidden={step !== 0}>
             <ClassPanel classes={classes.data ?? []} loading={classes.isLoading} klass={klass} onChoose={setKlass} />
           </div>
@@ -157,32 +149,18 @@ export function CreateCharacterPage() {
             <TokenPreview appearance={appearance} race={race?.name ?? 'Human'} raceSize={race?.size} klass={klass?.name} name={name.trim() || 'Nuevo personaje'} meta={`${caption} · Nivel 1`} />
           )}
           {step === 3 && <SummaryPanel preview={preview} caption={caption} />}
-        </div>
-      </div>
-
-      <ActionBar
-        label="Acciones del creador"
-        start={(
-          <button type="button" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0} className="mc-btn cc-back">
-            <ChevronLeft size={16} aria-hidden /><span className="cc-back__text">Atrás</span>
-          </button>
-        )}
-        center={(
-          <StepIndicator
-            steps={STEPS}
-            current={step}
-            done={(i) => i < step && !stepProblem[i]}
-            reachable={canReach}
-            hint={stepProblem[step] || `Paso ${step + 1} de ${STEPS.length}`}
-            onStep={setStep}
-          />
-        )}
-        end={(
-          <button type="button" onClick={next} disabled={Boolean(stepProblem[step]) || submitting || (last && !ready)} className="mc-btn mc-btn-primary cc-primary">
-            {primaryLabel}{!last && <ChevronRight size={17} aria-hidden />}
-          </button>
-        )}
-      />
-    </div>
+        </>
+      )}
+    >
+      {error && <ErrorState message={error} />}
+      {created && (
+        <section role="status" className="rounded-lg border border-warn bg-warn-soft p-4 space-y-2">
+          <p className="font-label-bold">Personaje creado con avisos</p>
+          <ul className="list-disc pl-5 text-sm">{created.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>
+          <button type="button" onClick={() => navigate(`/campaign/${campaignId}/character/${created.id}`)} className="mc-btn mc-btn-primary">Ir a la ficha</button>
+        </section>
+      )}
+      {(races.error || classes.error) && <ErrorState message="No se pudo cargar el catálogo de razas y clases" />}
+    </CreatorFrame>
   );
 }

@@ -70,8 +70,9 @@ export function RaceDetail({ race, picker }: { race: SRDRace | null; picker?: Re
   );
 }
 
-export function ClassDetail({ klass, picker }: { klass: SRDClass | null; picker?: ReactNode }) {
-  if (!klass) return <p className="cc-detail cc-detail--empty">Elige una clase para ver sus competencias.</p>;
+/** `empty` replaces the prompt shown while no class is chosen (the NPC "Sin clase" note). */
+export function ClassDetail({ klass, picker, empty = 'Elige una clase para ver sus competencias.' }: { klass: SRDClass | null; picker?: ReactNode; empty?: string }) {
+  if (!klass) return <p className="cc-detail cc-detail--empty">{empty}</p>;
   const rawSkills = parseCatalog<{ count?: number; options?: unknown[] }>(klass.skill_choices, {});
   const skills = { count: rawSkills?.count ?? 0, options: catalogList(rawSkills?.options ?? []) };
   return (

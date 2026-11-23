@@ -1,6 +1,6 @@
 import axios, { AxiosError } from 'axios';
 import { clearAuth, getAuthToken, getRefreshToken, saveAuth } from './authStorage';
-import type { AuthChallenge, AuthResponse } from '../types';
+import type { AuthChallenge, AuthResponse, NPC, NPCInput } from '../types';
 
 const api = axios.create({ baseURL: import.meta.env.VITE_API_URL || '/api', headers: { 'Content-Type': 'application/json' }, timeout: 30000 });
 export { api };
@@ -99,11 +99,12 @@ export const marketApi = {
   create: (campaignId: number | string, data: Record<string, unknown>) => api.post(`/campaigns/${campaignId}/marketplace`, data),
   purchase: (campaignId: number | string, itemId: number | string) => api.post(`/campaigns/${campaignId}/marketplace/purchase`, { item_id: itemId }),
 };
+/** Campaign NPCs, with race, class and appearance (D-0041). An update changes only the fields it sends. */
 export const npcApi = {
-  list: (campaignId: number | string) => api.get(`/campaigns/${campaignId}/npcs`),
-  get: (campaignId: number | string, npcId: number | string) => api.get(`/campaigns/${campaignId}/npcs/${npcId}`),
-  create: (campaignId: number | string, data: Record<string, unknown>) => api.post(`/campaigns/${campaignId}/npcs`, data),
-  update: (campaignId: number | string, npcId: number | string, data: Record<string, unknown>) => api.put(`/campaigns/${campaignId}/npcs/${npcId}`, data),
+  list: (campaignId: number | string) => api.get<NPC[]>(`/campaigns/${campaignId}/npcs`),
+  get: (campaignId: number | string, npcId: number | string) => api.get<NPC>(`/campaigns/${campaignId}/npcs/${npcId}`),
+  create: (campaignId: number | string, data: NPCInput) => api.post<NPC>(`/campaigns/${campaignId}/npcs`, data),
+  update: (campaignId: number | string, npcId: number | string, data: NPCInput) => api.put<NPC>(`/campaigns/${campaignId}/npcs/${npcId}`, data),
   delete: (campaignId: number | string, npcId: number | string) => api.delete(`/campaigns/${campaignId}/npcs/${npcId}`),
 };
 export const creatureApi = {

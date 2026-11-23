@@ -56,9 +56,11 @@ export function BackgroundPanel({ background, alignment, onBackground, onAlignme
   );
 }
 
-export function SummaryPanel({ preview, caption }: {
+export function SummaryPanel({ preview, caption, title = 'Nivel 1', note = 'PG, CA y velocidad se calculan al crear según las reglas de nivel 1.' }: {
   preview: { hp: number; ac: number; speed: number; init: number } | null;
   caption: string;
+  title?: string;
+  note?: string;
 }) {
   const headingId = useId();
   const stats: [string, string][] = preview
@@ -67,7 +69,7 @@ export function SummaryPanel({ preview, caption }: {
   return (
     <section aria-labelledby={headingId} className="cc-panel">
       <header className="cc-panel__head">
-        <h2 id={headingId} className="cc-panel__title">Nivel 1</h2>
+        <h2 id={headingId} className="cc-panel__title">{title}</h2>
         <span className="cc-panel__meta">{caption}</span>
       </header>
       {preview ? (
@@ -75,7 +77,7 @@ export function SummaryPanel({ preview, caption }: {
           {stats.map(([k, v]) => <div key={k} className="cc-stat"><dt>{k}</dt><dd>{v}</dd></div>)}
         </dl>
       ) : <p className="cc-empty">Completa los pasos anteriores para ver PG y CA.</p>}
-      <p className="cc-note">PG, CA y velocidad se calculan al crear según las reglas de nivel 1.</p>
+      <p className="cc-note">{note}</p>
     </section>
   );
 }

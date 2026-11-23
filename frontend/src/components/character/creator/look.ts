@@ -1,7 +1,7 @@
 /* Look state of the creator: the race decides the body family, so race and appearance change
    together (character-appearance.md, "Creation wizard"; D-0003 keeps the stored model). */
 import type { SRDRace } from '../../../types/srd';
-import { defaultAppearance, normalizeAppearance, resolveRaceVisual, type Appearance, type RaceVisual } from '../../../lib/avatar';
+import { defaultAppearance, normalizeAppearance, parseStoredAppearance, resolveRaceVisual, type Appearance, type RaceVisual } from '../../../lib/avatar';
 
 export interface Look {
   race: SRDRace | null;
@@ -17,7 +17,12 @@ export type LookAction =
 
 const visualOf = (race: SRDRace | null): RaceVisual => resolveRaceVisual(race?.name ?? 'Human', race?.size);
 
-export const initialLook = (): Look => ({ race: null, appearance: defaultAppearance(visualOf(null)), manual: {} });
+/** A new look (no race, default appearance) or a stored one (the NPC editor). */
+export const initialLook = (race: SRDRace | null = null, stored: unknown = null): Look => ({
+  race,
+  appearance: normalizeAppearance(parseStoredAppearance(stored), visualOf(race)),
+  manual: {},
+});
 
 /**
  * Changing to a race of another body family keeps body, eyes, outfit and its colours; takes the

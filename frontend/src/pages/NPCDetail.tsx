@@ -7,14 +7,15 @@ import { rollExpression, requestRoll } from '../lib/dice';
 import { ABILITIES, abilityMod, signed } from '../lib/abilities';
 import { ErrorState, LoadingState } from '../components/ui/Feedback';
 import { NPCBelongings } from '../components/market/NPCBelongings';
+import { NPCPortrait } from '../components/avatar/NPCPortrait';
+import type { NPC } from '../types';
 
 type Stats = { ac?: number; hp?: number; speed?: number; str?: number; dex?: number; con?: number; int?: number; wis?: number; cha?: number };
-type NPC = { id: number; name: string; role: string; status: string; description: string; stats: Stats | null; image_url?: string };
 type Entry = { name: string; desc: string };
 type Profile = { type?: string; size?: string; cr?: string; traits?: Entry[]; actions?: Entry[] };
-type Draft = { name: string; role: string; status: string; description: string; stats: Record<string, string>; type: string; size: string; cr: string; traits: string; actions: string };
-const STAT_KEYS = ['ac', 'hp', 'speed', 'str', 'dex', 'con', 'int', 'wis', 'cha'] as const;
-const STAT_LABELS: Record<string, string> = { ac: 'CA', hp: 'PV', speed: 'Velocidad' };
+/** The stat-block profile, edited here; name, stats, race, class and look are edited in the NPC creator. */
+type Draft = { type: string; size: string; cr: string; traits: string; actions: string };
+const PROFILE_KEYS = ['type', 'size', 'cr', 'traits', 'actions'];
 const RELATIONS: Record<string, string> = { ally: 'Aliado', enemy: 'Enemigo', neutral: 'Neutral' };
 const relationLabel = (value: string) => RELATIONS[value] ?? (value || '—');
 const field = 'w-full rounded bg-surface-subtle border border-border-low-contrast px-3 h-10';
@@ -30,7 +31,7 @@ const profileOf = (stats: unknown): Profile => {
 };
 const toLines = (list: Entry[] | undefined) => (list ?? []).map((entry) => (entry.desc ? `${entry.name}: ${entry.desc}` : entry.name)).join('\n');
 const fromLines = (text: string): Entry[] => text.split('\n').map((line) => line.trim()).filter(Boolean).map((line) => { const at = line.indexOf(':'); return at > 0 ? { name: line.slice(0, at).trim(), desc: line.slice(at + 1).trim() } : { name: line, desc: '' }; });
-const toDraft = (npc: NPC): Draft => { const profile = profileOf(npc.stats); return { name: npc.name, role: npc.role, status: npc.status, description: npc.description, stats: Object.fromEntries(STAT_KEYS.map((key) => [key, npc.stats?.[key] != null ? String(npc.stats[key]) : ''])), type: profile.type ?? '', size: profile.size ?? '', cr: profile.cr ?? '', traits: toLines(profile.traits), actions: toLines(profile.actions) }; };
+const toDraft = (npc: NPC): Draft => { const profile = profileOf(npc.stats); return { type: profile.type ?? '', size: profile.size ?? '', cr: profile.cr ?? '', traits: toLines(profile.traits), actions: toLines(profile.actions) }; };
 const show = (value: number | undefined) => (value == null ? '—' : value);
 
 export function NPCDetail() {
@@ -39,15 +40,15 @@ export function NPCDetail() {
   const client = useQueryClient();
   const [draft, setDraft] = useState<Draft | null>(null);
   const [initiative, setInitiative] = useState<string>('');
-  const npc = useQuery({ queryKey: ['npcs', campaignId, npcId], queryFn: () => npcApi.get(campaignId, npcId).then((response) => response.data as NPC) });
+  const npc = useQuery({ queryKey: ['npcs', campaignId, npcId], queryFn: () => npcApi.get(campaignId, npcId).then((response) => response.data) });
   const add = useMutation({
     mutationFn: (data: { hp: number; initiative: number }) => combatApi.addCombatant(campaignId, { name: npc.data?.name, hp: data.hp, max_hp: data.hp, initiative: data.initiative, is_player: false }),
   });
   const save = useMutation({
+    // Stats is one JSON document: keep the scores and replace only the profile.
     mutationFn: (value: Draft) => npcApi.update(campaignId, npcId, {
-      name: value.name.trim(), role: value.role.trim(), status: value.status.trim(), description: value.description,
       stats: {
-        ...Object.fromEntries(STAT_KEYS.filter((key) => value.stats[key] !== '' && Number.isFinite(Number(value.stats[key]))).map((key) => [key, Number(value.stats[key])])),
+        ...Object.fromEntries(Object.entries(npc.data?.stats ?? {}).filter(([key]) => !PROFILE_KEYS.includes(key))),
         ...(value.type.trim() ? { type: value.type.trim() } : {}), ...(value.size ? { size: value.size } : {}), ...(value.cr.trim() ? { cr: value.cr.trim() } : {}),
         traits: fromLines(value.traits), actions: fromLines(value.actions),
       },
@@ -86,20 +87,15 @@ export function NPCDetail() {
   return <div className="min-h-screen"><header className="h-16 border-b border-border-low-contrast px-4 flex items-center gap-3"><Link to={`/campaign/${campaignId}/gm/npcs`} aria-label="Volver"><span className="material-symbols-outlined">arrow_back</span></Link><h1 className="font-headline-md font-bold">{name}</h1></header>
     <main className="max-w-5xl mx-auto p-4 md:p-8 grid md:grid-cols-3 gap-6">
       <section className="space-y-4">
-        <div className="border border-border-low-contrast rounded-xl p-6 text-center">{current.image_url ? <img src={current.image_url} alt={`Retrato de ${name}`} className="w-24 h-24 mx-auto rounded-full object-cover bg-card-3" /> : <div className="w-24 h-24 mx-auto rounded-full bg-primary-container text-on-primary-container flex items-center justify-center text-4xl font-bold">{name.charAt(0)}</div>}<h2 className="font-headline-md mt-3">{name}</h2><p className="text-secondary">{role || '—'} · {relationLabel(status)}</p>{tags.length > 0 && <div className="flex flex-wrap justify-center gap-1 mt-2">{tags.map((tag) => <span key={tag} className="mc-badge">{tag}</span>)}</div>}</div>
+        <div className="border border-border-low-contrast rounded-xl p-6 text-center"><NPCPortrait npc={current} crop="full" scale={3} frame="avatar-stage mx-auto grid w-fit place-items-center rounded-xl px-6 py-4" fallbackFrame="w-24 h-24 mx-auto rounded-full overflow-hidden bg-primary-container text-on-primary-container flex items-center justify-center text-4xl" /><h2 className="font-headline-md mt-3">{name}</h2><p className="text-secondary">{role || '—'} · {relationLabel(status)}</p>{tags.length > 0 && <div className="flex flex-wrap justify-center gap-1 mt-2">{tags.map((tag) => <span key={tag} className="mc-badge">{tag}</span>)}</div>}</div>
         <div className="grid grid-cols-2 gap-2">{([['ac', 'CA'], ['hp', 'PV'], ['speed', 'Velocidad']] as const).map(([key, label]) => <div key={key} className="text-center border rounded-lg p-3"><span className="font-stat-number text-2xl">{show(stats[key])}</span><p className="text-xs text-secondary">{label}</p></div>)}<div className="text-center border rounded-lg p-3"><span className="font-stat-number text-2xl">{show(passivePerception)}</span><p className="text-xs text-secondary">Percepción pasiva</p></div></div>
         <div className="grid grid-cols-3 gap-2">{ABILITIES.map(([key, short]) => <div key={key} className="text-center border rounded p-2"><span className="text-xs text-secondary">{short}</span><p className="font-stat-number">{show(stats[key])}</p>{stats[key] != null && <p className="text-xs text-secondary">{signed(abilityMod(stats[key]))}</p>}</div>)}</div>
       </section>
       <section className="md:col-span-2 space-y-4">
+        <article className="border border-border-low-contrast rounded-xl p-5"><h2 className="font-headline-md mb-2">Descripción y notas</h2><p className="whitespace-pre-wrap text-on-surface-variant">{description || 'Sin descripción.'}</p></article>
         {draft ? (
-          <form className="border border-border-low-contrast rounded-xl p-5 space-y-3" onSubmit={(event) => { event.preventDefault(); if (draft.name.trim()) save.mutate(draft); }}>
-            <h2 className="font-headline-md">Editar NPC</h2>
-            <div className="grid sm:grid-cols-3 gap-3">
-              <label className="text-sm font-label-bold">Nombre<input className={field} value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} required /></label>
-              <label className="text-sm font-label-bold">Rol<input className={field} value={draft.role} onChange={(event) => setDraft({ ...draft, role: event.target.value })} /></label>
-              <label className="text-sm font-label-bold">Relación<select className={field} value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value })}>{Object.entries(RELATIONS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}{!RELATIONS[draft.status] && draft.status && <option value={draft.status}>{draft.status}</option>}</select></label>
-            </div>
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">{STAT_KEYS.map((key) => <label key={key} className="text-sm font-label-bold">{STAT_LABELS[key] ?? ABILITIES.find(([ability]) => ability === key)?.[1]}<input type="number" min={0} className={field} value={draft.stats[key]} onChange={(event) => setDraft({ ...draft, stats: { ...draft.stats, [key]: event.target.value } })} /></label>)}</div>
+          <form className="border border-border-low-contrast rounded-xl p-5 space-y-3" onSubmit={(event) => { event.preventDefault(); save.mutate(draft); }}>
+            <h2 className="font-headline-md">Rasgos y acciones</h2>
             <div className="grid sm:grid-cols-3 gap-3">
               <label className="text-sm font-label-bold">Tipo<input className={field} value={draft.type} onChange={(event) => setDraft({ ...draft, type: event.target.value })} placeholder="Humanoide" /></label>
               <label className="text-sm font-label-bold">Tamaño<select className={field} value={draft.size} onChange={(event) => setDraft({ ...draft, size: event.target.value })}><option value="">—</option>{Object.entries(SIZES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
@@ -107,14 +103,10 @@ export function NPCDetail() {
             </div>
             <label className="text-sm font-label-bold block">Rasgos (uno por línea, «Nombre: descripción»)<textarea rows={3} className="w-full rounded bg-surface-subtle border border-border-low-contrast p-3" value={draft.traits} onChange={(event) => setDraft({ ...draft, traits: event.target.value })} /></label>
             <label className="text-sm font-label-bold block">Acciones (una por línea, «Nombre: descripción»)<textarea rows={3} className="w-full rounded bg-surface-subtle border border-border-low-contrast p-3" value={draft.actions} onChange={(event) => setDraft({ ...draft, actions: event.target.value })} /></label>
-            <label className="text-sm font-label-bold block">Descripción y notas<textarea rows={6} className="w-full rounded bg-surface-subtle border border-border-low-contrast p-3" value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} /></label>
             {save.error && <ErrorState message={getApiError(save.error, 'No se pudo guardar el NPC')} />}
-            <div className="flex gap-3"><button type="submit" disabled={save.isPending || !draft.name.trim()} className="flex-1 py-3 rounded-lg bg-primary-container text-on-primary-container font-label-bold disabled:opacity-50">{save.isPending ? 'Guardando…' : 'Guardar'}</button><button type="button" onClick={() => { setDraft(null); save.reset(); }} className="flex-1 py-3 rounded-lg border font-label-bold">Cancelar</button></div>
+            <div className="flex gap-3"><button type="submit" disabled={save.isPending} className="flex-1 py-3 rounded-lg bg-primary-container text-on-primary-container font-label-bold disabled:opacity-50">{save.isPending ? 'Guardando…' : 'Guardar'}</button><button type="button" onClick={() => { setDraft(null); save.reset(); }} className="flex-1 py-3 rounded-lg border font-label-bold">Cancelar</button></div>
           </form>
-        ) : (
-          <article className="border border-border-low-contrast rounded-xl p-5"><h2 className="font-headline-md mb-2">Descripción y notas</h2><p className="whitespace-pre-wrap text-on-surface-variant">{description || 'Sin descripción.'}</p></article>
-        )}
-        {!draft && ([['Rasgos', profile.traits], ['Acciones', profile.actions]] as const).map(([title, list]) => list && list.length > 0 && <article key={title} className="border border-border-low-contrast rounded-xl p-5"><h2 className="font-headline-md mb-2">{title}</h2><ul className="space-y-2">{list.map((entry, index) => <li key={`${entry.name}-${index}`}><span className="font-label-bold">{entry.name}.</span> <span className="text-on-surface-variant">{entry.desc}</span></li>)}</ul></article>)}
+        ) : ([['Rasgos', profile.traits], ['Acciones', profile.actions]] as const).map(([title, list]) => list && list.length > 0 && <article key={title} className="border border-border-low-contrast rounded-xl p-5"><h2 className="font-headline-md mb-2">{title}</h2><ul className="space-y-2">{list.map((entry, index) => <li key={`${entry.name}-${index}`}><span className="font-label-bold">{entry.name}.</span> <span className="text-on-surface-variant">{entry.desc}</span></li>)}</ul></article>)}
         <NPCBelongings campaignId={campaignId} npcId={current.id} />
         {add.error && <ErrorState message={getApiError(add.error)} />}
         {remove.error && <ErrorState message={getApiError(remove.error, 'No se pudo eliminar el NPC')} />}
@@ -124,7 +116,8 @@ export function NPCDetail() {
         <div className="flex flex-wrap gap-3">
           <button type="button" onClick={addToCombat} disabled={add.isPending} className="flex-1 min-w-40 py-3 rounded-lg bg-primary-container text-on-primary-container font-label-bold disabled:opacity-50">Añadir a combate</button>
           <button type="button" onClick={() => { const expr = `1d20${dexMod >= 0 ? '+' : '-'}${Math.abs(dexMod)}`; requestRoll(expr, `Iniciativa de ${name}`); }} className="py-3 px-4 rounded-lg border font-label-bold">Tirar iniciativa (d20{dexMod >= 0 ? '+' : '−'}{Math.abs(dexMod)})</button>
-          {!draft && <button type="button" onClick={() => setDraft(toDraft(current))} className="py-3 px-4 rounded-lg border font-label-bold">Editar</button>}
+          <Link to={`/campaign/${campaignId}/gm/npcs/${npcId}/edit`} className="py-3 px-4 rounded-lg border font-label-bold">Editar NPC</Link>
+          {!draft && <button type="button" onClick={() => setDraft(toDraft(current))} className="py-3 px-4 rounded-lg border font-label-bold">Editar rasgos y acciones</button>}
           <button type="button" onClick={confirmDelete} disabled={remove.isPending} className="py-3 px-4 rounded-lg border border-error text-error font-label-bold disabled:opacity-50">{remove.isPending ? 'Eliminando…' : 'Eliminar'}</button>
         </div>
       </section>

@@ -217,7 +217,7 @@ All character sheet views share: TopAppBar + sub-tab navigation (Stats | Spells 
 ### 10.1 NPC List / Manager (`gestor_de_npcs/code.html`)
 - **Grid of NPC cards**: Avatar image + Name + Role/Business + Status
 - **Status badges**: Ally (green), Enemy (red), Neutral (gray)
-- **"Añadir NPC" button** to create new
+- **"Añadir NPC" button** opens the NPC creator (same layout as the player creator; see `character-appearance.md` § NPC creator); cards show the NPC pixel avatar
 - **Search/filter by name or status**
 
 ### 10.2 NPC Detail (`detalle_de_npc/code.html`)
@@ -308,7 +308,7 @@ All character sheet views share: TopAppBar + sub-tab navigation (Stats | Spells 
   - Traits section: collapsible with passive/action tags
   - Actions section: multi-column grid of action cards with hit/Save DC badges
   - Lore & GM Notes section: text block
-- **Actions**: "Añadir a Combate" + "Editar NPC" buttons
+- **Actions**: "Añadir a Combate" + "Editar NPC" buttons (Editar opens the NPC creator prefilled); the profile card shows the full pixel avatar when the NPC has one
 
 ---
 

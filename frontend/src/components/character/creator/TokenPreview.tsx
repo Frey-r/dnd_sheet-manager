@@ -4,7 +4,9 @@ import type { CSSProperties } from 'react';
 import { auraForClass } from '../../../lib/avatar';
 import { PixelAvatar } from '../../avatar/PixelAvatar';
 
-export function TokenPreview({ appearance, race, raceSize, klass, name, meta }: {
+const PLAYER_HINTS = ['Así se verá tu ficha en la mesa.', 'Y así en la lista de personajes.'] as const;
+
+export function TokenPreview({ appearance, race, raceSize, klass, name, meta, hints = PLAYER_HINTS }: {
   appearance: unknown;
   race: string;
   raceSize?: string | null;
@@ -12,6 +14,8 @@ export function TokenPreview({ appearance, race, raceSize, klass, name, meta }: 
   name: string;
   /** Second line of the list card ("Elf · Wizard · Nivel 1"). */
   meta: string;
+  /** Captions under the token and under the list card. */
+  hints?: readonly [string, string];
 }) {
   const style = { '--aura': auraForClass(klass) ?? 'var(--line-strong)' } as CSSProperties;
   return (
@@ -22,7 +26,7 @@ export function TokenPreview({ appearance, race, raceSize, klass, name, meta }: 
       <div className="cc-token__disc">
         <PixelAvatar appearance={appearance} race={race} raceSize={raceSize} klass={klass} aura={false} crop="bust" scale={5} label="Vista previa de la ficha" />
       </div>
-      <p className="cc-token__hint">Así se verá tu ficha en la mesa.</p>
+      <p className="cc-token__hint">{hints[0]}</p>
       <div className="cc-token__card">
         <span className="cc-token__portrait">
           <PixelAvatar appearance={appearance} race={race} raceSize={raceSize} klass={klass} crop="bust" scale={2} decorative />
@@ -32,7 +36,7 @@ export function TokenPreview({ appearance, race, raceSize, klass, name, meta }: 
           <span className="cc-token__meta">{meta}</span>
         </span>
       </div>
-      <p className="cc-token__hint">Y así en la lista de personajes.</p>
+      <p className="cc-token__hint">{hints[1]}</p>
     </div>
   );
 }

@@ -137,3 +137,30 @@ WHEN its sheet is opened
 THEN the avatar SHALL be drawn with the redrawn "Melena" hair and "Capa corta" outfit
 AND the stored appearance SHALL NOT change
 ```
+
+## Sidekick classes
+
+- The catalogue includes the three **sidekick classes** of *Tasha's Cauldron of Everything* (Expert Sidekick, Spellcaster Sidekick, Warrior Sidekick, matched by name: `sidekick`, `compañero`), meant for companion NPCs. They **SHALL NOT** be offered in the player character creator; they **SHALL** be offered in the NPC creator.
+
+## NPC creator (same layout as the player creator)
+
+The GM **SHALL** create and edit campaign NPCs with the same World of Warcraft layout as the player creator (stage, races left, classes right, customization rows, bottom action bar), so every NPC has a pixel-art avatar:
+
+1. **Origen**: the same race selector and body type toggle; the class selector lists the player classes, then a **Compañeros** group with the sidekick classes, then **Sin clase** (commoners, merchants, monsters with a humanoid body). The aura and the held prop follow the class as for players; *Sin clase* has no aura and no prop.
+2. **Personalización**: identical to the player creator.
+3. **Estadísticas**: the GM types the six ability scores (default 10), AC, HP and speed; the race speed and a suggested HP (class hit die + CON modifier, or 4 + CON without class) prefill the empty fields.
+4. **Detalles**: name (centred under the stage), role or trade, relationship (Aliado, Neutral, Enemigo), description and notes, and **Crear PNJ** / **Guardar PNJ**.
+
+- Routes: `/campaign/:campaignId/gm/npcs/new` (create) and `/campaign/:campaignId/gm/npcs/:npcId/edit` (edit, same screens prefilled). Both are GM-only.
+- Data: `campaign_npcs` gains `race TEXT`, `class TEXT` and `appearance JSONB NULL`. The appearance **SHALL** be validated exactly like a character's (`ValidateAppearance`: same keys, ranges, colours and 1 KB limit); an invalid one is rejected with 400. AC, HP, speed and abilities stay in `stats`. `image_url` stays as an optional uploaded portrait.
+- The NPC list cards and the NPC detail **SHALL** show the pixel avatar (head crop on cards, full sprite on the detail) when the NPC has a race or an appearance, the uploaded portrait otherwise, and initials as the last fallback. NPCs created before this change keep working (no race, no appearance → portrait or initials).
+
+```gherkin
+GIVEN a player in the character creator
+THEN the class selector SHALL NOT offer Expert, Spellcaster or Warrior Sidekick
+GIVEN the GM in the NPC creator
+WHEN they choose Halfling and Warrior Sidekick, a hair style and the name "Pip"
+AND press "Crear PNJ"
+THEN the NPC SHALL be saved with that race, class and appearance
+AND the NPC list SHALL show Pip's pixel head crop
+```

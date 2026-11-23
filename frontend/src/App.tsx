@@ -32,6 +32,7 @@ import { LoreSearch } from './pages/LoreSearch';
 import { Trade } from './pages/Trade';
 import { CreatureDetail } from './pages/CreatureDetail';
 import { NPCDetail } from './pages/NPCDetail';
+import { NPCCreatorPage } from './pages/NPCCreator';
 import { MapDetail } from './pages/MapDetail';
 import { PlayerEncounter } from './pages/PlayerEncounter';
 import { SettingsPage } from './pages/SettingsPage';
@@ -110,7 +111,9 @@ export default function App() {
       <Route path="campaign/:campaignId/trade" element={<Trade />} />
       <Route path="campaign/:campaignId/encounter" element={<PlayerEncounter />} />
       <Route path="campaign/:campaignId/gm/bestiary/:creatureId" element={<GMGuard><CreatureDetail /></GMGuard>} />
+      <Route path="campaign/:campaignId/gm/npcs/new" element={<GMGuard><NPCCreatorPage /></GMGuard>} />
       <Route path="campaign/:campaignId/gm/npcs/:npcId" element={<GMGuard><NPCDetail /></GMGuard>} />
+      <Route path="campaign/:campaignId/gm/npcs/:npcId/edit" element={<GMGuard><NPCCreatorPage /></GMGuard>} />
       <Route path="campaign/:campaignId/gm/maps/:mapId" element={<GMGuard><MapDetail /></GMGuard>} />
       <Route path="settings" element={<SettingsPage />} />
     </Route>

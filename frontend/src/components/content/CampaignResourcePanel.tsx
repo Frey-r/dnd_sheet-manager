@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { eventApi, mapApi, noteApi, npcApi } from '../../services/api';
@@ -10,7 +10,13 @@ import { Markdown } from '../ui/Markdown';
 export type Resource = { id: number; [key: string]: unknown };
 export type FieldOption = { value: string; label: string };
 type Field = { name: string; label: string; type?: 'text' | 'textarea' | 'date' | 'time' | 'url' | 'number' | 'select' | 'image'; options?: FieldOption[] };
-type Props = { kind: 'npcs' | 'maps' | 'events' | 'notes'; title: string; fields: Field[]; linkBase?: string; addLabel?: string };
+type Props = {
+  kind: 'npcs' | 'maps' | 'events' | 'notes'; title: string; fields: Field[]; linkBase?: string; addLabel?: string;
+  /** Create and edit in their own page (`<linkBase>/new`, `<linkBase>/:id/edit`) instead of the form dialog. */
+  editorPage?: boolean;
+  /** Replaces the card thumbnail (the uploaded image). */
+  thumbnail?: (resource: Resource) => ReactNode;
+};
 
 const NPC_STATUS: Record<string, { label: string; className: string }> = {
   ally: { label: 'Aliado', className: 'bg-ok-soft text-ok' },
@@ -31,7 +37,7 @@ function dayKey(value: unknown) {
   return Number.isNaN(date.getTime()) ? 'Sin fecha' : date.toLocaleDateString('es', { dateStyle: 'long' });
 }
 
-export function CampaignResourcePanel({ kind, title, fields, linkBase, addLabel }: Props) {
+export function CampaignResourcePanel({ kind, title, fields, linkBase, addLabel, editorPage = false, thumbnail }: Props) {
   const { campaignId = '' } = useParams();
   const [editing, setEditing] = useState<Resource | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -96,6 +102,11 @@ export function CampaignResourcePanel({ kind, title, fields, linkBase, addLabel 
     {form[field.name] && <img src={form[field.name]} alt="Vista previa" className="h-24 w-24 rounded-lg object-cover bg-card-3 border border-line" />}
   </div>;
   const remove = useMutation({ mutationFn: (id: number) => api.delete(campaignId, id), onSuccess: () => void list.refetch(), onError: (reason) => setError(getApiError(reason)) });
+  const base = `/campaign/${campaignId}/gm/${linkBase}`;
+  /** Opens the editor page or the form dialog (`resource` → edit it). */
+  const editAction = (label: string, className: string, resource?: Resource) => (editorPage
+    ? <Link to={resource ? `${base}/${resource.id}/edit` : `${base}/new`} className={className}>{label}</Link>
+    : <button type="button" onClick={() => open(resource)} className={className}>{label}</button>);
 
   const shown = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -108,7 +119,7 @@ export function CampaignResourcePanel({ kind, title, fields, linkBase, addLabel 
     const body = text(resource.description || resource.content);
     return <article key={resource.id} className="border border-border-low-contrast rounded-lg bg-surface-container-lowest p-4">
       <div className="flex gap-3">
-        {image && <img src={image} alt="" loading="lazy" className="h-16 w-16 shrink-0 rounded-lg object-cover bg-card-3" />}
+        {thumbnail ? thumbnail(resource) : image && <img src={image} alt="" loading="lazy" className="h-16 w-16 shrink-0 rounded-lg object-cover bg-card-3" />}
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             {linkBase ? <Link to={`/campaign/${campaignId}/gm/${linkBase}/${resource.id}`} className="font-label-bold text-lg text-primary truncate">{text(resource[titleField])}</Link> : <h2 className="font-label-bold text-lg truncate">{text(resource[titleField])}</h2>}
@@ -118,7 +129,7 @@ export function CampaignResourcePanel({ kind, title, fields, linkBase, addLabel 
         </div>
       </div>
       {kind === 'notes' ? <Markdown source={body} className="mt-2 text-sm" /> : <p className="text-sm text-on-surface-variant mt-2 line-clamp-4 whitespace-pre-wrap">{body}</p>}
-      <div className="flex gap-2 mt-3"><button type="button" onClick={() => open(resource)} className="text-sm text-primary">Editar</button><button type="button" disabled={remove.isPending} onClick={() => remove.mutate(resource.id)} className="text-sm text-hp-danger">Eliminar</button></div>
+      <div className="flex gap-2 mt-3">{editAction('Editar', 'text-sm text-primary', resource)}<button type="button" disabled={remove.isPending} onClick={() => remove.mutate(resource.id)} className="text-sm text-hp-danger">Eliminar</button></div>
     </article>;
   };
 
@@ -133,7 +144,7 @@ export function CampaignResourcePanel({ kind, title, fields, linkBase, addLabel 
   return <div className="min-h-screen">
     <header className="sticky top-0 z-40 bg-surface border-b border-border-low-contrast min-h-16 flex items-center justify-between px-4 py-2">
       <div className="flex items-center gap-2"><Link to={`/campaign/${campaignId}/gm`} aria-label="Volver"><span className="material-symbols-outlined text-primary">arrow_back</span></Link><h1 className="font-headline-md font-bold">{title}</h1></div>
-      <button type="button" onClick={() => open()} className="bg-primary-container text-on-primary-container px-4 py-2 rounded-lg font-label-bold">{addLabel ?? DEFAULT_ADD_LABEL[kind]}</button>
+      {editAction(addLabel ?? DEFAULT_ADD_LABEL[kind], 'bg-primary-container text-on-primary-container px-4 py-2 rounded-lg font-label-bold')}
     </header>
     <main className="p-4 md:p-10 max-w-6xl mx-auto space-y-4">
       {error && !formOpen && <ErrorState message={error} />}
@@ -143,7 +154,7 @@ export function CampaignResourcePanel({ kind, title, fields, linkBase, addLabel 
           {[['all', 'Todos'], ...Object.entries(NPC_STATUS).map(([value, info]) => [value, info.label])].map(([value, label]) => <button key={value} type="button" aria-pressed={statusFilter === value} onClick={() => setStatusFilter(value)}>{label}</button>)}
         </div>}
       </div>
-      {list.isLoading ? <LoadingState /> : list.error ? <ErrorState message="No se pudo cargar el contenido" onRetry={() => void list.refetch()} /> : list.data?.length === 0 ? <EmptyState title="Todavía no hay contenido en esta sección" action={<button type="button" className="text-primary" onClick={() => open()}>Crear el primero</button>} /> : shown.length === 0 ? <EmptyState title="Ningún resultado coincide con la búsqueda" /> : kind === 'notes' ? <div className="space-y-6">
+      {list.isLoading ? <LoadingState /> : list.error ? <ErrorState message="No se pudo cargar el contenido" onRetry={() => void list.refetch()} /> : list.data?.length === 0 ? <EmptyState title="Todavía no hay contenido en esta sección" action={editAction('Crear el primero', 'text-primary')} /> : shown.length === 0 ? <EmptyState title="Ningún resultado coincide con la búsqueda" /> : kind === 'notes' ? <div className="space-y-6">
         {grouped.map(([day, notes]) => <section key={day}><h2 className="mc-eyebrow mb-2">{day}</h2><div className="grid md:grid-cols-2 gap-4">{notes.map(card)}</div></section>)}
       </div> : <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">{shown.map(card)}</div>}
     </main>

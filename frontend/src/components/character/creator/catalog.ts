@@ -44,3 +44,13 @@ export function bookLabel(e: { name: string; source?: string; is_srd?: boolean }
   const book = BOOKS[raw] ?? (ua || raw || 'Catálogo');
   return e.is_srd && raw !== 'Unknown' ? `${book} · SRD` : book;
 }
+
+/**
+ * Tasha's sidekick classes (Expert, Spellcaster, Warrior Sidekick; "Compañero …" in Spanish), matched on
+ * the base name: companion NPC rules, offered only in the NPC creator (character-appearance.md, D-0040).
+ */
+const SIDEKICK = /sidekick|compa(ñ|n)ero/i;
+
+export function isSidekickClass(name: string | null | undefined): boolean {
+  return !!name && SIDEKICK.test(splitSource(name).base);
+}
