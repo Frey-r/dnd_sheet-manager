@@ -140,6 +140,27 @@ type VTTToken struct {
 	Detects       bool      `db:"detects" json:"detects"`
 	CreatedAt     time.Time `db:"created_at" json:"created_at"`
 	UpdatedAt     time.Time `db:"updated_at" json:"updated_at"`
+
+	// Campaign NPC link, disposition and route (openspec/specs/vtt-npc-routines.md).
+	NpcID          *int64     `db:"npc_id" json:"npc_id"`
+	Disposition    string     `db:"disposition" json:"disposition"`
+	Route          *Route     `db:"route" json:"route"`
+	RoutePaused    bool       `db:"route_paused" json:"route_paused"`
+	RouteElapsedMs int64      `db:"route_elapsed_ms" json:"-"`
+	RouteStartedAt *time.Time `db:"route_started_at" json:"-"`
+	// Read-only, joined from campaign_npcs when the token is listed.
+	NpcStatus     *string `db:"npc_status" json:"npc_status"`
+	NpcAppearance RawJSON `db:"npc_appearance" json:"npc_appearance"`
+	NpcRace       *string `db:"npc_race" json:"npc_race"`
+	NpcClass      *string `db:"npc_class" json:"npc_class"`
+	// Computed when the token is sent to a client; nil without route.
+	RouteClock *RouteClock `db:"-" json:"route_clock"`
+}
+
+// RouteClock is the route progress sent to clients: they add the time passed since they received it.
+type RouteClock struct {
+	ElapsedMs int64 `json:"elapsed_ms"`
+	Running   bool  `json:"running"`
 }
 
 // Milestone is a campaign flag the GM marks as achieved (vtt-modes.md §3).
@@ -202,3 +223,30 @@ type VTTCombatant struct {
 	// Hidden mirrors the token's hidden flag; players get the combatant masked (vtt.md).
 	Hidden bool `db:"hidden" json:"-"`
 }
+
+// RoutePoint is one waypoint of an NPC route; WaitS pauses the token on arrival (vtt-npc-routines.md §3).
+type RoutePoint struct {
+	X     float64 `json:"x"`
+	Y     float64 `json:"y"`
+	WaitS float64 `json:"wait_s,omitempty"`
+	// Bézier handles (vtt-npc-routines.md §3, D-0069): the leg A→B is the cubic A, A.Out, B.In, B.
+	In  *Point `json:"in,omitempty"`
+	Out *Point `json:"out,omitempty"`
+}
+
+// Route is the path an NPC or monster token walks: once, pingpong or loop.
+type Route struct {
+	Mode   string       `json:"mode"`
+	Points []RoutePoint `json:"points"`
+}
+
+// Value stores a route as JSONB; a nil *Route stores SQL NULL.
+func (r *Route) Value() (driver.Value, error) {
+	if r == nil {
+		return nil, nil
+	}
+	b, err := json.Marshal(r)
+	return string(b), err
+}
+
+func (r *Route) Scan(src any) error { return jsonScan(src, r) }

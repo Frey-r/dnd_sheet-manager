@@ -1,0 +1,28 @@
+{
+  "_doc": "Tabla compartida de RoutePosition (vtt-npc-routines.md §3). La corren Go (vtt_route_rules_test.go) y TS (routePosition.test.ts).",
+  "cases": [
+    {"name": "once inicio", "mode": "once", "rate": 50, "elapsed_ms": 0, "points": [{"x":0,"y":0},{"x":100,"y":0},{"x":100,"y":100},{"x":0,"y":100}], "want": {"x":0,"y":0}},
+    {"name": "once mitad primer tramo", "mode": "once", "rate": 50, "elapsed_ms": 1000, "points": [{"x":0,"y":0},{"x":100,"y":0},{"x":100,"y":100},{"x":0,"y":100}], "want": {"x":50,"y":0}},
+    {"name": "once segundo tramo", "mode": "once", "rate": 50, "elapsed_ms": 3000, "points": [{"x":0,"y":0},{"x":100,"y":0},{"x":100,"y":100},{"x":0,"y":100}], "want": {"x":100,"y":50}},
+    {"name": "once se queda al final", "mode": "once", "rate": 50, "elapsed_ms": 7000, "points": [{"x":0,"y":0},{"x":100,"y":0},{"x":100,"y":100},{"x":0,"y":100}], "want": {"x":0,"y":100}},
+    {"name": "loop tramo de cierre", "mode": "loop", "rate": 50, "elapsed_ms": 7000, "points": [{"x":0,"y":0},{"x":100,"y":0},{"x":100,"y":100},{"x":0,"y":100}], "want": {"x":0,"y":50}},
+    {"name": "loop vuelve a P0", "mode": "loop", "rate": 50, "elapsed_ms": 8000, "points": [{"x":0,"y":0},{"x":100,"y":0},{"x":100,"y":100},{"x":0,"y":100}], "want": {"x":0,"y":0}},
+    {"name": "loop segunda vuelta", "mode": "loop", "rate": 50, "elapsed_ms": 9000, "points": [{"x":0,"y":0},{"x":100,"y":0},{"x":100,"y":100},{"x":0,"y":100}], "want": {"x":50,"y":0}},
+    {"name": "loop tras un dia", "mode": "loop", "rate": 50, "elapsed_ms": 86401000, "points": [{"x":0,"y":0},{"x":100,"y":0},{"x":100,"y":100},{"x":0,"y":100}], "want": {"x":50,"y":0}},
+    {"name": "pingpong ida", "mode": "pingpong", "rate": 100, "elapsed_ms": 1500, "points": [{"x":0,"y":0},{"x":100,"y":0},{"x":200,"y":0}], "want": {"x":150,"y":0}},
+    {"name": "pingpong vuelta", "mode": "pingpong", "rate": 100, "elapsed_ms": 2500, "points": [{"x":0,"y":0},{"x":100,"y":0},{"x":200,"y":0}], "want": {"x":150,"y":0}},
+    {"name": "pingpong vuelta pasa por el medio", "mode": "pingpong", "rate": 100, "elapsed_ms": 3000, "points": [{"x":0,"y":0},{"x":100,"y":0},{"x":200,"y":0}], "want": {"x":100,"y":0}},
+    {"name": "pingpong segundo ciclo", "mode": "pingpong", "rate": 100, "elapsed_ms": 4500, "points": [{"x":0,"y":0},{"x":100,"y":0},{"x":200,"y":0}], "want": {"x":50,"y":0}},
+    {"name": "once espera en P1", "mode": "once", "rate": 100, "elapsed_ms": 1500, "points": [{"x":0,"y":0},{"x":100,"y":0,"wait_s":2},{"x":100,"y":100}], "want": {"x":100,"y":0}},
+    {"name": "once tras la espera", "mode": "once", "rate": 100, "elapsed_ms": 3500, "points": [{"x":0,"y":0},{"x":100,"y":0,"wait_s":2},{"x":100,"y":100}], "want": {"x":100,"y":50}},
+    {"name": "once espera fin", "mode": "once", "rate": 100, "elapsed_ms": 4000, "points": [{"x":0,"y":0},{"x":100,"y":0,"wait_s":2},{"x":100,"y":100}], "want": {"x":100,"y":100}},
+    {"name": "pingpong espera extremo lejano", "mode": "pingpong", "rate": 100, "elapsed_ms": 2000, "points": [{"x":0,"y":0,"wait_s":1},{"x":100,"y":0,"wait_s":2}], "want": {"x":100,"y":0}},
+    {"name": "pingpong vuelta tras esperar", "mode": "pingpong", "rate": 100, "elapsed_ms": 3500, "points": [{"x":0,"y":0,"wait_s":1},{"x":100,"y":0,"wait_s":2}], "want": {"x":50,"y":0}},
+    {"name": "pingpong espera en P0 al volver", "mode": "pingpong", "rate": 100, "elapsed_ms": 4500, "points": [{"x":0,"y":0,"wait_s":1},{"x":100,"y":0,"wait_s":2}], "want": {"x":0,"y":0}},
+    {"name": "pingpong reanuda tras P0", "mode": "pingpong", "rate": 100, "elapsed_ms": 5500, "points": [{"x":0,"y":0,"wait_s":1},{"x":100,"y":0,"wait_s":2}], "want": {"x":50,"y":0}},
+    {"name": "loop espera en P0 al cerrar", "mode": "loop", "rate": 100, "elapsed_ms": 2500, "points": [{"x":0,"y":0,"wait_s":1},{"x":100,"y":0}], "want": {"x":0,"y":0}},
+    {"name": "tasa cero queda en P0", "mode": "loop", "rate": 0, "elapsed_ms": 5000, "points": [{"x":10,"y":20},{"x":100,"y":0}], "want": {"x":10,"y":20}},
+    {"name": "elapsed negativo queda en P0", "mode": "loop", "rate": 100, "elapsed_ms": -500, "points": [{"x":10,"y":20},{"x":100,"y":0}], "want": {"x":10,"y":20}},
+    {"name": "puntos repetidos sin esperas", "mode": "loop", "rate": 100, "elapsed_ms": 900, "points": [{"x":5,"y":5},{"x":5,"y":5}], "want": {"x":5,"y":5}}
+  ]
+}

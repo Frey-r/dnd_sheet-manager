@@ -115,6 +115,7 @@ func main() {
 		}
 	}()
 	vttHandler := handler.NewVTTHandler(vttRepo, realtimeHub, vttPlay)
+	npcAgendaHandler := handler.NewNPCAgendaHandler(service.NewNPCAgenda(repository.NewNPCRepository(db), vttRepo, vttPlay, realtimeHub))
 	uploadHandler := handler.NewUploadHandler(cfg.Server.UploadDir)
 	marketRepo := repository.NewMarketRepository(db)
 	marketHandler := handler.NewMarketHandler(marketRepo, service.NewMarket(marketRepo, vttRepo))
@@ -208,6 +209,7 @@ func main() {
 		auth.POST("/campaigns/:id/combat/reset", combatHandler.Reset)
 		foundryHandler.RegisterRoutes(auth)
 		vttHandler.RegisterRoutes(auth)
+		npcAgendaHandler.RegisterRoutes(auth)
 		uploadHandler.RegisterRoutes(auth)
 		marketHandler.RegisterRoutes(auth)
 		bastionHandler.RegisterRoutes(auth)

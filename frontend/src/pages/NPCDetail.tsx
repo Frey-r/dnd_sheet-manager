@@ -6,7 +6,7 @@ import { getApiError } from '../services/errors';
 import { rollExpression, requestRoll } from '../lib/dice';
 import { ABILITIES, abilityMod, signed } from '../lib/abilities';
 import { ErrorState, LoadingState } from '../components/ui/Feedback';
-import { NPCBelongings } from '../components/market/NPCBelongings';
+import { NPCSheetTabs } from '../components/npc/NPCSheetTabs';
 import { NPCPortrait } from '../components/avatar/NPCPortrait';
 import type { NPC } from '../types';
 
@@ -66,6 +66,13 @@ export function NPCDetail() {
   const { name, role, status, description } = current;
   // Older NPCs may hold "" for stats left blank: treat them as not recorded, not as 0.
   const stats: Stats = Object.fromEntries(Object.entries((current.stats ?? {}) as Record<string, unknown>).filter(([, value]) => value !== '' && value != null && Number.isFinite(Number(value))).map(([key, value]) => [key, Number(value)]));
+  // The combat sheet (npc-agenda.md §5) fills the quick view when the old top-level numbers are missing.
+  const combat = ((current.stats ?? {}) as { combat?: { hp?: number; ac?: number; speed_ft?: number } }).combat;
+  if (combat) {
+    stats.ac ??= combat.ac;
+    stats.hp ??= combat.hp;
+    stats.speed ??= combat.speed_ft;
+  }
   const dexMod = stats.dex != null ? abilityMod(stats.dex) : 0;
   const profile = profileOf(current.stats);
   const tags = [profile.type, profile.size ? SIZES[profile.size] ?? profile.size : undefined, profile.cr ? `VD ${profile.cr}` : undefined].filter(Boolean) as string[];
@@ -107,7 +114,7 @@ export function NPCDetail() {
             <div className="flex gap-3"><button type="submit" disabled={save.isPending} className="flex-1 py-3 rounded-lg bg-primary-container text-on-primary-container font-label-bold disabled:opacity-50">{save.isPending ? 'Guardando…' : 'Guardar'}</button><button type="button" onClick={() => { setDraft(null); save.reset(); }} className="flex-1 py-3 rounded-lg border font-label-bold">Cancelar</button></div>
           </form>
         ) : ([['Rasgos', profile.traits], ['Acciones', profile.actions]] as const).map(([title, list]) => list && list.length > 0 && <article key={title} className="border border-border-low-contrast rounded-xl p-5"><h2 className="font-headline-md mb-2">{title}</h2><ul className="space-y-2">{list.map((entry, index) => <li key={`${entry.name}-${index}`}><span className="font-label-bold">{entry.name}.</span> <span className="text-on-surface-variant">{entry.desc}</span></li>)}</ul></article>)}
-        <NPCBelongings campaignId={campaignId} npcId={current.id} />
+        <NPCSheetTabs campaignId={campaignId} npc={current} />
         {add.error && <ErrorState message={getApiError(add.error)} />}
         {remove.error && <ErrorState message={getApiError(remove.error, 'No se pudo eliminar el NPC')} />}
         {add.isSuccess && <p role="status" className="text-success-active">NPC añadido al combate con iniciativa {initiative}.</p>}

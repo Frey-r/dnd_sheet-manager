@@ -60,6 +60,8 @@ export interface NPCItem {
   description: string;
   location: 'inventory' | 'home';
   source: string;
+  /** Only for what the NPC carries (npc-agenda.md §5). */
+  equipped?: boolean;
 }
 
 export type ShopInput = Partial<Pick<Shop, 'name' | 'description' | 'icon' | 'npc_id' | 'availability' | 'scene_id' | 'object_id' | 'price_pct' | 'buy_rate_pct' | 'buys_types'>>;

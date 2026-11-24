@@ -1,3 +1,4 @@
+import { stampClock, type Route, type RouteClock } from '../lib/vtt/routePosition';
 import { api } from './api';
 
 export interface Wall { x1: number; y1: number; x2: number; y2: number; door: boolean; open: boolean }
@@ -33,7 +34,19 @@ export interface VTTToken {
   dex_mod: number;
   sneaking: boolean;
   detects: boolean;
+  /* Campaign NPC link, disposition and route (vtt-npc-routines.md). */
+  npc_id?: number | null;
+  disposition?: Disposition;
+  route?: Route | null;
+  route_paused?: boolean;
+  route_clock?: RouteClock | null;
+  npc_status?: string | null;
+  npc_appearance?: unknown;
+  npc_race?: string | null;
+  npc_class?: string | null;
 }
+
+export type Disposition = 'hostile' | 'neutral' | 'friendly';
 
 export interface VTTScene {
   id: number;
@@ -59,10 +72,17 @@ export interface VTTScene {
 
 const base = (c: number | string) => `/campaigns/${c}/vtt`;
 
+/** Stamps the arrival time on every route clock so the board can keep routes walking locally. */
+const stamped = <S extends VTTScene | null>(s: S): S => {
+  if (!s?.tokens) return s;
+  const now = performance.now();
+  return { ...s, tokens: s.tokens.map((t) => stampClock(t, now)) };
+};
+
 export const vttApi = {
   scenes: async (c: number | string) => (await api.get<VTTScene[]>(`${base(c)}/scenes`)).data,
-  active: async (c: number | string) => (await api.get<{ scene: VTTScene | null }>(`${base(c)}/active`)).data.scene,
-  scene: async (c: number | string, id: number) => (await api.get<VTTScene>(`${base(c)}/scenes/${id}`)).data,
+  active: async (c: number | string) => stamped((await api.get<{ scene: VTTScene | null }>(`${base(c)}/active`)).data.scene),
+  scene: async (c: number | string, id: number) => stamped((await api.get<VTTScene>(`${base(c)}/scenes/${id}`)).data),
   createScene: async (c: number | string, data: Partial<VTTScene>) => (await api.post<VTTScene>(`${base(c)}/scenes`, data)).data,
   updateScene: async (c: number | string, id: number, data: Partial<VTTScene>) => (await api.put<VTTScene>(`${base(c)}/scenes/${id}`, data)).data,
   deleteScene: (c: number | string, id: number) => api.delete(`${base(c)}/scenes/${id}`),
@@ -74,6 +94,11 @@ export const vttApi = {
   moveToken: async (c: number | string, id: number, x: number, y: number) =>
     (await api.put<{ id: number; x: number; y: number }>(`${base(c)}/tokens/${id}/move`, { x, y })).data,
   deleteToken: (c: number | string, id: number) => api.delete(`${base(c)}/tokens/${id}`),
+  /* NPC routes (vtt-npc-routines.md §7). */
+  setRoute: async (c: number | string, id: number, route: Route | null) =>
+    stampClock((await api.put<VTTToken>(`${base(c)}/tokens/${id}/route`, route)).data, performance.now()),
+  routeAction: async (c: number | string, id: number, action: 'pause' | 'resume' | 'restart') =>
+    stampClock((await api.post<VTTToken>(`${base(c)}/tokens/${id}/route/${action}`)).data, performance.now()),
   upload: async (c: number | string, file: File) => {
     const form = new FormData();
     form.append('file', file);

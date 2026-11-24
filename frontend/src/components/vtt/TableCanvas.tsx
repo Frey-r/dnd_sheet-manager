@@ -2,8 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Pt as ZPt, SceneLight, VTTCombat, VTTObject, VTTScene, VTTToken, Wall, Zone } from '../../services/vttApi';
 import { gridDistanceFt, newExploredCanvas, renderFog, type FogResult, type Pt } from '../../lib/vision';
 import { auraForClass, drawAvatarInto, normalizeAppearance, parseStoredAppearance, resolveRaceVisual } from '../../lib/avatar';
+import { useLiveTokens } from '../../lib/vtt/useLiveTokens';
+import type { RoutePoint } from '../../lib/vtt/routePosition';
+import { constrain45, mirrorHandle, nearestOnPath, reversePath, splitLeg, toCorner } from '../../lib/vtt/penOps';
 
-export type Tool = 'select' | 'ruler' | 'wall' | 'door' | 'light' | 'erase' | 'zone' | 'object';
+export type Tool = 'select' | 'ruler' | 'wall' | 'door' | 'light' | 'erase' | 'zone' | 'object' | 'route' | 'npc';
 
 interface Props {
   scene: VTTScene;
@@ -24,6 +27,9 @@ interface Props {
   onSelectObject?: (id: number | null) => void;
   onPlaceObject?: (x: number, y: number) => void;
   onZones?: (zones: Zone[]) => void;
+  onRoute?: (token: VTTToken, points: { x: number; y: number }[], closed?: boolean) => void;
+  onRouteEdit?: (token: VTTToken, points: { x: number; y: number }[]) => void;
+  onPlaceNpc?: (x: number, y: number) => void;
   /** Campaign characters: tokens linked to one are drawn with its pixel-art avatar. */
   characters?: { id: number; race: string; class: string; appearance?: unknown }[];
 }
@@ -61,10 +67,41 @@ function distToSegment(p: Pt, w: Wall) {
 
 const css = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
+/** Traces a route: straight legs with lineTo, legs with handles as cubic Béziers (D-0069). */
+function tracePath(ctx: CanvasRenderingContext2D, pts: RoutePoint[], closed: boolean) {
+  if (!pts.length) return;
+  ctx.moveTo(pts[0].x, pts[0].y);
+  const leg = (a: RoutePoint, b: RoutePoint) => {
+    if (a.out || b.in) {
+      const c1 = a.out ?? a, c2 = b.in ?? b;
+      ctx.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, b.x, b.y);
+    } else ctx.lineTo(b.x, b.y);
+  };
+  for (let i = 1; i < pts.length; i++) leg(pts[i - 1], pts[i]);
+  if (closed && pts.length > 1) leg(pts[pts.length - 1], pts[0]);
+}
+
+/** Bézier handles: a thin line from the anchor and a small circle at the handle. */
+function drawHandles(ctx: CanvasRenderingContext2D, pts: RoutePoint[], z: number) {
+  ctx.lineWidth = 1 / z;
+  ctx.strokeStyle = 'rgba(255,255,255,.7)';
+  for (const pt of pts) {
+    for (const h of [pt.in, pt.out]) {
+      if (!h) continue;
+      ctx.beginPath(); ctx.moveTo(pt.x, pt.y); ctx.lineTo(h.x, h.y); ctx.stroke();
+      ctx.beginPath(); ctx.arc(h.x, h.y, 4 / z, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff'; ctx.fill();
+    }
+  }
+}
+
 export function TableCanvas(props: Props) {
-  const { scene, tokens, isGM, userId, viewers, tool, selectedId, onSelect, onMove, onWalls, onLights } = props;
-  const { objects = [], combats = [], selectedObjectId = null, onSelectObject, onPlaceObject, onZones } = props;
+  const { scene, isGM, userId, viewers, tool, selectedId, onSelect, onMove, onWalls, onLights } = props;
+  const { objects = [], combats = [], selectedObjectId = null, onSelectObject, onPlaceObject, onZones, onRoute, onRouteEdit, onPlaceNpc } = props;
+  // Tokens at their live route position (vtt-npc-routines.md §5); the fog uses the stored ones.
+  const tokens = useLiveTokens(props.tokens, scene);
   const [zoneDraft, setZoneDraft] = useState<Pt[]>([]);
+  const [routeDraft, setRouteDraft] = useState<{ tokenId: number; points: RoutePoint[] } | null>(null);
   const activeTokenIds = useMemo(() => new Set(combats.map((c) => c.combatants[c.turn_index]?.token_id).filter(Boolean)), [combats]);
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -74,14 +111,28 @@ export function TableCanvas(props: Props) {
   const redraw = useCallback(() => setTick((t) => t + 1), []);
   const avatarFor = useMemo(() => {
     const byId = new Map((props.characters ?? []).map((c) => [c.id, c]));
-    return (id: number) => {
-      const c = byId.get(id);
-      if (!c) return null;
-      const visual = resolveRaceVisual(c.race);
-      return { visual, appearance: normalizeAppearance(parseStoredAppearance(c.appearance), visual), aura: auraForClass(c.class) };
+    const look = (race: string | null | undefined, cls: string | null | undefined, appearance: unknown) => {
+      const visual = resolveRaceVisual(race);
+      return { visual, appearance: normalizeAppearance(parseStoredAppearance(appearance), visual), aura: auraForClass(cls) };
+    };
+    return (t: VTTToken) => {
+      if (t.image_url) return null;
+      if (t.character_id) {
+        const c = byId.get(t.character_id);
+        return c ? look(c.race, c.class, c.appearance) : null;
+      }
+      // Campaign NPCs placed on the map wear their pixel-art appearance (vtt-npc-routines.md §1).
+      return t.npc_id && t.npc_appearance ? look(t.npc_race, t.npc_class, t.npc_appearance) : null;
     };
   }, [props.characters]);
-  const drag = useRef<{ kind: 'pan'; sx: number; sy: number; vx: number; vy: number } | { kind: 'token'; token: VTTToken; ox: number; oy: number } | null>(null);
+  const drag = useRef<{ kind: 'pan'; sx: number; sy: number; vx: number; vy: number } | { kind: 'token'; token: VTTToken; ox: number; oy: number }
+    | { kind: 'anchor'; token: VTTToken; index: number; sx: number; sy: number }
+    | { kind: 'convert'; token: VTTToken; index: number; sx: number; sy: number }
+    | { kind: 'handle'; token: VTTToken; index: number; which: 'in' | 'out'; alt: boolean }
+    | { kind: 'pen'; index: number; sx: number; sy: number }
+    | { kind: 'close'; sx: number; sy: number } | null>(null);
+  /** The saved route being edited (anchors or handles dragged), shown live until the pointer is released. */
+  const [editGhost, setEditGhost] = useState<RoutePoint[] | null>(null);
   const [ghost, setGhost] = useState<{ id: number; x: number; y: number } | null>(null);
   const [ruler, setRuler] = useState<{ a: Pt; b: Pt } | null>(null);
   const [chain, setChain] = useState<Pt | null>(null);
@@ -99,10 +150,11 @@ export function TableCanvas(props: Props) {
     return newExploredCanvas(scene, saved);
   }, [exploredKey, scene.width_px, scene.height_px]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const storedTokens = props.tokens;
   const fog: FogResult | null = useMemo(() => {
     if (!viewers || !scene.fog_enabled) return null;
-    return renderFog(scene, tokens, viewers, explored);
-  }, [scene, tokens, viewers, explored]);
+    return renderFog(scene, storedTokens, viewers, explored);
+  }, [scene, storedTokens, viewers, explored]);
 
   useEffect(() => {
     if (!fog) return;
@@ -131,6 +183,25 @@ export function TableCanvas(props: Props) {
     const r = canvasRef.current!.getBoundingClientRect();
     return { x: (cx - r.left - view.x) / view.z, y: (cy - r.top - view.y) / view.z };
   }, [view]);
+
+  // ---------- Pen tool for NPC routes (vtt-npc-routines.md §6, D-0068) ----------
+  /** Route anchors sit on background pixels: integers, no grid. */
+  const pixel = (p: Pt): Pt => ({ x: Math.round(p.x), y: Math.round(p.y) });
+  /** Anchor hit radius: 10 screen pixels. */
+  const anchorHit = 10 / view.z;
+  /** The token the route tool draws for: the selected NPC or monster. */
+  const routeToken = tool === 'route' ? tokens.find((t) => t.id === selectedId && t.kind !== 'pc') ?? null : null;
+  /** Callbacks get the token as the page gave it, not its live (animated) copy. */
+  const original = (t: VTTToken) => props.tokens.find((x) => x.id === t.id) ?? t;
+  /** The route being drawn for the selected token (the first anchor is P0). */
+  const routePoints = routeToken && routeDraft?.tokenId === routeToken.id ? routeDraft.points : [];
+  const finishOpen = () => {
+    if (!routeToken || routePoints.length < 2) return; // one anchor is not a path yet: keep drawing
+    onRoute?.(original(routeToken), routePoints, false);
+    setRouteDraft(null);
+  };
+  /** The selected token's saved route anchors, as shown (with the anchor being dragged). */
+  const editAnchors: RoutePoint[] = routeToken?.route && !routePoints.length ? editGhost ?? routeToken.route.points : [];
 
   const snapCorner = (p: Pt): Pt => ({
     x: scene.grid_offset_x + Math.round((p.x - scene.grid_offset_x) / cell) * cell,
@@ -196,7 +267,7 @@ export function TableCanvas(props: Props) {
       ctx.save();
       ctx.globalAlpha = t.hidden ? 0.45 : 1;
       ctx.beginPath(); ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
-      const linked = !t.image_url && t.character_id ? avatarFor(t.character_id) : null;
+      const linked = avatarFor(t);
       ctx.fillStyle = linked?.aura ? `${linked.aura}55` : t.color || '#c0392b';
       ctx.fill();
       const img = loadImage(t.image_url, redraw);
@@ -267,6 +338,44 @@ export function TableCanvas(props: Props) {
         if (hover) ctx.lineTo(hover.x, hover.y);
         ctx.lineWidth = 2 / view.z; ctx.strokeStyle = 'rgba(239,79,85,.9)'; ctx.stroke();
       }
+      // NPC routes: dotted path, numbered points; a patrol closes its loop.
+      for (const t of tokens) {
+        const r = t.route;
+        if (!r || r.points.length < 2) continue;
+        const pts = t.id === routeToken?.id && editAnchors.length ? editAnchors : r.points;
+        ctx.beginPath();
+        tracePath(ctx, pts, r.mode === 'loop');
+        ctx.lineWidth = 2 / view.z;
+        ctx.strokeStyle = t.id === selectedId ? 'rgba(255,255,255,.9)' : t.route_paused ? 'rgba(141,145,154,.7)' : 'rgba(201,162,39,.85)';
+        ctx.setLineDash([4 / view.z, 5 / view.z]); ctx.stroke(); ctx.setLineDash([]);
+        ctx.font = `600 ${11 / view.z}px Geist, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        pts.forEach((pt, i) => {
+          ctx.beginPath(); ctx.arc(pt.x, pt.y, 7 / view.z, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(29,20,5,.85)'; ctx.fill();
+          ctx.fillStyle = '#f1d27a'; ctx.fillText(String(i + 1), pt.x, pt.y + 0.5 / view.z);
+        });
+        if (t.id === routeToken?.id) drawHandles(ctx, pts, view.z);
+      }
+      if (routePoints.length) {
+        ctx.beginPath();
+        tracePath(ctx, routePoints, false);
+        ctx.lineWidth = 2.5 / view.z; ctx.strokeStyle = 'rgba(241,210,122,.95)'; ctx.stroke();
+        drawHandles(ctx, routePoints, view.z);
+        if (hover) { // elastic line to the cursor
+          const last = routePoints[routePoints.length - 1];
+          ctx.beginPath(); ctx.moveTo(last.x, last.y);
+          if (last.out) ctx.bezierCurveTo(last.out.x, last.out.y, hover.x, hover.y, hover.x, hover.y); // next leg preview
+          else ctx.lineTo(hover.x, hover.y);
+          ctx.lineWidth = 1.5 / view.z; ctx.setLineDash([5 / view.z, 4 / view.z]); ctx.stroke(); ctx.setLineDash([]);
+        }
+        const first = routePoints[0];
+        const closing = hover && routePoints.length >= 3 && Math.hypot(hover.x - first.x, hover.y - first.y) <= anchorHit;
+        routePoints.forEach((pt, i) => { // anchors as squares; the first one lights up when it would close
+          const h = (i === 0 && closing ? 6 : 4) / view.z;
+          ctx.fillStyle = i === 0 && closing ? '#ffffff' : '#f1d27a';
+          ctx.fillRect(pt.x - h, pt.y - h, h * 2, h * 2);
+        });
+      }
       if (chain && hover && (tool === 'wall' || tool === 'door')) {
         const h = snapCorner(hover);
         ctx.beginPath(); ctx.moveTo(chain.x, chain.y); ctx.lineTo(h.x, h.y);
@@ -303,7 +412,7 @@ export function TableCanvas(props: Props) {
       ctx.fillText(label, ruler.b.x + 17 / view.z, ruler.b.y - 11 / view.z);
     }
     ctx.restore();
-  }, [scene, visibleTokens, fog, view, size, ghost, ruler, chain, hover, tool, isGM, selectedId, userId, tick, cell, redraw, tokens, objects, combats, zoneDraft, selectedObjectId, activeTokenIds, avatarFor]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [scene, visibleTokens, fog, view, size, ghost, ruler, chain, hover, tool, isGM, selectedId, userId, tick, cell, redraw, tokens, objects, combats, zoneDraft, selectedObjectId, activeTokenIds, avatarFor, routeDraft, editGhost]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------- Interaction ----------
   const zoomAt = (factor: number, cx: number, cy: number) => {
@@ -353,6 +462,49 @@ export function TableCanvas(props: Props) {
     if (isGM && tool === 'light') { onLights([...scene.lights, { x: p.x, y: p.y, bright: 20, dim: 20 }]); return; }
     if (isGM && tool === 'zone') { setZoneDraft((d) => [...d, snapCorner(p)]); return; }
     if (isGM && tool === 'object') { onPlaceObject?.(p.x, p.y); return; }
+    if (isGM && tool === 'npc') { onPlaceNpc?.(p.x, p.y); return; }
+    if (isGM && routeToken) {
+      // Editing the saved route (no path being drawn), like Photoshop's pen with auto add/delete (D-0070).
+      // Handles first (they can sit over other anchors), then anchors, then the path itself.
+      for (let i = 0; i < editAnchors.length; i++) {
+        for (const which of ['out', 'in'] as const) {
+          const h = editAnchors[i][which];
+          if (h && Math.hypot(h.x - p.x, h.y - p.y) <= anchorHit) { drag.current = { kind: 'handle', token: routeToken, index: i, which, alt: e.altKey }; return; }
+        }
+      }
+      const hit = editAnchors.findIndex((a) => Math.hypot(a.x - p.x, a.y - p.y) <= anchorHit);
+      if (hit >= 0) {
+        const pt = editAnchors[hit];
+        if (e.altKey && (pt.in || pt.out)) { // Alt+click on a smooth anchor: corner
+          onRouteEdit?.(original(routeToken), editAnchors.map((x, i) => (i === hit ? toCorner(x) : x)));
+          return;
+        }
+        drag.current = { kind: e.altKey ? 'convert' : 'anchor', token: routeToken, index: hit, sx: e.clientX, sy: e.clientY };
+        return;
+      }
+      const route = routeToken.route;
+      if (route && editAnchors.length && editAnchors.length < 32) {
+        const near = nearestOnPath(editAnchors, route.mode === 'loop', p);
+        if (near && near.dist <= anchorHit) { // click on the path: add an anchor without changing the shape
+          onRouteEdit?.(original(routeToken), splitLeg(editAnchors, near.leg, near.t));
+          return;
+        }
+      }
+      const first = routePoints[0];
+      if (first && Math.hypot(first.x - p.x, first.y - p.y) <= anchorHit) {
+        // Closing needs 3 anchors and happens on release, so a drag can shape the closing leg.
+        if (routePoints.length >= 3) drag.current = { kind: 'close', sx: e.clientX, sy: e.clientY };
+        return; // a click on P0 never adds a point
+      }
+      const last = routePoints[routePoints.length - 1];
+      const a = pixel(e.shiftKey && last ? constrain45(last, p) : p);
+      if (a.x < 0 || a.y < 0 || a.x > scene.width_px || a.y > scene.height_px) return; // anchors live on the map
+      if (!last || a.x !== last.x || a.y !== last.y) {
+        setRouteDraft({ tokenId: routeToken.id, points: [...routePoints, a] });
+        drag.current = { kind: 'pen', index: routePoints.length, sx: e.clientX, sy: e.clientY }; // dragging pulls out handles
+      }
+      return;
+    }
     if (isGM && tool === 'erase') {
       const tol = 10 / view.z;
       const li = scene.lights.findIndex((l) => Math.hypot(l.x - p.x, l.y - p.y) < tol + 4);
@@ -394,6 +546,35 @@ export function TableCanvas(props: Props) {
     if (ruler && e.buttons) setRuler((r) => (r ? { a: r.a, b: p } : r));
     if (!d) return;
     if (d.kind === 'pan') setView((v) => ({ ...v, x: d.vx + e.clientX - d.sx, y: d.vy + e.clientY - d.sy }));
+    else if (d.kind === 'pen' || d.kind === 'close') {
+      if (Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 4) return; // a still click stays a corner
+      const index = d.kind === 'pen' ? d.index : 0;
+      setRouteDraft((dr) => dr && { ...dr, points: dr.points.map((pt, i) => {
+        if (i !== index) return pt;
+        const out = pixel(e.shiftKey ? constrain45(pt, p) : p);
+        return { ...pt, out, in: e.altKey && pt.in ? pt.in : mirrorHandle(pt, out) }; // Alt: only the out handle
+      }) });
+    } else if (d.kind === 'anchor' || d.kind === 'handle' || d.kind === 'convert') {
+      if (d.kind !== 'handle' && !editGhost && Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 4) return; // still a click
+      const base = editGhost ?? d.token.route?.points ?? [];
+      setEditGhost(base.map((pt, i) => {
+        if (i !== d.index) return pt;
+        const q = pixel(e.shiftKey && d.kind !== 'anchor' ? constrain45(pt, p) : p);
+        if (d.kind === 'convert') return { ...pt, out: q, in: mirrorHandle(pt, q) }; // Alt+drag: corner → smooth
+        if (d.kind === 'anchor') {
+          const dx = q.x - pt.x, dy = q.y - pt.y;
+          const shift = (h?: Pt) => (h ? { x: h.x + dx, y: h.y + dy } : undefined);
+          const moved: RoutePoint = { ...pt, x: q.x, y: q.y };
+          if (pt.in) moved.in = shift(pt.in);
+          if (pt.out) moved.out = shift(pt.out);
+          return moved;
+        }
+        const other = d.which === 'out' ? 'in' : 'out';
+        const next: RoutePoint = { ...pt, [d.which]: q };
+        if (!d.alt && !e.altKey && pt[other]) next[other] = mirrorHandle(pt, q); // smooth anchor: the opposite handle follows
+        return next;
+      }));
+    }
     else setGhost({ id: d.token.id, x: p.x - d.ox, y: p.y - d.oy });
   };
 
@@ -403,6 +584,28 @@ export function TableCanvas(props: Props) {
     const d = drag.current;
     drag.current = null;
     if (tool === 'ruler') { setTimeout(() => setRuler(null), 1200); return; }
+    if (d?.kind === 'pen') return;
+    if (d?.kind === 'close') {
+      if (routeToken && routePoints.length >= 3) onRoute?.(original(routeToken), routePoints, true);
+      setRouteDraft(null);
+      return;
+    }
+    if (d?.kind === 'anchor' && !editGhost) { // a click (no drag) on an anchor
+      const route = d.token.route;
+      if (!route) return;
+      const pts = route.points, open = route.mode !== 'loop';
+      if (open && (d.index === pts.length - 1 || d.index === 0)) { // an end: continue the path from it
+        setRouteDraft({ tokenId: d.token.id, points: d.index === 0 ? reversePath(pts) : [...pts] });
+        return;
+      }
+      if (pts.length > (open ? 2 : 3)) onRouteEdit?.(original(d.token), pts.filter((_, i) => i !== d.index)); // delete it
+      return;
+    }
+    if (d?.kind === 'anchor' || d?.kind === 'handle' || d?.kind === 'convert') {
+      if (editGhost) onRouteEdit?.(original(d.token), editGhost);
+      setEditGhost(null);
+      return;
+    }
     if (d?.kind === 'token' && ghost) {
       const moved = Math.hypot(ghost.x - d.token.x, ghost.y - d.token.y) > cell * 0.25;
       if (moved) onMove(d.token, ghost.x, ghost.y);
@@ -427,9 +630,14 @@ export function TableCanvas(props: Props) {
             onZones([...(scene.zones ?? []), { id: `z${Date.now().toString(36)}`, name: `Zona ${(scene.zones?.length ?? 0) + 1}`, points: zoneDraft, monster_ids: [], armed: true }]);
           }
           setZoneDraft([]);
+          if (routePoints.length) finishOpen();
         }}
         onContextMenu={(e) => e.preventDefault()}
-        onKeyDown={(e) => { if (e.key === 'Escape') setChain(null); }}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') { setChain(null); setRouteDraft(null); }
+          if (routePoints.length && e.key === 'Enter') { e.preventDefault(); finishOpen(); }
+          if (routePoints.length && e.key === 'Backspace') { e.preventDefault(); setRouteDraft(routeToken ? { tokenId: routeToken.id, points: routePoints.slice(0, -1) } : null); }
+        }}
         tabIndex={0}
         aria-label={`Mesa virtual: ${scene.name}`}
       />

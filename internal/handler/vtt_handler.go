@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"dnd-campaign-manager/internal/domain"
 	"dnd-campaign-manager/internal/middleware"
@@ -43,6 +44,8 @@ func (h *VTTHandler) RegisterRoutes(g *gin.RouterGroup) {
 	g.PUT("/campaigns/:id/vtt/tokens/:token_id", h.UpdateToken)
 	g.PUT("/campaigns/:id/vtt/tokens/:token_id/move", h.MoveToken)
 	g.DELETE("/campaigns/:id/vtt/tokens/:token_id", h.DeleteToken)
+	g.PUT("/campaigns/:id/vtt/tokens/:token_id/route", h.SetRoute)
+	g.POST("/campaigns/:id/vtt/tokens/:token_id/route/:action", h.RouteAction)
 	h.registerPlayRoutes(g)
 }
 
@@ -90,7 +93,9 @@ func (h *VTTHandler) withTokens(c *gin.Context, scene *domain.VTTScene) error {
 	if err != nil {
 		return err
 	}
+	now := time.Now()
 	for i := range tokens {
+		tokens[i].RouteClock = service.RouteClockView(tokens[i], now)
 		if tokens[i].CharacterID != nil {
 			if v, ok := hp[*tokens[i].CharacterID]; ok {
 				tokens[i].HP, tokens[i].MaxHP = v[0], v[1]
@@ -260,6 +265,7 @@ func (h *VTTHandler) UpdateScene(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid JSON"})
 		return
 	}
+	before := *scene
 	if err := in.apply(scene); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -267,6 +273,9 @@ func (h *VTTHandler) UpdateScene(c *gin.Context) {
 	if err := h.repo.UpdateScene(c.Request.Context(), scene); err != nil {
 		h.fail(c, err, "could not update scene")
 		return
+	}
+	if h.play != nil {
+		h.play.SceneChanged(c.Request.Context(), &before, scene) // pace or mode changes retime/freeze routes
 	}
 	if in.Mode != nil && scene.IsActive {
 		h.startSceneCombat(c, scene)
@@ -315,6 +324,9 @@ func (h *VTTHandler) Activate(c *gin.Context) {
 	if scene, err := h.repo.GetScene(c.Request.Context(), campaignID, sceneID); err == nil {
 		h.startSceneCombat(c, scene)
 	}
+	if h.play != nil {
+		h.play.SyncCampaignRoutes(c.Request.Context(), campaignID) // routes walk only in the active scene
+	}
 	h.publish(c, campaignID, "vtt.scene.activated", gin.H{"scene_id": sceneID})
 	c.JSON(http.StatusOK, gin.H{"scene_id": sceneID, "is_active": true})
 }
@@ -345,6 +357,8 @@ type tokenInput struct {
 	StealthBonus  *int     `json:"stealth_bonus"`
 	DexMod        *int     `json:"dex_mod"`
 	Detects       *bool    `json:"detects"`
+	NpcID         *int64   `json:"npc_id"`
+	Disposition   *string  `json:"disposition"`
 }
 
 var monsterSizeCells = map[string]float64{"tiny": 0.5, "small": 1, "medium": 1, "large": 2, "huge": 3, "gargantuan": 4}
@@ -399,6 +413,12 @@ func (in tokenInput) apply(t *domain.VTTToken) error {
 	if in.Hidden != nil {
 		t.Hidden = *in.Hidden
 	}
+	if in.Disposition != nil {
+		t.Disposition = *in.Disposition
+	}
+	if t.Disposition == "" {
+		t.Disposition = service.DefaultDisposition(t.Kind)
+	}
 	switch {
 	case t.Name == "" || len(t.Name) > 200:
 		return errors.New("name is required (max 200 characters)")
@@ -408,6 +428,8 @@ func (in tokenInput) apply(t *domain.VTTToken) error {
 		return errors.New("size_cells must be between 0 and 10")
 	case t.VisionFt < 0 || t.DarkvisionFt < 0 || t.BlindsightFt < 0 || t.LightBrightFt < 0 || t.LightDimFt < 0:
 		return errors.New("vision and light ranges cannot be negative")
+	case !service.ValidDisposition(t.Disposition):
+		return errors.New("disposition must be hostile, neutral or friendly")
 	}
 	return nil
 }
@@ -456,6 +478,23 @@ func (h *VTTHandler) CreateToken(c *gin.Context) {
 			token.SizeCells = size
 		}
 	}
+	if in.NpcID != nil {
+		npc, err := h.repo.CampaignNPC(ctx, campaignID, *in.NpcID)
+		if errors.Is(err, repository.ErrVTTNotFound) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "npc not found in this campaign"})
+			return
+		}
+		if err != nil {
+			h.fail(c, err, "could not load npc")
+			return
+		}
+		token.NpcID, token.Name, token.ImageURL, token.Kind, token.Color = in.NpcID, npc.Name, npc.ImageURL, "npc", "#c9a227"
+		sheet, err := service.NormalizeNPCCombat(npc.Combat)
+		if err != nil {
+			sheet = service.DefaultNPCCombat // a sheet saved before validation existed
+		}
+		service.ApplyNPCCombat(&token, sheet) // npc-agenda.md §5
+	}
 	if err := in.apply(&token); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -464,6 +503,9 @@ func (h *VTTHandler) CreateToken(c *gin.Context) {
 	if err := h.repo.CreateToken(ctx, &token); err != nil {
 		h.fail(c, err, "could not create token")
 		return
+	}
+	if full, err := h.repo.GetToken(ctx, campaignID, token.ID); err == nil {
+		token = *full // with the linked NPC's relation and appearance
 	}
 	h.publish(c, campaignID, "vtt.scene.updated", gin.H{"scene_id": scene.ID})
 	c.JSON(http.StatusCreated, token)
@@ -484,6 +526,7 @@ func (h *VTTHandler) UpdateToken(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid JSON"})
 		return
 	}
+	before := *token
 	if err := in.apply(token); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -492,10 +535,19 @@ func (h *VTTHandler) UpdateToken(c *gin.Context) {
 		h.fail(c, err, "could not update token")
 		return
 	}
+	h.afterTokenUpdate(c, &before, token)
+	if token.NpcID != nil && in.HP != nil {
+		// The NPC owns its HP: every token of it shows the new value (npc-agenda.md §3).
+		if err := h.repo.SetNPCHP(c.Request.Context(), *token.NpcID, *in.HP); err != nil {
+			h.fail(c, err, "could not update npc hp")
+			return
+		}
+	}
 	if in.HP != nil || in.MaxHP != nil {
 		h.play.CheckAutoEnd(c.Request.Context(), campaignID, token.ID)
 	}
 	h.publish(c, campaignID, "vtt.scene.updated", gin.H{"scene_id": token.SceneID})
+	token.RouteClock = service.RouteClockView(*token, time.Now())
 	c.JSON(http.StatusOK, token)
 }
 
@@ -555,6 +607,11 @@ func (h *VTTHandler) MoveToken(c *gin.Context) {
 	if err := h.repo.MoveToken(ctx, campaignID, token.ID, x, y); err != nil {
 		h.fail(c, err, "could not move token")
 		return
+	}
+	if h.play != nil && token.Route != nil {
+		if err := h.play.PauseForDrag(ctx, scene, token, x, y); err != nil {
+			log.Printf("vtt: pause dragged route token %d: %v", token.ID, err)
+		}
 	}
 	if token.Hidden {
 		h.publish(c, campaignID, "vtt.scene.updated", gin.H{"scene_id": token.SceneID})

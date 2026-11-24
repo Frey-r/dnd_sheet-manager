@@ -375,14 +375,17 @@ func (r *MarketRepository) SaveNPCItem(ctx context.Context, it *domain.NPCItem) 
 	if it.Quantity < 1 {
 		it.Quantity = 1
 	}
+	if it.Location == "home" {
+		it.Equipped = false // only what the NPC carries can be equipped (npc-agenda.md §7)
+	}
 	if it.ID == 0 {
 		return r.db.QueryRowxContext(ctx, `
-			INSERT INTO npc_items (npc_id, name, quantity, value_cp, description, location, source)
-			VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id, created_at`,
-			it.NPCID, it.Name, it.Quantity, it.ValueCP, it.Description, it.Location, it.Source).Scan(&it.ID, &it.CreatedAt)
+			INSERT INTO npc_items (npc_id, name, quantity, value_cp, description, location, source, equipped)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id, created_at`,
+			it.NPCID, it.Name, it.Quantity, it.ValueCP, it.Description, it.Location, it.Source, it.Equipped).Scan(&it.ID, &it.CreatedAt)
 	}
-	_, err := r.db.ExecContext(ctx, `UPDATE npc_items SET name=$2, quantity=$3, value_cp=$4, description=$5, location=$6, source=$7 WHERE id=$1`,
-		it.ID, it.Name, it.Quantity, it.ValueCP, it.Description, it.Location, it.Source)
+	_, err := r.db.ExecContext(ctx, `UPDATE npc_items SET name=$2, quantity=$3, value_cp=$4, description=$5, location=$6, source=$7, equipped=$8 WHERE id=$1`,
+		it.ID, it.Name, it.Quantity, it.ValueCP, it.Description, it.Location, it.Source, it.Equipped)
 	return err
 }
 

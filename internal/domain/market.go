@@ -62,6 +62,7 @@ type NPCItem struct {
 	Description string    `db:"description" json:"description"`
 	Location    string    `db:"location" json:"location"`
 	Source      string    `db:"source" json:"source"`
+	Equipped    bool      `db:"equipped" json:"equipped"`
 	CreatedAt   time.Time `db:"created_at" json:"created_at"`
 }
 

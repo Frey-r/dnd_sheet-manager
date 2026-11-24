@@ -6,7 +6,15 @@ import { vttApi, vttPlayApi, type SceneLight, type VTTObject, type VTTScene, typ
 import { CombatHud, Joystick, MilestonesPanel, ObjectEditor, ZonesPanel } from '../components/vtt/PlayLayer';
 import { useExplorationMovement } from '../lib/useExplorationMovement';
 import { useRealtimeSend } from '../lib/RealtimeContext';
-import { campaignApi, combatApi } from '../services/api';
+import { campaignApi, combatApi, npcApi } from '../services/api';
+import { PlaceNpcList, RouteFinishDialog, RoutinePanel, type PlaceableNpc } from '../components/vtt/NpcRoutinePanel';
+import { stampClock, type Route } from '../lib/vtt/routePosition';
+import { GameClockBar } from '../components/npc/GameClockBar';
+import { SaveToAgendaDialog } from '../components/npc/SaveToAgendaDialog';
+import { NPCBelongings } from '../components/market/NPCBelongings';
+import { summaryText, upsertEntry, type AgendaEntry, type DaySpec, type GameClock, type TimeOfDay } from '../lib/npc/agenda';
+import { npcAgendaApi } from '../services/npcAgendaApi';
+import { Link } from 'react-router-dom';
 import { searchMonsters } from '../services/srdService';
 import { useAuth } from '../lib/hooks';
 import { useCampaign } from '../lib/useCampaign';
@@ -25,6 +33,7 @@ const TOOLS: { id: Tool; icon: string; label: string; gm?: boolean }[] = [
   { id: 'erase', icon: 'ink_eraser', label: 'Borrar muro, puerta, luz o zona', gm: true },
   { id: 'zone', icon: 'pentagon', label: 'Zona de encuentro (clic por vértice, doble clic cierra)', gm: true },
   { id: 'object', icon: 'inventory_2', label: 'Colocar objeto interactivo', gm: true },
+  { id: 'route', icon: 'ink_pen', label: 'Pluma de rutas (como la de Photoshop)', gm: true },
 ];
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -73,14 +82,18 @@ export function VirtualTable() {
 
   const patchScene = (fn: (s: VTTScene) => VTTScene) => qc.setQueryData<VTTScene | null>(sceneKey, (s) => (s ? fn(s) : s));
 
-  // Live token moves from other users (vtt.md §7).
+  // Live token moves from other users (vtt.md §7) and NPC route changes (vtt-npc-routines.md §4).
   useEffect(() => {
+    type Moved = { scene_id: number; token_id: number; x: number; y: number };
+    type RouteUpdate = Moved & Pick<VTTToken, 'route' | 'route_paused' | 'route_clock'>;
     const onEvent = (e: Event) => {
-      const msg = (e as CustomEvent<{ type?: string; payload?: { data?: { scene_id: number; token_id: number; x: number; y: number } } }>).detail;
-      if (msg?.type !== 'vtt.token.moved' || !msg.payload?.data) return;
+      const msg = (e as CustomEvent<{ type?: string; payload?: { data?: RouteUpdate } }>).detail;
+      if ((msg?.type !== 'vtt.token.moved' && msg?.type !== 'vtt.route.updated') || !msg.payload?.data) return;
       const d = msg.payload.data;
+      const patch: Partial<VTTToken> = msg.type === 'vtt.token.moved' ? { x: d.x, y: d.y }
+        : stampClock({ x: d.x, y: d.y, route: d.route, route_paused: d.route_paused, route_clock: d.route_clock }, performance.now());
       for (const key of [['vtt-active', campaignId], ['vtt-scene', campaignId, d.scene_id]]) {
-        qc.setQueryData<VTTScene | null>(key, (s) => (s && s.id === d.scene_id ? { ...s, tokens: s.tokens?.map((t) => (t.id === d.token_id ? { ...t, x: d.x, y: d.y } : t)) } : s));
+        qc.setQueryData<VTTScene | null>(key, (s) => (s && s.id === d.scene_id ? { ...s, tokens: s.tokens?.map((t) => (t.id === d.token_id ? { ...t, ...patch } : t)) } : s));
       }
     };
     window.addEventListener('realtime', onEvent);
@@ -150,6 +163,62 @@ export function VirtualTable() {
     vttApi.updateToken(campaignId, id, data).catch((err) => { flash(getErrorMessage(err), true); refresh(); });
   };
   const deleteToken = (id: number) => { setSelectedId(null); vttApi.deleteToken(campaignId, id).then(refresh).catch((e) => flash(getErrorMessage(e), true)); };
+
+  // ---------- Game clock and NPC agenda (npc-agenda.md) ----------
+  const clockQ = useQuery({ queryKey: ['clock', campaignId], queryFn: () => npcAgendaApi.clock(campaignId), enabled: !loading });
+  useEffect(() => {
+    const onEvent = (e: Event) => {
+      const msg = (e as CustomEvent<{ type?: string; payload?: { data?: GameClock } }>).detail;
+      if (msg?.type === 'campaign.clock.updated' && msg.payload?.data) qc.setQueryData(['clock', campaignId], msg.payload.data);
+    };
+    window.addEventListener('realtime', onEvent);
+    return () => window.removeEventListener('realtime', onEvent);
+  }, [campaignId, qc]);
+  const [clockBusy, setClockBusy] = useState(false);
+  const moveClock = async (fn: () => Promise<string>) => {
+    setClockBusy(true);
+    try { flash(await fn()); void qc.invalidateQueries({ queryKey: ['clock', campaignId] }); refresh(); }
+    catch (err) { flash(getErrorMessage(err), true); }
+    finally { setClockBusy(false); }
+  };
+  const [agendaFor, setAgendaFor] = useState<VTTToken | null>(null);
+  const [lootFor, setLootFor] = useState<VTTToken | null>(null);
+  const saveToAgenda = async (token: VTTToken, dia: DaySpec, momento: TimeOfDay) => {
+    if (!token.npc_id || !scene) return;
+    const entry: AgendaEntry = { dia, momento, ubicacion: { escena_id: scene.id }, path: token.route ?? null };
+    if (!token.route) entry.posicion = { x: Math.round(token.x), y: Math.round(token.y) };
+    if (token.hidden) entry.oculto = true;
+    try {
+      const agenda = await npcAgendaApi.agenda(campaignId, token.npc_id);
+      await npcAgendaApi.saveAgenda(campaignId, token.npc_id, upsertEntry(agenda, entry));
+      setAgendaFor(null);
+      flash(`Guardado en la agenda de ${token.name}.`);
+    } catch (err) {
+      const problems = (err as { response?: { data?: { problems?: string[] } } })?.response?.data?.problems;
+      flash(problems?.join(' · ') ?? getErrorMessage(err), true);
+    }
+  };
+
+  // ---------- NPC routines (vtt-npc-routines.md §6) ----------
+  const npcsQ = useQuery({ queryKey: ['npcs', campaignId], queryFn: async () => ((await npcApi.list(campaignId)).data ?? []) as PlaceableNpc[], enabled: isGM });
+  const [placingNpc, setPlacingNpc] = useState<PlaceableNpc | null>(null);
+  const placeNpc = (x: number, y: number) => {
+    if (!placingNpc) return;
+    addToken.mutate({ npc_id: placingNpc.id, x, y });
+    setPlacingNpc(null);
+    setTool('select');
+  };
+  const applyToken = (t: VTTToken) => patchScene((s) => ({ ...s, tokens: s.tokens?.map((x) => (x.id === t.id ? { ...x, ...t } : x)) }));
+  const setRoute = (token: VTTToken, route: Route | null) =>
+    vttApi.setRoute(campaignId, token.id, route).then(applyToken).catch((e) => flash(getErrorMessage(e), true));
+  // The pen finished a path: ask Ida / Ida y vuelta (open) or Ciclo (closed) before saving (D-0068).
+  const [penPath, setPenPath] = useState<{ token: VTTToken; points: { x: number; y: number }[]; closed: boolean } | null>(null);
+  const onRoute = (token: VTTToken, points: { x: number; y: number }[], closed = false) => setPenPath({ token, points, closed });
+  const onRouteEdit = (token: VTTToken, points: { x: number; y: number }[]) => {
+    if (token.route) void setRoute(token, { ...token.route, points });
+  };
+  const routeAction = (token: VTTToken, action: 'pause' | 'resume' | 'restart') =>
+    vttApi.routeAction(campaignId, token.id, action).then(applyToken).catch((e) => flash(getErrorMessage(e), true));
 
   const uploadMap = async (file: File) => {
     try {
@@ -269,7 +338,7 @@ export function VirtualTable() {
           <TableCanvas scene={scene} tokens={tokens} isGM={isGM} userId={user?.id ?? 0} viewers={viewers} tool={tool}
             selectedId={selectedId} onSelect={setSelectedId} onMove={onMove} onWalls={onWalls} onLights={onLights}
             objects={scene.mode === 'narrative' ? [] : objects} combats={combats} selectedObjectId={selectedObjectId} onSelectObject={setSelectedObjectId}
-            onPlaceObject={placeObject} onZones={onZones} characters={characters} />
+            onPlaceObject={placeObject} onZones={onZones} characters={characters} onRoute={onRoute} onRouteEdit={onRouteEdit} onPlaceNpc={placeNpc} />
         ) : (
           <div className="grid h-full place-items-center p-6 text-center">
             <div className="mc-card max-w-md p-8">
@@ -294,6 +363,9 @@ export function VirtualTable() {
               <span className="material-symbols-outlined text-[15px]">{scene.ambient_light === 'dark' ? 'dark_mode' : scene.ambient_light === 'dim' ? 'brightness_5' : 'light_mode'}</span>
               {scene.name}{isGM && !scene.is_active && <b className="text-warn"> · no activa</b>}
             </span>
+            {clockQ.data && <GameClockBar clock={clockQ.data} isGM={isGM} busy={clockBusy}
+              onStep={(step) => void moveClock(async () => summaryText((await npcAgendaApi.setClock(campaignId, { step })).summary))}
+              onApply={() => void moveClock(async () => summaryText(await npcAgendaApi.applyAgendas(campaignId)))} />}
           </div>
         )}
         {myCombat && (isGM || !explorer) && (
@@ -313,6 +385,38 @@ export function VirtualTable() {
             <div className="text-[13px]"><b>{selectedObject.name}</b>{selectedObject.check && <div className="text-xs text-muted">Prueba de {selectedObject.check.skill} (CD {selectedObject.check.dc})</div>}</div>
             <button type="button" className="mc-btn mc-btn-sm mc-btn-primary" disabled={selectedObject.depleted || selectedObject.attempted} onClick={() => interact(selectedObject)}>
               {selectedObject.depleted ? 'Vacío' : selectedObject.attempted ? 'Ya lo intentaste' : 'Interactuar'}</button>
+          </div>
+        )}
+        {agendaFor && clockQ.data && (
+          <div className="absolute left-1/2 top-16 z-20 -translate-x-1/2">
+            <SaveToAgendaDialog tokenName={agendaFor.name} clock={clockQ.data} onCancel={() => setAgendaFor(null)}
+              onSave={(dia, momento) => void saveToAgenda(agendaFor, dia, momento)} />
+          </div>
+        )}
+        {lootFor?.npc_id && (
+          <div className="absolute inset-0 z-30 flex items-start justify-center bg-black/40 p-3 pt-16" role="dialog" aria-modal="true" aria-label={`Saquear a ${lootFor.name}`}
+            onClick={(e) => { if (e.target === e.currentTarget) setLootFor(null); }}>
+            <div className="mc-card max-h-[75vh] w-full max-w-lg overflow-y-auto p-4 shadow-[var(--shadow-3)]">
+              <div className="mb-2 flex items-center justify-between"><b>Saquear a {lootFor.name}</b>
+                <button type="button" className="mc-btn mc-btn-sm" onClick={() => setLootFor(null)}>Cerrar</button></div>
+              <p className="mb-2 text-xs text-muted">Solo lo que lleva encima; lo que guarda en casa no se saquea en combate.</p>
+              <NPCBelongings campaignId={campaignId} npcId={lootFor.npc_id} lootOnly characters={characters.map((c) => ({ id: c.id, name: c.name }))} />
+            </div>
+          </div>
+        )}
+        {penPath && (
+          <div className="absolute left-1/2 top-16 z-20 -translate-x-1/2">
+            <RouteFinishDialog tokenName={penPath.token.name} points={penPath.points} closed={penPath.closed}
+              onConfirm={(route) => { void setRoute(penPath.token, route); setPenPath(null); setTool('select'); }}
+              onCancel={() => setPenPath(null)} />
+          </div>
+        )}
+        {isGM && tool === 'route' && !penPath && (
+          <div className="pointer-events-none absolute left-3 top-[3.75rem] z-10 max-w-[min(92%,640px)] rounded-lg border border-line bg-card/95 px-3 py-1.5 text-[11.5px] text-ink-2 shadow-[var(--shadow-1)]">
+            {selected && selected.kind !== 'pc'
+              ? <><b className="text-ink">Pluma</b> · clic: ancla · arrastrar: curva (Alt rompe, Mayús 45°) · clic en la 1.ª: cerrar · doble clic/Intro: terminar · Retroceso: borrar última · Esc: cancelar
+                  <br />Ruta guardada: clic en el trazo añade ancla · clic en ancla la borra · clic en un extremo continúa · arrastra anclas y manejadores · Alt+clic convierte esquina/suave</>
+              : 'Pluma: selecciona un PNJ o monstruo para trazar su ruta.'}
           </div>
         )}
         {notice && (
@@ -413,6 +517,15 @@ export function VirtualTable() {
                       ))}
                       <button type="button" className="mc-btn mc-btn-sm" onClick={() => addToken.mutate({ name: 'NPC', kind: 'npc', color: '#4b6aa3' })}><span className="material-symbols-outlined text-[16px]">add</span>NPC rápido</button>
                     </div>
+                    <details className="mt-2">
+                      <summary className="cursor-pointer text-[13px] text-ink-2">PNJ de la campaña</summary>
+                      <div className="mt-1.5">
+                        {placingNpc
+                          ? <p className="text-xs text-muted">Haz clic en el mapa para colocar a <b className="text-ink-2">{placingNpc.name}</b>. <button type="button" className="underline" onClick={() => { setPlacingNpc(null); setTool('select'); }}>Cancelar</button></p>
+                          : <PlaceNpcList npcs={npcsQ.data ?? []} placedIds={new Set(tokens.map((t) => t.npc_id).filter((v): v is number => Boolean(v)))}
+                              onPick={(n) => { setPlacingNpc(n); setTool('npc'); }} />}
+                      </div>
+                    </details>
                     <input className={`${inputCls} mt-2`} placeholder="Buscar monstruo del bestiario…" value={q} onChange={(e) => setQ(e.target.value)} />
                     {q.trim().length >= 2 && (
                       <div className="mt-1 overflow-hidden rounded-md border border-line">
@@ -435,6 +548,7 @@ export function VirtualTable() {
                           <span className="h-3 w-3 flex-none rounded-full" style={{ background: t.color }} />
                           <span className="grow truncate">{t.name}</span>
                           {t.hidden && <span className="material-symbols-outlined text-[16px] text-muted" title="Oculta">visibility_off</span>}
+                          {t.route && <span className="material-symbols-outlined text-[16px] text-muted" title={t.route_paused ? 'Ruta en pausa' : 'En ruta'}>{t.route_paused ? 'pause_circle' : 'route'}</span>}
                           {t.max_hp > 0 && <span className="font-mono text-xs text-muted">{t.hp}/{t.max_hp}</span>}
                         </button>
                       ))}
@@ -477,6 +591,26 @@ export function VirtualTable() {
                         </select>
                       </Field>
                       <label className="flex items-center justify-between text-[13.5px]">Oculta a los jugadores<input type="checkbox" checked={selected.hidden} onChange={(e) => updateToken(selected.id, { hidden: e.target.checked })} /></label>
+                      {selected.kind !== 'pc' && (
+                        <>
+                          <div className="grid grid-cols-2 gap-2">
+                            <Field label="Velocidad (pies)"><input type="number" min={0} step={5} className={inputCls} value={selected.speed_ft} onChange={(e) => updateToken(selected.id, { speed_ft: Number(e.target.value) })} /></Field>
+                            <label className="flex items-end justify-between gap-2 pb-2 text-[13.5px]">Detecta jugadores<input type="checkbox" checked={selected.detects} onChange={(e) => updateToken(selected.id, { detects: e.target.checked })} /></label>
+                          </div>
+                          <RoutinePanel token={selected} onSetRoute={(r) => void setRoute(selected, r)} onAction={(a) => void routeAction(selected, a)}
+                            onDisposition={(d) => updateToken(selected.id, { disposition: d })}
+                            extra={selected.npc_id ? (
+                              <div className="flex flex-wrap gap-1.5">
+                                <button type="button" className="mc-btn mc-btn-sm" onClick={() => setAgendaFor(selected)}>
+                                  <span aria-hidden="true" className="material-symbols-outlined text-[16px]">event_note</span>Guardar en la agenda…</button>
+                                <Link className="mc-btn mc-btn-sm" to={`/campaign/${campaignId}/gm/npcs/${selected.npc_id}`}>
+                                  <span aria-hidden="true" className="material-symbols-outlined text-[16px]">backpack</span>Inventario</Link>
+                                {selected.max_hp > 0 && selected.hp <= 0 && <button type="button" className="mc-btn mc-btn-sm mc-btn-danger" onClick={() => setLootFor(selected)}>
+                                  <span aria-hidden="true" className="material-symbols-outlined text-[16px]">front_hand</span>Saquear</button>}
+                              </div>
+                            ) : undefined} onStartDrawing={() => { setTool('route'); flash('Pluma: clic por ancla; clic en la primera cierra el ciclo; doble clic o Intro termina la línea.'); }} />
+                        </>
+                      )}
                     </div>
                   )}
                 </section>

@@ -122,8 +122,33 @@ func validateFields(kind string, input map[string]any) error {
 	case "events":
 		return validateEventRelations(input)
 	case "npcs":
+		if err := normalizeCombat(input); err != nil {
+			return err
+		}
 		return normalizeAppearance(input)
 	}
+	return nil
+}
+
+// normalizeCombat validates stats.combat of an NPC (npc-agenda.md §5) and stores it with its defaults filled.
+func normalizeCombat(input map[string]any) error {
+	stats, ok := input["stats"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	value, exists := stats["combat"]
+	if !exists {
+		return nil
+	}
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return errors.New("stats.combat is not valid JSON")
+	}
+	sheet, err := service.NormalizeNPCCombat(raw)
+	if err != nil {
+		return fmt.Errorf("stats.%w", err)
+	}
+	stats["combat"] = sheet
 	return nil
 }
 

@@ -43,6 +43,9 @@ func (h *MarketHandler) RegisterRoutes(g *gin.RouterGroup) {
 	g.POST("/campaigns/:id/npcs/:resource_id/items", h.SaveNPCItem)
 	g.PUT("/campaigns/:id/npc-items/:item_id", h.SaveNPCItem)
 	g.DELETE("/campaigns/:id/npc-items/:item_id", h.DeleteNPCItem)
+	g.PUT("/campaigns/:id/npcs/:resource_id/purse", h.NPCPurse)
+	g.POST("/campaigns/:id/npcs/:resource_id/give-coins", h.GiveNPCCoins)
+	g.POST("/campaigns/:id/npc-items/:item_id/give", h.GiveNPCItem)
 	g.GET("/campaigns/:id/appraisals", h.Appraisals)
 	g.PUT("/campaigns/:id/inventory-items/:item_id/value", h.AppraiseItem)
 }
@@ -521,4 +524,73 @@ func (h *MarketHandler) ResolveOffer(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": msg})
+}
+
+// ---------- NPC purse and hand-overs (npc-agenda.md §5) ----------
+
+// NPCPurse: PUT {delta_cp} adds or subtracts, {set_cp} sets the NPC purse.
+func (h *MarketHandler) NPCPurse(c *gin.Context) {
+	if !gmOnly(c) {
+		return
+	}
+	var in struct {
+		DeltaCP *int64 `json:"delta_cp"`
+		SetCP   *int64 `json:"set_cp"`
+	}
+	if err := c.ShouldBindJSON(&in); err != nil || (in.DeltaCP == nil) == (in.SetCP == nil) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Indica delta_cp o set_cp"})
+		return
+	}
+	amount, set := int64(0), in.SetCP != nil
+	if set {
+		amount = *in.SetCP
+	} else {
+		amount = *in.DeltaCP
+	}
+	purse, err := h.repo.AdjustPurse(c.Request.Context(), parseID(c.Param("id")), parseID(c.Param("resource_id")), amount, set)
+	if err != nil {
+		h.fail(c, err, "no se pudo actualizar la bolsa")
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"purse_cp": purse})
+}
+
+// GiveNPCItem: POST {character_id, quantity} moves an NPC item to a character's inventory.
+func (h *MarketHandler) GiveNPCItem(c *gin.Context) {
+	if !gmOnly(c) {
+		return
+	}
+	var in struct {
+		CharacterID int64 `json:"character_id"`
+		Quantity    int   `json:"quantity"`
+	}
+	if err := c.ShouldBindJSON(&in); err != nil || in.CharacterID == 0 || in.Quantity < 1 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Indica el personaje y una cantidad"})
+		return
+	}
+	if err := h.repo.GiveNPCItem(c.Request.Context(), parseID(c.Param("id")), parseID(c.Param("item_id")), in.CharacterID, in.Quantity); err != nil {
+		h.fail(c, err, "no se pudo entregar el objeto")
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+// GiveNPCCoins: POST {character_id, amount_cp} moves coins from the NPC purse to a character.
+func (h *MarketHandler) GiveNPCCoins(c *gin.Context) {
+	if !gmOnly(c) {
+		return
+	}
+	var in struct {
+		CharacterID int64 `json:"character_id"`
+		AmountCP    int64 `json:"amount_cp"`
+	}
+	if err := c.ShouldBindJSON(&in); err != nil || in.CharacterID == 0 || in.AmountCP < 1 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Indica el personaje y una cantidad de monedas"})
+		return
+	}
+	if err := h.repo.GiveNPCCoins(c.Request.Context(), parseID(c.Param("id")), parseID(c.Param("resource_id")), in.CharacterID, in.AmountCP); err != nil {
+		h.fail(c, err, "no se pudieron entregar las monedas")
+		return
+	}
+	c.Status(http.StatusNoContent)
 }

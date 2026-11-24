@@ -158,7 +158,8 @@ func IsMarketUserError(err error) bool {
 	var u ErrShopUnavailable
 	return errors.As(err, &u) || errors.Is(err, ErrInsufficientFunds) || errors.Is(err, repository.ErrOutOfStock) ||
 		errors.Is(err, repository.ErrNotEnoughItems) || errors.Is(err, repository.ErrNotSellable) ||
-		errors.Is(err, repository.ErrOfferActive) || errors.Is(err, repository.ErrOfferResolved)
+		errors.Is(err, repository.ErrOfferActive) || errors.Is(err, repository.ErrOfferResolved) ||
+		errors.Is(err, repository.ErrInsufficientPurse)
 }
 
 // ---------- Haggling over a cart (market-bastions.md §3) ----------

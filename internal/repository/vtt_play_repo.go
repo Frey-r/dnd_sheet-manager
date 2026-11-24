@@ -304,7 +304,7 @@ func (r *VTTRepository) TouchToken(ctx context.Context, tokenID int64, x, y floa
 
 func (r *VTTRepository) TokenByID(ctx context.Context, tokenID int64) (*domain.VTTToken, error) {
 	var t domain.VTTToken
-	if err := r.db.GetContext(ctx, &t, `SELECT `+tokenCols+` FROM vtt_tokens WHERE id=$1`, tokenID); err != nil {
+	if err := r.db.GetContext(ctx, &t, tokenSelect+` WHERE t.id=$1`, tokenID); err != nil {
 		return nil, notFound(err)
 	}
 	return &t, nil

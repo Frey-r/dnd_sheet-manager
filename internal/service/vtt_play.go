@@ -42,6 +42,18 @@ type VTTPlay struct {
 	rnd  *rand.Rand
 	mu   sync.Mutex
 	last map[int64]trackedPos // token id → last accepted exploration position
+	// afterCombat runs when a combat ends (the NPC agenda moves the NPCs it had to skip, npc-agenda.md §3).
+	afterCombat func(ctx context.Context, campaignID int64)
+}
+
+// SetAfterCombat registers what runs after a combat ends.
+func (p *VTTPlay) SetAfterCombat(fn func(ctx context.Context, campaignID int64)) { p.afterCombat = fn }
+
+func (p *VTTPlay) combatEnded(ctx context.Context, c *domain.VTTCombat) {
+	p.syncCombatScene(ctx, c.SceneID) // survivors go back to their routes
+	if p.afterCombat != nil {
+		p.afterCombat(ctx, c.CampaignID)
+	}
 }
 
 type trackedPos struct {
@@ -160,9 +172,9 @@ func (p *VTTPlay) checkTriggers(ctx context.Context, scene *domain.VTTScene, mov
 			return
 		}
 	}
-	// 3. Detection by senses (monsters with detects=true that are not already fighting).
+	// 3. Detection by senses: hostile detectors that are not already fighting (vtt-npc-routines.md §2).
 	for _, m := range tokens {
-		if !m.Detects || m.Kind == "pc" || m.HP <= 0 && m.MaxHP > 0 {
+		if !canDetect(m) {
 			continue
 		}
 		if inCombat, _ := p.repo.TokenInCombat(ctx, m.ID); inCombat != 0 {
@@ -171,24 +183,17 @@ func (p *VTTPlay) checkTriggers(ctx context.Context, scene *domain.VTTScene, mov
 		if !CanSee(scene, tokens, m, mover.X, mover.Y) {
 			continue
 		}
-		detected := true
+		if pos.seenBy == nil {
+			pos.seenBy = map[int64]bool{}
+		}
+		if p.notices(m, *mover, pos.seenBy) {
+			_, _ = p.StartEncounter(ctx, scene, mover.X, mover.Y, []int64{m.ID}, nil)
+			return
+		}
 		if mover.Sneaking {
-			if pos.seenBy[m.ID] {
-				continue // already beat this monster's perception while in view
-			}
-			pos.seenBy[m.ID] = true
 			p.mu.Lock()
 			p.last[mover.ID] = *pos
 			p.mu.Unlock()
-			passive := m.PassivePerc
-			if passive == 0 {
-				passive = 10
-			}
-			detected = p.d20()+mover.DexMod+mover.StealthBonus < passive
-		}
-		if detected {
-			_, _ = p.StartEncounter(ctx, scene, mover.X, mover.Y, []int64{m.ID}, nil)
-			return
 		}
 	}
 }
@@ -238,6 +243,7 @@ func (p *VTTPlay) StartEncounter(ctx context.Context, scene *domain.VTTScene, cx
 	c.RemainingMs = c.TurnSeconds * 1000
 	_ = p.repo.SaveCombatState(ctx, c)
 	p.emit(ctx, scene.CampaignID, "vtt.combat.updated", map[string]any{"scene_id": scene.ID, "combat_id": c.ID, "started": true})
+	p.SyncSceneRoutes(ctx, scene) // combatants stop walking their routes (vtt-npc-routines.md §3)
 	return c, nil
 }
 
@@ -278,6 +284,9 @@ func (p *VTTPlay) NextTurn(ctx context.Context, c *domain.VTTCombat, reason stri
 		return err
 	}
 	p.emit(ctx, c.CampaignID, "vtt.combat.updated", map[string]any{"scene_id": c.SceneID, "combat_id": c.ID, "reason": reason})
+	if c.Status == "ended" {
+		p.combatEnded(ctx, c)
+	}
 	return nil
 }
 
@@ -322,6 +331,7 @@ func (p *VTTPlay) EndCombat(ctx context.Context, c *domain.VTTCombat) error {
 		return err
 	}
 	p.emit(ctx, c.CampaignID, "vtt.combat.updated", map[string]any{"scene_id": c.SceneID, "combat_id": c.ID, "ended": true})
+	p.combatEnded(ctx, c)
 	return nil
 }
 
@@ -431,6 +441,7 @@ func (p *VTTPlay) RunTimers(ctx context.Context) {
 			return
 		case now := <-ticker.C:
 			p.flushPositions(ctx, now)
+			p.tickRoutes(ctx, now)
 			combats, err := p.repo.AllActiveCombats(ctx)
 			if err != nil {
 				continue

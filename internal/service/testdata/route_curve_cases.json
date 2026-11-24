@@ -1,0 +1,15 @@
+{
+  "_doc": "Curvas de Bézier en las rutas (vtt-npc-routines.md §3, D-0069). elapsed_frac = fracción de RouteCycleSeconds. La corren Go (vtt_route_curve_test.go) y TS (routeCurve.test.ts).",
+  "cases": [
+    {"name": "arco ida inicio", "mode": "once", "rate": 50, "elapsed_frac": 0, "points": [{"x":0,"y":0,"out":{"x":0,"y":100}},{"x":100,"y":0,"in":{"x":100,"y":100}}], "want": {"x":0,"y":0}},
+    {"name": "arco ida mitad por longitud", "mode": "once", "rate": 50, "elapsed_frac": 0.5, "points": [{"x":0,"y":0,"out":{"x":0,"y":100}},{"x":100,"y":0,"in":{"x":100,"y":100}}], "want": {"x":50,"y":75}},
+    {"name": "arco ida final", "mode": "once", "rate": 50, "elapsed_frac": 1, "points": [{"x":0,"y":0,"out":{"x":0,"y":100}},{"x":100,"y":0,"in":{"x":100,"y":100}}], "want": {"x":100,"y":0}},
+    {"name": "manejadores alineados son una recta", "mode": "once", "rate": 50, "elapsed_frac": 0.25, "points": [{"x":0,"y":0,"out":{"x":25,"y":0}},{"x":100,"y":0,"in":{"x":75,"y":0}}], "want": {"x":25,"y":0}},
+    {"name": "ida y vuelta llega al final a la mitad", "mode": "pingpong", "rate": 50, "elapsed_frac": 0.5, "points": [{"x":0,"y":0,"out":{"x":0,"y":100}},{"x":100,"y":0,"in":{"x":100,"y":100}}], "want": {"x":100,"y":0}},
+    {"name": "la vuelta usa la misma curva", "mode": "pingpong", "rate": 50, "elapsed_frac": 0.75, "points": [{"x":0,"y":0,"out":{"x":0,"y":100}},{"x":100,"y":0,"in":{"x":100,"y":100}}], "want": {"x":50,"y":75}},
+    {"name": "bucle arco de ida", "mode": "loop", "rate": 50, "elapsed_frac": 0.25, "points": [{"x":0,"y":0,"in":{"x":0,"y":-100},"out":{"x":0,"y":100}},{"x":100,"y":0,"in":{"x":100,"y":100},"out":{"x":100,"y":-100}}], "want": {"x":50,"y":75}},
+    {"name": "bucle cierre curvo", "mode": "loop", "rate": 50, "elapsed_frac": 0.75, "points": [{"x":0,"y":0,"in":{"x":0,"y":-100},"out":{"x":0,"y":100}},{"x":100,"y":0,"in":{"x":100,"y":100},"out":{"x":100,"y":-100}}], "want": {"x":50,"y":-75}},
+    {"name": "bucle completo vuelve al inicio", "mode": "loop", "rate": 50, "elapsed_frac": 1, "points": [{"x":0,"y":0,"in":{"x":0,"y":-100},"out":{"x":0,"y":100}},{"x":100,"y":0,"in":{"x":100,"y":100},"out":{"x":100,"y":-100}}], "want": {"x":0,"y":0}},
+    {"name": "un solo manejador sigue llegando al ancla", "mode": "once", "rate": 50, "elapsed_frac": 1, "points": [{"x":0,"y":0},{"x":100,"y":0,"in":{"x":100,"y":100}}], "want": {"x":100,"y":0}}
+  ]
+}
